@@ -1,4 +1,6 @@
-# 温新 Renew
+<p align="center"><img src="docs/images/icon.png" width="112" alt="温新"></p>
+
+<h1 align="center">温新 Renew</h1>
 
 > 温故而知新——像刷帖子一样学习的开源记忆卡片 App。
 

@@ -17,7 +17,8 @@
       "showSpinner": false
     },
     "LocalNotifications": {
-      "iconColor": "#3461f0"
+      "iconColor": "#3461f0",
+      "smallIcon": "ic_stat_renew"
     }
   }
 }

@@ -70,6 +70,8 @@ async function buildApp() {
 <meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <title>温新</title>
+<link rel="icon" type="image/png" href="favicon-64.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
@@ -86,7 +88,7 @@ ${body}
   cp(path.join(NM, 'mammoth/mammoth.browser.min.js'), path.join(WWW, 'vendor/mammoth.browser.min.js'));
   await esbuild({ entryPoints: [path.join(ROOT, 'src/sdk-entry.mjs')], bundle: true, minify: true, format: 'iife', platform: 'browser', target: ['es2020', 'safari15'], outfile: path.join(WWW, 'vendor/anthropic-sdk.js'), logLevel: 'warning' });
   copyData(path.join(WWW, 'data'));
-  for (const f of ['icon.svg']) if (fs.existsSync(path.join(ROOT, 'assets', f))) cp(path.join(ROOT, 'assets', f), path.join(WWW, f));
+  for (const f of fs.readdirSync(path.join(ROOT, 'resources/web'))) cp(path.join(ROOT, 'resources/web', f), path.join(WWW, f)); // 图标由 scripts/make_icons.py 生成
   const size = d => fs.readdirSync(d, { withFileTypes: true }).reduce((s, e) => s + (e.isDirectory() ? size(path.join(d, e.name)) : fs.statSync(path.join(d, e.name)).size), 0);
   console.log(`app: www/ ${(size(WWW) / 1048576).toFixed(1)} MB (app.js ${(js.length / 1024).toFixed(0)} KB)`);
 }

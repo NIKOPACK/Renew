@@ -44,6 +44,6 @@ npm run ios
 
 - [ ] `npm test` 全部通过，真机上走一遍：学习、复习、导入资料、AI 对话、提醒、导出备份
 - [ ] 更新 `package.json` 版本号与更新说明
-- [ ] 应用图标与启动图（`npx @capacitor/assets generate`，需要 1024×1024 源图）
+- [ ] 图标与启动图已由 `python3 scripts/make_icons.py` 从 `resources/icon-symbol.png` 生成；更换图标时替换源图后重新运行
 - [ ] 应用商店：隐私政策（温新不收集数据；AI 请求直接发往用户选择的服务商）、数据安全问卷
 - [ ] 国内应用商店：ICP 备案、软件著作权等材料

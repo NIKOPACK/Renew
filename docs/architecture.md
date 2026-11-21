@@ -6,9 +6,11 @@
 
 ```
 content/              课程源文本（示例课程）
+resources/            图标源图（icon-symbol.png）与生成的网页图标
 scripts/
   build.mjs           构建脚本
   build_content.py    课程编译器：*.txt → build/data/*.json
+  make_icons.py       由图标源图生成 Android / iOS / 网页的全部图标与启动图
 src/
   body.html           页面骨架
   css/app.css         全部样式（浅色 / 深色 / 护眼主题、动效）
