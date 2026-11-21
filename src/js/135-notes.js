@@ -1,5 +1,6 @@
 /* ============ 笔记阅读 ============ */
-function viewNotes({ course, sec }) {
+function viewNotes({ course, sec, tab }) {
+  if (tab === 'mine') return viewMyNotes({ course, sec });
   const v = $('#view'), c = COURSES.get(course), s = sec && SECS.get(sec); if (!c) return back();
   const secHTML = x => { const kps = secKps(x), qs = secQs(x);
     return `<section class="doc-sec" id="n-${x.id}"><h2>${esc(x.title)}</h2>${!kps.length && !qs.length ? '<p class="small">这一节还没有内容。</p>' : ''}${kps.map(it => `<article class="doc-kp" id="a-${it.id}" data-it="${it.id}">${bmBtn(c, it)}<h3>${esc(it.title || '知识点')}${it.imp >= 2 ? ' <span class="pill bad" style="vertical-align:middle">高频</span>' : ''}</h3><div class="md">${md(it.q)}</div>${it.d ? `<div class="md doc-d">${md(it.d)}</div>` : ''}</article>`).join('')}
@@ -7,10 +8,11 @@ function viewNotes({ course, sec }) {
   const body = s ? secHTML(s) : c.chapters.map(ch => `<div class="doc-ch"><span class="eyebrow">${esc(ch.title)}</span></div>${ch.sections.map(secHTML).join('')}`).join('');
   v.innerHTML = appbar(s ? s.title : c.title + ' · 笔记', `<button class="ibtn" id="nt-bms" aria-label="书签">${ico('bookmarks')}</button><button class="ibtn" id="nt-typo" aria-label="阅读排版">${ico('aa')}</button>`) + `<div class="wrap"><div class="stack" style="padding-top:6px">
   <header style="padding:4px 2px"><span class="eyebrow" style="color:${c.color}">${esc(c.title)}${s ? ' · ' + esc(CHAPS.get(s.chap).title) : ''}</span><h1 style="margin:6px 0 4px;font-size:26px;font-weight:800">${esc(s ? s.title : '课程笔记')}</h1></header>
+  ${noteTabs(c, s, 'read')}
   ${!s ? `<div class="chips">${c.chapters.map((ch, i) => `<button class="chip" data-jump="${ch.sections[0]?.id}">${esc(chapShort(ch))}</button>`).join('')}</div>` : ''}
   <div class="card doc">${body}</div>
   <button class="btn block" id="nt-exp">${ico('download')}导出为 Markdown</button></div></div>`;
-  $('[data-back]', v).onclick = back; $('#nt-typo').onclick = typoSheet;
+  $('[data-back]', v).onclick = back; $('#nt-typo').onclick = typoSheet; bindNoteTabs(v);
   $('#nt-exp').onclick = () => Files.save((s ? s.title : c.title) + '.md', s ? sectionMD(s, '#') : courseMD(c), 'text/markdown');
   $$('[data-jump]', v).forEach(b => b.onclick = () => { const t = $('#n-' + b.dataset.jump); if (t) scrollTo({ top: t.getBoundingClientRect().top + scrollY - 70, behavior: 'smooth' }); });
   $('.appbar', v).insertAdjacentHTML('beforeend', '<div class="readprog"><i id="nt-bar"></i></div>');

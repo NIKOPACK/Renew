@@ -243,6 +243,63 @@ await run('学习记录：按天查看与学习历史', async () => {
   await ctx.close();
 });
 
+await run('模型配置（对话 + 图片）与我的笔记', async () => {
+  const { page, ctx, errors } = await newPage(); const reqs = [], imgReqs = []; await mockAI(page, reqs);
+  const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+  await page.route('https://open.bigmodel.cn/**', r => { const req = r.request(); imgReqs.push({ url: req.url(), body: req.postDataJSON?.(), auth: req.headers().authorization }); return r.fulfill({ json: { data: [{ url: 'https://img.example.com/a.png' }] }, headers: { 'access-control-allow-origin': '*' } }); });
+  await page.route('https://img.example.com/**', r => r.fulfill({ body: PNG, headers: { 'content-type': 'image/png', 'access-control-allow-origin': '*' } }));
+  await page.evaluate(() => go('settings')); await page.waitForSelector('#s-img');
+  check(await page.evaluate(() => !!$('#s-ai') && /对话模型/.test($('#s-ai').textContent) && /图片模型/.test($('#s-img').textContent)), '设置页：对话模型、图片模型两项');
+  await page.click('#s-img'); await page.waitForSelector('#im-key');
+  await page.click('.imp [data-p="glm"]'); await page.fill('#im-key', 'img-key'); await shot(page, 'img-config');
+  await page.click('#im-test'); await page.waitForFunction(() => /生成成功/.test($('#im-msg').textContent), null, { timeout: 10000 });
+  check(await page.evaluate(() => $('#im-prev img')?.src.startsWith('blob:')), '图片模型：测试生成并显示预览');
+  check(imgReqs[0]?.url.endsWith('/images/generations') && imgReqs[0].body.model === 'cogview-4' && imgReqs[0].auth === 'Bearer img-key', '图片模型：OpenAI 兼容接口 + 用户的 Key');
+  await page.click('#im-save'); await page.waitForTimeout(500);
+  check(await page.evaluate(() => /智谱 CogView · cogview-4/.test($('#s-img').textContent)), '保存后设置页显示图片模型');
+  await page.evaluate(async () => { await Platform.aiConfig.set({ provider: 'deepseek', kind: 'openai', key: 'sk-test', model: 'deepseek-chat', base: 'https://api.deepseek.com' }); await AI.reload(); });
+
+  // 从小节菜单写感悟：AI 帮我写
+  await page.evaluate(() => go('section', { id: 'learn1s1' })); await page.waitForTimeout(500);
+  await page.click('#smore'); await page.waitForTimeout(300); await page.locator('.sheet .menu button', { hasText: '写本节感悟' }).click();
+  await page.waitForSelector('#nd-t', { timeout: 5000 }); await page.waitForTimeout(300);
+  await page.fill('#nd-t', '间隔重复比我想的有用'); await page.click('.aiacts [data-a="go"]');
+  await page.waitForSelector('.aiacts [data-a="0"]', { timeout: 10000 }); await shot(page, 'note-draft');
+  const pr = reqs.filter(x => x.body?.messages).at(-1)?.body.messages.at(-1).content || '';
+  check(/间隔重复比我想的有用/.test(pr) && /小节：/.test(pr) && /第一人称/.test(pr), 'AI 帮我写：提示里带上自己的想法和小节内容');
+  await page.click('.aiacts [data-a="0"]'); await page.waitForTimeout(500);
+  let n = await page.evaluate(() => { const n = Notes.get(Nav.stack.at(-1).params.id); return n && { body: n.body, title: n.title, sec: n.sec, ta: $('#ne-body').value }; });
+  check(n && /共 2 章/.test(n.body) && n.ta === n.body && n.title && n.sec === 'learn1s1', 'AI 草稿放进笔记，自动起标题并关联小节');
+  await page.click('#ne-body'); await page.keyboard.press('End'); await page.keyboard.type('\n自己补一句。'); await page.waitForTimeout(900);
+  check(await page.evaluate(() => /自己补一句/.test(Store.get('note/' + Nav.stack.at(-1).params.id).body)), '输入后自动保存');
+  // 润色
+  await page.click('[data-tool="polish"]'); await page.waitForSelector('.aiacts [data-a="0"]', { timeout: 10000 });
+  await page.click('.aiacts [data-a="0"]'); await page.waitForTimeout(400);
+  check(await page.evaluate(() => $('#ne-body').value.trim() === '这门课共 2 章。'), '润色：替换原文');
+  // AI 配图
+  await page.click('[data-tool="art"]'); await page.waitForSelector('#na-p'); await page.fill('#na-p', '一张卡片在时间轴上反复出现');
+  await page.click('#na-acts [data-a="gen"]'); await page.waitForSelector('#na-acts [data-a="ins"]', { timeout: 10000 }); await shot(page, 'note-art');
+  check(/卡片在时间轴上/.test(imgReqs.at(-1).body.prompt) && /不要出现任何文字/.test(imgReqs.at(-1).body.prompt), '配图：画面描述 + 风格要求');
+  await page.click('#na-acts [data-a="ins"]'); await page.waitForTimeout(900);
+  n = await page.evaluate(async () => { const n = Notes.get(Nav.stack.at(-1).params.id), k = Object.keys(n.imgs)[0]; const b = k && await Files.get(n.imgs[k]); return { k, marker: new RegExp('\\(img:' + k + '\\)').test(n.body), size: b?.size || 0, thumbs: $$('.nimgs .nth').length }; });
+  check(n.k && n.marker && n.size > 0 && n.thumbs === 1, '配图：图片存入本机文件区并插入正文');
+  await page.click('#ne-mode'); await page.waitForTimeout(700); await shot(page, 'note-read');
+  check(await page.evaluate(() => !!$('.nread .nfig img')?.src.startsWith('blob:') && /这门课共 2 章/.test($('.nread .md').textContent)), '预览：渲染正文和配图');
+  // 我的笔记列表
+  await page.click('[data-back]'); await page.waitForTimeout(500);
+  await page.evaluate(() => go('notes', { course: 'learn', tab: 'mine' })); await page.waitForTimeout(700); await shot(page, 'my-notes');
+  check(await page.evaluate(() => $$('.ncard').length === 1 && $('.ntab [data-ntab="mine"]').getAttribute('aria-pressed') === 'true' && !!$('.ncard .nth img')), '课程笔记「我的笔记」：列表、缩略图');
+  await page.click('[data-ntab="read"]'); await page.waitForTimeout(400);
+  check(await page.evaluate(() => !!$('.doc-kp')), '切回讲义');
+  // 新建后不写内容就返回：自动删除
+  const before = await page.evaluate(() => Notes.all().length);
+  await page.evaluate(() => newNote({ course: 'learn' })); await page.waitForTimeout(500); await page.click('[data-back]'); await page.waitForTimeout(400);
+  check(await page.evaluate(() => Notes.all().length) === before, '空笔记返回后自动删除');
+  check(await page.evaluate(() => DOC_RE.test('note/x')), '笔记随备份导入导出（note/ 文档）');
+  check(!errors.length, '没有脚本错误' + (errors.length ? '：' + errors.join(' | ') : ''));
+  await ctx.close();
+});
+
 await run('深色模式', async () => {
   const { page, ctx, errors } = await newPage({ dark: true });
   const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);

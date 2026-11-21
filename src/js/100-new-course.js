@@ -78,6 +78,6 @@ function editOutlineSheet(c) {
 async function deleteCourse(c) {
   if (!await confirmBox('删除课程', `会删除「${c.title}」的全部内容和学习记录，不能撤销。`, '删除', true)) return;
   for (const sec of courseSecs(c)) { Store.drop('sec/' + sec.id); for (const it of sec.items) ITEMS.delete(it.id); SECS.delete(sec.id); delete S().sec[sec.id]; }
-  c.chapters.forEach(ch => CHAPS.delete(ch.id)); Store.drop('course/' + c.id); Store.drop('srs/' + c.id); COURSES.delete(c.id); delete plan().courses[c.id];
+  c.chapters.forEach(ch => CHAPS.delete(ch.id)); Store.drop('course/' + c.id); Store.drop('srs/' + c.id); Notes.of(c.id).forEach(n => Notes.del(n)); COURSES.delete(c.id); delete plan().courses[c.id];
   saveState(); go('library', {}, { tab: true }); toast('已删除');
 }

@@ -33,9 +33,30 @@
 
 请求 `POST {接口地址}/chat/completions`（`stream: true`），解析 SSE 流中的文字与 `tool_calls`。如果服务商不允许 App 内的跨域请求，App 会自动改用原生 HTTP（CapacitorHttp），此时回答一次性显示、没有逐字效果。
 
+## 图片模型（可选）
+
+在「设置 → AI 服务 → 图片模型」中配置，用于给「我的笔记」生成配图。请求 `POST {接口地址}/images/generations`（OpenAI 兼容），返回 `b64_json` 或图片链接均可；图片会压缩后存进本机文件区。
+
+| 服务商 | 接口地址 | 默认模型 |
+| --- | --- | --- |
+| OpenAI | https://api.openai.com/v1 | gpt-image-1 |
+| 智谱 CogView | https://open.bigmodel.cn/api/paas/v4 | cogview-4 |
+| 硅基流动 | https://api.siliconflow.cn/v1 | Kwai-Kolors/Kolors（参数名为 image_size） |
+| OpenAI 兼容 | 自填（各类转发服务） | 自填 |
+
+「生成测试图」会真实生成一张图片，按服务商价格计费。
+
+## 我的笔记中的 AI
+
+课程「笔记」页的「我的笔记」分页可以写自己的感悟和总结（文档 `note/<id>`，随完整备份一起导出）。编辑页的 AI 工具：帮我写（根据小节知识点、错题、卡片笔记和学习记录，以第一人称起草感悟 / 总结 / 疑问）、润色、扩写、提炼要点、AI 配图。选中一段文字时只处理选中部分。
+
+## claude.ai 版本
+
+claude.ai 中默认使用内置的 Claude，也可以填写自己的 Key（不提供 Claude 直连选项）；浏览器安全策略可能拦截对外部服务的请求，连不上时请改用内置 Claude 或 App。
+
 ## 隐私
 
-- API Key 保存在设备上：App 中为 Capacitor Preferences（应用私有存储），浏览器中为 localStorage
+- 对话模型和图片模型的 API Key 保存在设备上（不进入备份）：App 中为 Capacitor Preferences（应用私有存储），浏览器中为 localStorage
 - 请求只发给你选择的服务商，内容包括你的问题、相关卡片和学习统计摘要
 - 温新本身不收集任何数据
 

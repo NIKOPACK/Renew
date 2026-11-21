@@ -700,3 +700,42 @@ html.native .md,html.native .md *{-webkit-user-select:text;user-select:text}
 .daytag .ic{width:14px;height:14px}
 .group.hist>.rowi:nth-child(n+6):not(.more){display:none}
 .group.hist.all>.rowi{display:flex!important}
+/* ---------- 我的笔记 ---------- */
+.ntab{margin:0 2px}
+.mn-cta{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.empty span{font-size:14px;line-height:1.55;max-width:300px}
+.nlist{display:flex;flex-direction:column;gap:10px}
+.ncard{display:flex;gap:12px;align-items:stretch;background:var(--surface);border-radius:16px;padding:14px 16px;text-align:left;transition:transform .2s var(--e-out)}
+.ncard:active{transform:scale(.985)}
+.ncard b{display:block;font-size:16px;font-weight:650;line-height:1.35}
+.ncard p{margin:4px 0 6px;color:var(--ink-2);font-size:14px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ncard .m{font-size:12px;color:var(--ink-3)}
+.nth{flex:none;width:64px;height:64px;border-radius:12px;overflow:hidden;background:var(--fill);position:relative;display:block}
+.nth img{width:100%;height:100%;object-fit:cover;display:block}
+.nth.miss img{display:none}
+.ned{gap:12px}
+.nlink{align-self:flex-start;display:inline-flex;align-items:center;gap:8px;max-width:100%;padding:5px 10px 5px 5px;border-radius:999px;background:var(--fill);font-size:13px;font-weight:600;color:var(--ink-2)}
+.nlink>span:not(.tico){white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nlink .tico{width:24px;height:24px;border-radius:8px}
+.nlink .tico .ic{width:15px;height:15px}
+.nlink>.ic{width:14px;height:14px;flex:none}
+.ntitle{width:100%;border:0;background:none;outline:none;font-size:26px;font-weight:800;padding:2px;letter-spacing:-.01em}
+.ntitle::placeholder,.nbody::placeholder{color:var(--ink-3)}
+.nbody{width:100%;min-height:220px;border:0;outline:none;resize:none;background:var(--surface);border-radius:16px;padding:14px 16px;font-family:var(--font-body);font-size:var(--fs);line-height:1.75;overflow:hidden}
+.nimgs{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding:2px}
+.nimgs .nth{cursor:pointer}
+.nimgs .rm{position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;display:grid;place-items:center}
+.nimgs .rm .ic{width:12px;height:12px}
+.ntools{position:sticky;bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 10px);z-index:5;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:6px;border-radius:20px;background:var(--bar);backdrop-filter:saturate(1.8) blur(20px);-webkit-backdrop-filter:saturate(1.8) blur(20px);box-shadow:0 6px 24px rgba(0,0,0,.1),0 0 0 .5px var(--sep)}
+.ntools .chip{height:32px;padding:0 12px;font-size:14px;background:var(--surface)}
+.ntools .chip .ic{width:16px;height:16px;color:var(--accent)}
+.nsaved{text-align:center;color:var(--ink-3)}
+.nread h1{font-size:24px;font-weight:800;margin:14px 0 8px;line-height:1.3}
+.nfig{margin:14px 0}
+.nfig img{width:100%;border-radius:14px;display:block;background:var(--fill);min-height:60px}
+.nfig figcaption{font-size:13px;color:var(--ink-2);text-align:center;margin-top:6px}
+.nfig:has(img:not([src])){display:none}
+.nprev img{width:100%;border-radius:14px;display:block}
+.aiw{display:flex;flex-direction:column;gap:12px}
+.aout{background:var(--fill);border-radius:14px;padding:12px 14px;max-height:46vh;overflow:auto;font-size:15px}
+.aout>:first-child{margin-top:0}.aout>:last-child{margin-bottom:0}

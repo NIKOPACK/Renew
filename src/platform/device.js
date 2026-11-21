@@ -5,11 +5,6 @@
    插件通过 Capacitor 注入的 window.Capacitor.Plugins 访问，不需要打包器。 */
 const APP_VERSION = '__VERSION__';
 const VENDOR = { pdf: 'vendor/pdf.min.js', pdfWorker: 'vendor/pdf.worker.min.js', mammoth: 'vendor/mammoth.browser.min.js', anthropic: 'vendor/anthropic-sdk.js' };
-const CAP = window.Capacitor, NATIVE = !!(CAP && CAP.isNativePlatform && CAP.isNativePlatform());
-const Plug = name => (CAP && CAP.Plugins && CAP.Plugins[name]) || null;
-
-const b64ToBlob = (b64, type = '') => { const bin = atob(b64), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return new Blob([u], { type }); };
-const blobToB64 = blob => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1] || ''); r.onerror = () => rej(r.error); r.readAsDataURL(blob); });
 
 /* ---- 原生文件系统：学习数据每个文档一个 JSON 文件，先写临时文件再改名，避免写一半损坏 ---- */
 const NativeFS = {
@@ -46,18 +41,6 @@ const NativeFS = {
   }
 };
 
-/* ---- AI 服务配置：App 存在原生 Preferences，网页存在 localStorage ---- */
-const AIConfig = {
-  async get() {
-    try { if (NATIVE) { const r = await Plug('Preferences').get({ key: 'ai' }); return r.value ? JSON.parse(r.value) : null; } } catch {}
-    return lsGet('aicfg');
-  },
-  async set(cfg) {
-    if (NATIVE) { try { await Plug('Preferences').set({ key: 'ai', value: JSON.stringify(cfg) }); return; } catch {} }
-    lsSet('aicfg', cfg);
-  }
-};
-
 const Platform = {
   id: NATIVE ? 'app' : 'web', native: NATIVE, aiConfigurable: true,
   aiNeed: '先在「设置 → AI 服务」里填写 API Key', aiNeedShort: '先设置 AI 服务',
@@ -83,7 +66,7 @@ const Platform = {
   ...(NATIVE ? { loadDocs: () => NativeFS.loadDocs(), writeDoc: (p, o) => NativeFS.writeDoc(p, o), dropDoc: p => NativeFS.dropDoc(p), saveKeys() {}, flush: () => NativeFS.flush(), blobs: NativeFS.blobs } : { ...WebDocs, blobs: IdbBlobs }),
   cloudDb: async () => null, cloudFiles: async () => null,
   async cloudBlob() { throw new Error('这个文件保存在 claude.ai 云端，请在 App 里重新导入原文件'); },
-  aiConfig: AIConfig,
+  aiConfig: AIConfig, imgConfig: ImgConfig, byoClaude: true,
   async ai() { const cfg = await AIConfig.get(); return cfg && cfg.key ? AIClient.create(cfg) : null; },
   async save(name, blob) {
     if (NATIVE) {

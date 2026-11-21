@@ -3,7 +3,7 @@ const LS = 'xl:';
 const lsGet = k => { try { return JSON.parse(localStorage.getItem(LS + k)); } catch { return null; } };
 const lsSet = (k, v) => { try { localStorage.setItem(LS + k, JSON.stringify(v)); } catch {} };
 const lsDel = k => { try { localStorage.removeItem(LS + k); } catch {} };
-const DOC_RE = /^(app|srs|sec|course|mat|job)\//;
+const DOC_RE = /^(app|srs|sec|course|mat|job|note)\//;
 const Store = {
   db: null, mode: 'local', docs: {}, timers: {}, busy: {}, again: {}, note: '',
   async init() {
@@ -16,7 +16,7 @@ const Store = {
     } catch { this.db = null; this.note = '云端存储不可用，进度只保存在这台设备上。'; }
   },
   async loadCloud() {
-    const db = this.db, cols = ['srs', 'sec', 'course', 'mat', 'job'];
+    const db = this.db, cols = ['srs', 'sec', 'course', 'mat', 'job', 'note'];
     const [st, pr, ...snaps] = await Promise.all([db.doc('app/state').get(), db.doc('app/prefs').get(), ...cols.map(c => db.collection(c).get())]);
     const seen = new Set();
     const merge = (path, snap) => {

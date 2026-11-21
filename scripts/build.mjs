@@ -36,7 +36,7 @@ function script(platformFiles, lateFiles = []) {
 }
 
 function buildArtifact() {
-  const js = script(['src/platform/common.js', 'src/platform/claude.js']);
+  const js = script(['src/platform/common.js', 'src/platform/claude.js', 'src/ai/clients.js', 'src/ai/image.js'], ['src/ai/settings.js']);
   const html = `<title>温新</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -59,7 +59,7 @@ ${js}</script>
 async function buildApp() {
   const WWW = path.join(ROOT, 'www');
   fs.rmSync(WWW, { recursive: true, force: true });
-  const js = script(['src/platform/common.js', 'src/platform/device.js', 'src/ai/clients.js'], ['src/ai/settings.js']);
+  const js = script(['src/platform/common.js', 'src/ai/clients.js', 'src/ai/image.js', 'src/platform/device.js'], ['src/ai/settings.js']);
   w(path.join(WWW, 'app.js'), js);
   w(path.join(WWW, 'app.css'), css);
   w(path.join(WWW, 'index.html'), `<!doctype html>

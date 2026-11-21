@@ -144,6 +144,7 @@ function viewSection({ id }) {
     { icon: 'wand', label: 'AI 补充内容', run: () => genSheet({ sid: id }) },
     { icon: 'upload', label: '导入卡片文本', run: () => importSheet(id) },
     { icon: 'doc', label: '本节笔记', run: () => go('notes', { course: c.id, sec: id }) },
+    { icon: 'edit', label: '写本节感悟', sub: 'AI 可以根据你的学习记录起草', run: () => newNote({ course: c.id, sec: id, ai: true }) },
     { icon: 'download', label: '导出本节', run: () => exportSheet(c, sec) },
     { icon: 'review', label: '复习本节', run: () => openReview('section-review', { sid: id }) },
     { icon: 'flag', label: '更改学习状态', run: () => statusSheet(id) }
@@ -230,6 +231,7 @@ function summaryCard(pr) {
   $('.endc', el).innerHTML = `<div class="badge">${ico('flag')}</div><h3>${esc(sec.title)}</h3><p>${p.kpd === p.kp && p.qd === p.q ? '本节学完了，之后按记忆曲线复习' : `还有 ${p.kp - p.kpd + p.q - p.qd} 个内容没学`}</p>
   <div class="kp3"><div><b data-count>${p.kpd}/${p.kp}</b><span>知识点</span></div><div><b>${qs.length ? right + '/' + qs.length : '—'}</b><span>本次答对</span></div><div><b>${wrong.length}</b><span>需加强</span></div></div>
   ${wrong.length ? `<div class="group menu">${wrong.slice(0, 6).map(x => `<button data-only="${x.it.id}">${ico(x.q ? 'pen' : 'bulb')}<span class="grow">${esc(plain(x.it.title || x.it.q).slice(0, 36))}<small>${TYPE_LABEL[x.it.t]} · 已加入错题本</small></span></button>`).join('')}</div>` : ''}
+  <button class="btn soft block" data-reflect>${ico('edit')}写下本节感悟</button>
   <div class="acts">${nxt ? `<button class="btn pri" data-next="${nxt.id}">下一节：${esc(nxt.title)}</button>` : ''}<button class="btn" data-home>回到今日</button><button class="btn ghost" data-course-go="${c.id}">课程目录</button></div>`;
   el.addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
@@ -237,6 +239,7 @@ function summaryCard(pr) {
     else if (b.dataset.only) go('session', { kind: 'section', sid: pr.sid, step: 'practice', only: b.dataset.only });
     else if (b.dataset.courseGo != null) { Nav.stack = [{ view: 'library' }, { view: 'course', params: { id: b.dataset.courseGo } }]; Nav.tab = 'library'; render(true); }
     else if (b.hasAttribute('data-home')) go('today', {}, { tab: true });
+    else if (b.hasAttribute('data-reflect')) newNote({ course: c.id, sec: sec.id, ai: true });
   });
   return el;
 }
