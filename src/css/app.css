@@ -739,3 +739,26 @@ html.native .md,html.native .md *{-webkit-user-select:text;user-select:text}
 .aiw{display:flex;flex-direction:column;gap:12px}
 .aout{background:var(--fill);border-radius:14px;padding:12px 14px;max-height:46vh;overflow:auto;font-size:15px}
 .aout>:first-child{margin-top:0}.aout>:last-child{margin-bottom:0}
+/* ---------- 首页学习流 ---------- */
+.dayband{display:flex;gap:8px;align-items:stretch;margin-bottom:12px}
+.db-main{flex:1;min-width:0;display:flex;align-items:center;gap:4px;background:var(--surface);border-radius:16px;padding:10px 12px 14px;position:relative;overflow:hidden}
+.db-k{flex:1;display:flex;flex-direction:column;align-items:center;gap:1px}
+.db-k b{font-size:17px;font-weight:700;line-height:1.2}
+.db-k b small{font-size:12px;color:var(--ink-2);font-weight:500}
+.db-k>span{font-size:11.5px;color:var(--ink-2)}
+.db-main>.chev{flex:none}
+.db-bar{position:absolute;left:12px;right:12px;bottom:6px;height:3px;border-radius:2px;background:var(--fill)}
+.db-bar i{display:block;height:100%;border-radius:2px;background:var(--accent);transition:width .4s var(--e-out)}
+.db-ck{flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;width:64px;border-radius:16px;background:var(--accent);color:var(--accent-ink);font-size:13px;font-weight:600}
+.db-ck .ic{width:20px;height:20px}
+.db-ck.on{background:var(--warn-soft);color:var(--warn)}
+.lt .round+.round{margin-left:-2px}
+.feed.home{padding-top:0}
+/* ---------- 笔记标签页 ---------- */
+.nb3{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:10px}
+.nb3 button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:12px;background:var(--surface);border-radius:16px;text-align:left;min-width:0}
+.nb3 button:active{background:var(--fill)}
+.nb3 .ib{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;color:#fff;background:var(--c);margin-bottom:6px}
+.nb3 .ib .ic{width:19px;height:19px}
+.nb3 b{font-size:15px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.nb3 span:not(.ib){font-size:12px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}

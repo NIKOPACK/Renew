@@ -95,7 +95,7 @@ function rate(p, g, manual) {
     p.requeued = true; Feed.queue.splice(Math.min(Feed.queue.length, Feed.rendered + 3), 0, it);
     if (Feed.rendered < Feed.queue.length) { $('.endc')?.remove(); if (Feed.queue.length - Feed.rendered <= 1) moreFeed(); }
   }
-  saveSrs(it.course); saveState(); rerender(p, p.auto != null && first ? 'ans' : 'rate'); updateSessionBar();
+  saveSrs(it.course); saveState(); rerender(p, p.auto != null && first ? 'ans' : 'rate'); updateSessionBar(); if (first) dailyRated();
   if (manual && P().autoNext !== false) advance(p);
 }
 function onFeedClick(e) {

@@ -37,7 +37,7 @@ function viewAI() {
     { icon: 'plus', label: '新建课程', run: newCourseSheet },
     { icon: 'wand', label: '为小节生成内容', run: () => pickSection('选择小节', sid => genSheet({ sid })) },
     { icon: 'target', label: '薄弱点补强', run: weakSheet },
-    { icon: 'folder', label: '导入资料', run: () => go('materials', {}, { tab: true }) }
+    { icon: 'folder', label: '导入资料', run: () => go('materials') }
   ]);
   $$('[data-sg]', v).forEach(b => b.onclick = () => { const q = SUGGEST[+b.dataset.sg][1]; if (b.dataset.sg === '0') { inp.value = '我在书上已经学到了'; inp.focus(); inp.oninput(); } else aiSend(q); });
   $('#ch-down').onclick = () => scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });

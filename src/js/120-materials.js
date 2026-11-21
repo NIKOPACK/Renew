@@ -184,7 +184,7 @@ ${src}`, { signal: ctl.signal, cache: false, ...(images.length ? { images } : {}
       m.course = cid; saveMat(m);
       const job = { id: newId('j'), mat: m.id, course: cid, mode: st.mode, density: st.density, title: `${m.name} → ${COURSES.get(cid).title}`, steps, status: 'paused', createdAt: Date.now() };
       Store.put('job/' + job.id, job); logEvent('创建整理任务 ' + job.title); saveState(); s.close();
-      Nav.tab = 'materials'; Nav.stack = [{ view: 'materials' }]; render(true); Runner.run(job.id);
+      Nav.tab = 'library'; Nav.stack = [{ view: 'library' }, { view: 'course', params: { id: cid } }, { view: 'cmats', params: { id: cid } }]; render(true); Runner.run(job.id);
     };
   };
   step1();
@@ -230,13 +230,13 @@ const Runner = {
 function jobProg(j) { const d = j.steps.filter(x => ['done', 'skip'].includes(x.st)).length; return { d, t: j.steps.length, err: j.steps.filter(x => x.st === 'err').length, items: j.steps.reduce((s, x) => s + (x.n || 0), 0) }; }
 function jobUI() {
   updatePill();
-  const v = Nav.stack[Nav.stack.length - 1]?.view; if (v === 'materials' || v === 'material') { const y = scrollY; render(false); scrollTo(0, y); }
+  const v = Nav.stack[Nav.stack.length - 1]?.view; if (v === 'materials' || v === 'material' || v === 'cmats') { const y = scrollY; render(false); scrollTo(0, y); }
 }
 function updatePill() {
   const j = Runner.job, pill = $('#jobpill'), v = Nav.stack[Nav.stack.length - 1]?.view;
-  if (j && v !== 'session' && v !== 'materials' && v !== 'ai') {
+  if (j && v !== 'session' && v !== 'materials' && v !== 'cmats' && v !== 'ai') {
     const p = jobProg(j), html = `<span class="spin" style="width:16px;height:16px;border-width:2px"></span><span>AI 整理中 ${p.d}/${p.t}</span>`;
-    if (pill) pill.innerHTML = html; else { const el = h(`<button id="jobpill" class="jobpill">${html}</button>`); el.onclick = () => go('materials', {}, { tab: true }); document.body.append(el); }
+    if (pill) pill.innerHTML = html; else { const el = h(`<button id="jobpill" class="jobpill">${html}</button>`); el.onclick = () => { const jc = Runner.job?.course; jc && COURSES.has(jc) ? go('cmats', { id: jc }) : go('materials'); }; document.body.append(el); }
   } else pill?.remove();
 }
 
@@ -247,17 +247,17 @@ function bindJobButtons(v) {
   $$('[data-jcourse]', v).forEach(b => b.onclick = () => { Nav.tab = 'library'; Nav.stack = [{ view: 'library' }, { view: 'course', params: { id: b.dataset.jcourse } }]; render(true); });
   $$('[data-jdel]', v).forEach(b => b.onclick = async () => { if (await confirmBox('删除任务', '只删除任务记录，已生成的内容会保留。', '删除', true)) { Store.drop('job/' + b.dataset.jdel); refresh(); } });
 }
-function pasteSheet() {
+function pasteSheet(course) {
   const body = h(`<div style="display:flex;flex-direction:column;gap:12px"><label class="field"><span>名称</span><input class="inp" id="ps-n" placeholder="如：第三章课堂笔记"></label><label class="field"><span>内容</span><textarea class="inp" id="ps-t" style="min-height:240px" placeholder="粘贴讲义、网页文章、笔记或卡片文本（:: 格式）"></textarea></label><button class="btn pri" id="ps-ok">保存为资料</button></div>`);
   const s = sheet('粘贴资料', body);
   $('#ps-ok', body).onclick = async () => {
     const t = $('#ps-t', body).value; if (!t.trim()) return toast('内容是空的');
     if (/^::\s*(kp|note|choice|multi|tf|qa|cloze|think)\b/m.test(t) || /^@course/m.test(t)) { s.close(); return importCardText(t, $('#ps-n', body).value.trim()); }
-    const m = await ingestText($('#ps-n', body).value.trim(), t); s.close(); go('material', { id: m.id }); toast('已保存，可以交给 AI 整理');
+    const m = await ingestText($('#ps-n', body).value.trim(), t); if (course) { m.course = course; saveMat(m); } s.close(); go('material', { id: m.id }); toast('已保存，可以交给 AI 整理');
   };
 }
 function busySheet(title) { const body = h(`<div style="display:flex;flex-direction:column;gap:12px;padding:10px 0 20px"><div class="prog" id="bz"><span class="spin"></span><span>准备中…</span></div></div>`); const s = sheet(title, body); return { s, msg: t => { const el = $('#bz span:last-child', body); if (el) el.textContent = t; } }; }
-async function importFiles(files) {
+async function importFiles(files, opt = {}) {
   if (!files.length) return;
   const imgs = files.filter(f => /^image\//.test(f.type)), others = files.filter(f => !/^image\//.test(f.type));
   const b = busySheet('导入'), made = [];
@@ -272,6 +272,7 @@ async function importFiles(files) {
     if (imgs.length) made.push(await ingestImages(imgs, '', b.msg));
   } catch (e) { b.s.close(); return toast('导入失败：' + (e.message || e)); }
   b.s.close();
+  if (opt.course) for (const m of made) { m.course = opt.course; saveMat(m); }
   if (made.length === 1) { go('material', { id: made[0].id }); toast('已导入，下一步交给 AI 整理'); }
   else if (made.length) { refresh(); toast(`已导入 ${made.length} 份资料`); }
 }

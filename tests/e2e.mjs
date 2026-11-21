@@ -92,7 +92,7 @@ async function newPage(opts = {}) {
   page.on('pageerror', e => errors.push(e.message));
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|favicon/.test(m.text())) errors.push(m.text()); });
   if (opts.native) await page.addInitScript(capMock);
-  await page.goto(URL0); await page.waitForSelector('.stat3', { timeout: 20000 });
+  await page.goto(URL0); await page.waitForSelector('.dayband', { timeout: 20000 });
   return { page, ctx, errors };
 }
 const shot = (page, n) => page.screenshot({ path: path.join(SHOTS, n + '.png') });
@@ -152,7 +152,7 @@ await run('模拟原生环境（Capacitor）', async () => {
   await page.evaluate(() => go('section', { id: 'learn1s1' })); await page.waitForTimeout(600); await page.click('#start'); await page.waitForSelector('.post .rate');
   await page.locator('.post .rate[data-g="3"]').first().click(); await page.waitForTimeout(300);
   await page.evaluate(() => window.__capL.appStateChange({ isActive: false })); await page.waitForTimeout(800);
-  await page.reload(); await page.waitForSelector('.stat3'); await page.waitForTimeout(300);
+  await page.reload(); await page.waitForSelector('.dayband'); await page.waitForTimeout(300);
   check(await page.evaluate(() => todayStats().n) === 1, '学习记录写入文件系统，重启后仍在');
   await page.evaluate(() => go('settings')); await page.waitForSelector('#s-rem'); await page.click('#s-rem'); await page.waitForTimeout(500);
   check((await page.evaluate(() => JSON.parse(sessionStorage.getItem('notif') || '{}').list || [])).length > 0, '开启每日提醒后安排了本地通知');
@@ -232,7 +232,7 @@ await run('学习记录：按天查看与学习历史', async () => {
   await page.evaluate(() => go('section', { id: 'learn1s1' })); await page.waitForTimeout(500); await page.click('#start'); await page.waitForSelector('.post .rate');
   await page.locator('.post .rate[data-g="3"]').first().click(); await page.waitForTimeout(300);
   await page.click('[data-close-s]'); await page.waitForTimeout(500); await page.evaluate(() => go('today', {}, { tab: true })); await page.waitForTimeout(600);
-  await page.click('.week [data-day].today'); await page.waitForSelector('.sheet [data-goto-sec]'); await page.waitForTimeout(400); await shot(page, 'day');
+  await page.click('#db-open'); await page.waitForSelector('.sheet .week'); await page.click('.sheet .week [data-wday].today'); await page.waitForSelector('.sheet [data-goto-sec]'); await page.waitForTimeout(400); await shot(page, 'day');
   check(await page.evaluate(() => $('.sheet [data-goto-sec]')?.dataset.gotoSec) === 'learn1s1', '今日页点当天：显示学过的小节');
   await page.click('.sheet [data-goto-sec]'); await page.waitForTimeout(700);
   check(await page.evaluate(() => Nav.stack.at(-1).view === 'section' && Nav.stack.at(-1).params.id === 'learn1s1'), '从记录跳到小节继续学习');
@@ -296,6 +296,48 @@ await run('模型配置（对话 + 图片）与我的笔记', async () => {
   await page.evaluate(() => newNote({ course: 'learn' })); await page.waitForTimeout(500); await page.click('[data-back]'); await page.waitForTimeout(400);
   check(await page.evaluate(() => Notes.all().length) === before, '空笔记返回后自动删除');
   check(await page.evaluate(() => DOC_RE.test('note/x')), '笔记随备份导入导出（note/ 文档）');
+  check(!errors.length, '没有脚本错误' + (errors.length ? '：' + errors.join(' | ') : ''));
+  await ctx.close();
+});
+
+await run('首页学习流、笔记标签页、资料归入课程', async () => {
+  const { page, ctx, errors } = await newPage();
+  let st = await page.evaluate(() => ({ kind: Feed.params?.kind, q: Feed.queue.length, posts: $$('#feed .post[data-pk]').length, tabs: $$('.tabbar [data-tab]').map(b => b.dataset.tab).join() }));
+  check(st.kind === 'daily' && st.q > 0 && st.posts > 0, `首页直接是学习流（${st.q} 个内容）`);
+  check(st.tabs === 'today,library,notebook,review,ai', '标签栏：今日 课程 笔记 记录 AI（资料不再单独占一栏）');
+  await page.locator('#feed .post .rate[data-g="3"]').first().click(); await page.waitForTimeout(400);
+  check(await page.evaluate(() => /^1/.test($('.dayband .db-k b').textContent)), '在首页评分后今日进度立即更新');
+  await page.evaluate(() => scrollTo(0, 900)); await page.waitForTimeout(300); const y0 = await page.evaluate(() => scrollY);
+  await page.click('.tabbar [data-tab="library"]'); await page.waitForTimeout(500); await page.click('.tabbar [data-tab="today"]'); await page.waitForTimeout(600);
+  st = await page.evaluate(() => ({ kind: Feed.params === Daily.pr, rated: $$('#feed .rate.on').length, y: scrollY }));
+  check(st.kind && st.rated === 1 && Math.abs(st.y - y0) < 80, `切换标签后回到首页：保留已刷内容和位置（${y0}→${st.y}）`);
+  // 刷完今天的内容
+  for (let i = 0; i < 40; i++) {
+    const done = await page.evaluate(() => !!$('#feed .endc')); if (done) break;
+    await page.evaluate(() => { const p = [...Feed.posts.values()].find(p => p.g == null); if (p) rate(p, 3); else moreFeed(); });
+    await page.waitForTimeout(60);
+  }
+  await page.evaluate(() => $('#feed .endc')?.scrollIntoView()); await page.waitForTimeout(500); await shot(page, 'home-end');
+  check(await page.evaluate(() => /刷完了/.test($('#feed .endc h3').textContent) && !!$('#feed .endc [data-ck]')), '刷完后：完成卡片 + 打卡');
+  const more = await page.evaluate(() => !!$('#feed .endc [data-more]'));
+  if (more) { const q0 = await page.evaluate(() => Feed.queue.length); await page.click('#feed .endc [data-more]'); await page.waitForTimeout(400); check(await page.evaluate(q => Feed.queue.length > q && !!$('#feed .post .rate:not(.on)'), q0), '「再学一些」接着往下刷'); }
+  await page.evaluate(() => scrollTo(0, 0)); await page.click('#db-open'); await page.waitForSelector('.sheet .stat3');
+  check(await page.evaluate(() => $$('.sheet .group .rowi').length >= 2 && !!$('.sheet .week')), '今日条：点开是任务清单、打卡和本周');
+  await page.click('.sheet [data-close]'); await page.waitForTimeout(400);
+  // 笔记标签页
+  await page.evaluate(() => { const n = Notes.create({ course: 'learn', sec: 'learn1s1', title: '遗忘曲线的启发', body: '复习要趁早。' }); });
+  await page.click('.tabbar [data-tab="notebook"]'); await page.waitForTimeout(600); await shot(page, 'notebook');
+  check(await page.evaluate(() => $('.lt h1').textContent === '笔记' && $$('.nb3 button').length === 3 && /遗忘曲线的启发/.test($('.ncard').textContent) && /学习的科学/.test($('.ncard .m').textContent)), '笔记页：快捷入口 + 所有课程的笔记（标出课程）');
+  await page.click('.ncard'); await page.waitForTimeout(500);
+  check(await page.evaluate(() => Nav.stack.at(-1).view === 'note' && Nav.tab === 'notebook'), '从笔记页打开笔记');
+  // 资料归入课程
+  await page.evaluate(() => go('cmats', { id: 'learn' })); await page.waitForTimeout(500);
+  await page.setInputFiles('#view [data-f]', { name: '第一章讲义.txt', mimeType: 'text/plain', buffer: Buffer.from('遗忘曲线讲义。'.repeat(40)) });
+  await page.waitForFunction(() => Nav.stack.at(-1).view === 'material', null, { timeout: 8000 }); await page.waitForTimeout(400); await shot(page, 'material-in-course');
+  const m = await page.evaluate(() => { const m = MATS.get(Nav.stack.at(-1).params.id); return { course: m.course, btn: $('#mm-in')?.textContent }; });
+  check(m.course === 'learn' && /整理进「学习的科学」/.test(m.btn), '在课程资料页导入：资料直接归到这门课，下一步「整理进本课程」');
+  await page.evaluate(() => go('materials')); await page.waitForTimeout(500);
+  check(await page.evaluate(() => $('.gh b')?.textContent === '学习的科学' && !!$('[data-back]')), '全部资料按课程分组');
   check(!errors.length, '没有脚本错误' + (errors.length ? '：' + errors.join(' | ') : ''));
   await ctx.close();
 });

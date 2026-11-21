@@ -106,9 +106,9 @@ function aiWriteSheet({ title, form = '', auto = !form, prompt, actions }) {
 const noteTabs = (c, s, cur) => { const n = Notes.of(c.id, s?.id).length + cardNotes(c, s).length;
   return `<div class="seg ntab"><button data-ntab="read" aria-pressed="${cur === 'read'}">讲义</button><button data-ntab="mine" aria-pressed="${cur === 'mine'}">我的笔记${n ? ` <span class="n">${n}</span>` : ''}</button></div>`; };
 function bindNoteTabs(v) { $$('[data-ntab]', v).forEach(b => b.onclick = () => { const top = Nav.stack[Nav.stack.length - 1]; if ((top.params.tab || 'read') === b.dataset.ntab) return; top.params = { ...top.params, tab: b.dataset.ntab, jump: undefined }; top.y = 0; render(false); }); }
-function noteCard(n) {
-  const sec = n.sec && SECS.get(n.sec), k = noteFirstImg(n), sn = noteSnippet(n);
-  return `<button class="ncard" data-note="${n.id}"><span class="grow"><b>${esc(n.title.trim() || sn.slice(0, 18) || '无标题笔记')}</b>${sn ? `<p>${esc(sn)}</p>` : ''}<span class="m">${sec ? esc(sec.title) + ' · ' : ''}${fmtWhen(n.updated)}</span></span>${k ? `<span class="nth"><img data-nimg="${esc(k)}" alt=""></span>` : ''}</button>`;
+function noteCard(n, showCourse) {
+  const sec = n.sec && SECS.get(n.sec), k = noteFirstImg(n), sn = noteSnippet(n), c = showCourse && COURSES.get(n.course);
+  return `<button class="ncard" data-note="${n.id}"><span class="grow"><b>${esc(n.title.trim() || sn.slice(0, 18) || '无标题笔记')}</b>${sn ? `<p>${esc(sn)}</p>` : ''}<span class="m">${c ? esc(c.title) + ' · ' : ''}${sec ? esc(sec.title) + ' · ' : ''}${fmtWhen(n.updated)}</span></span>${k ? `<span class="nth"><img data-nimg="${esc(k)}" alt=""></span>` : ''}</button>`;
 }
 function viewMyNotes({ course, sec }) {
   const v = $('#view'), c = COURSES.get(course), s = sec && SECS.get(sec); if (!c) return back();
@@ -259,4 +259,45 @@ function noteArtSheet(n, cfg, insert) {
   };
   s.onclose = () => busy?.abort();
   acts(); setTimeout(() => pt.focus(), 300);
+}
+
+/* ============ 「笔记」标签页：所有课程的笔记、书签、收藏 ============ */
+let nbCourse = '';
+function reflectToday() {
+  const sid = Object.keys(S().hist?.[dayKey()] || {}).find(id => SECS.has(id)), c = sid ? SECS.get(sid).course : activeCourses()[0]?.id || shownCourses()[0]?.id;
+  if (!c) return toast('先添加一门课程'); newNote({ course: c, sec: sid, ai: true });
+}
+function pickCourse(title, run) {
+  const cs = shownCourses(); if (!cs.length) return toast('先添加一门课程');
+  if (cs.length === 1) return run(cs[0]);
+  const recent = Object.keys(S().hist?.[dayKey()] || {}).map(id => SECS.get(id)?.course);
+  cs.sort((a, b) => (recent.includes(b.id) - recent.includes(a.id)) || (activeCourses().includes(b) - activeCourses().includes(a)));
+  menuSheet(title, cs.map(c => ({ icon: 'book', label: c.title, sub: c.cat, run: () => run(c) })));
+}
+function viewNotebook() {
+  const v = $('#view');
+  Notes.all().filter(x => Notes.empty(x) && Date.now() - x.created > 3000).forEach(x => Notes.del(x));
+  const all = Notes.all().filter(n => COURSES.has(n.course)).sort((a, b) => b.updated - a.updated), cs = shownCourses();
+  const withN = cs.filter(c => all.some(n => n.course === c.id) || cardNotes(c).length);
+  if (nbCourse && !withN.some(c => c.id === nbCourse)) nbCourse = '';
+  const list = all.filter(n => !nbCourse || n.course === nbCourse), cards = (nbCourse ? [COURSES.get(nbCourse)] : withN).flatMap(c => cardNotes(c));
+  const bmN = cs.reduce((s, c) => s + bookmarks(c.id).filter(b => ITEMS.has(b.it)).length, 0), starN = starItems().length;
+  v.innerHTML = `<div class="wrap"><header class="lt"><div class="t"><h1>笔记</h1></div><button class="round acc" id="nb-new" aria-label="写笔记">${ico('edit', '', 'duo')}</button></header>
+  <div class="stack">
+  <div class="nb3"><button id="nb-ai"><span class="ib" style="--c:var(--accent)">${ico('spark', '', 'duo')}</span><b>写今天的感悟</b><span>AI 根据学习记录起草</span></button>
+    <button id="nb-star"><span class="ib" style="--c:#df8a0b">${ico('star', '', 'duo')}</span><b>收藏</b><span>${starN} 张卡片</span></button>
+    <button id="nb-bm"><span class="ib" style="--c:#2f9e63">${ico('bookmarks', '', 'duo')}</span><b>书签</b><span>${bmN} 处</span></button></div>
+  ${withN.length > 1 ? `<div class="chips">${[['', '全部'], ...withN.map(c => [c.id, c.title])].map(([id, l]) => `<button class="chip" data-nbc="${id}" aria-pressed="${nbCourse === id}">${esc(l)}</button>`).join('')}</div>` : ''}
+  ${list.length ? `<div class="nlist">${list.map(n => noteCard(n, !nbCourse)).join('')}</div>` : ''}
+  ${cards.length ? `<div class="gh"><b>卡片笔记</b><span>${cards.length}</span></div><div class="group">${cards.map(it => `<button class="rowi" data-cnote="${it.id}"><span class="grow"><div class="t">${esc(plain(it.title || it.q).slice(0, 40))}</div><div class="m">${esc(COURSES.get(it.course).title)} · ${esc(plain(S().notes[it.id]).slice(0, 50))}</div></span>${ico('chev', 'chev')}</button>`).join('')}</div>` : ''}
+  ${!list.length && !cards.length ? `<div class="empty">${ico('notebook')}<b>还没有笔记</b><span>学完一节后，把收获、疑问和联想记下来。学习时卡片右上角「…」也可以给单张卡片写笔记。</span></div>` : ''}
+  </div></div>`;
+  $('#nb-new').onclick = () => nbCourse ? newNote({ course: nbCourse }) : pickCourse('写哪门课的笔记', c => newNote({ course: c.id }));
+  $('#nb-ai').onclick = reflectToday;
+  $('#nb-star').onclick = () => starN ? openReview('star') : toast('学习时点卡片右上角「…」→ 收藏');
+  $('#nb-bm').onclick = () => { const bc = cs.filter(c => bookmarks(c.id).some(b => ITEMS.has(b.it))); if (!bc.length) return toast('阅读课程笔记时，点知识点右上角的书签图标添加'); if (bc.length === 1) return bookmarkSheet(bc[0]); menuSheet('书签', bc.map(c => ({ icon: 'bookmarks', label: c.title, sub: bookmarks(c.id).length + ' 处', run: () => bookmarkSheet(c) }))); };
+  $$('[data-nbc]', v).forEach(b => b.onclick = () => { nbCourse = b.dataset.nbc; refresh(); });
+  $$('[data-note]', v).forEach(b => b.onclick = () => go('note', { id: b.dataset.note }));
+  $$('[data-cnote]', v).forEach(b => b.onclick = () => { const x = noteSheet(ITEMS.get(b.dataset.cnote)); if (x) x.onclose = () => setTimeout(refresh, 300); });
+  hydrateImgs(v, { imgs: Object.assign({}, ...list.map(n => n.imgs || {})) });
 }

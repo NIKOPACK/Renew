@@ -17,46 +17,6 @@ const coverHTML = (c, extra = '') => `<div class="cover" style="--c:${c.color}">
 const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
 
 /* ---- 今日 ---- */
-function viewToday() {
-  const v = $('#view'), M = todayModel(), d = new Date(Date.now() - CUT), ck = S().checkins[dayKey()];
-  const canCheck = !ck && (M.finished || M.doneN >= 20) && M.doneN > 0, sk = streak();
-  const next = M.courses.find(x => x.sec && x.done < x.pace) || M.courses.find(x => x.sec);
-  let hero = '';
-  if (next) {
-    const p = secProg(next.sec), st = secStatus(next.sec), all = p.kp + p.q, dn = p.kpd + p.qd;
-    hero = `<button class="cont press" data-sec="${next.sec.id}" style="--c:${next.c.color}"><span class="cv">${ico(courseIcon(next.c), '', 'duo')}</span><span class="grow"><div class="k">${st === 'learning' ? '继续学习' : st === 'empty' ? '待生成内容' : '下一节'} · ${esc(next.c.title)}</div><div class="tt">${esc(next.sec.title)}</div><div class="pbar"><i style="width:${pct(dn, all)}%;background:${next.c.color}"></i></div><div class="m">${st === 'empty' ? '待生成' : `${p.kp} 个知识点 · ${p.q} 道练习`}</div></span><span class="play">${ico('play', '', 'fill')}</span></button>`;
-  } else if (!M.courses.length) hero = `<button class="cont press" data-tabgo="library"><span class="cv" style="--c:var(--accent)">${ico('book')}</span><span class="grow"><div class="k">开始</div><div class="tt">选择一门课程</div></span><span class="play">${ico('chev')}</span></button>`;
-  const nGoal = M.courses.reduce((s, x) => s + (x.sec ? Math.max(x.pace, x.done) : x.done), 0);
-  const rGoal = M.t.r + M.due;
-  const task = (done, title, sub, attrs, right = '') => `<button class="rowi ${done ? 'done' : ''}" ${attrs}><span class="chk ${done ? 'on' : ''}">${ico('check')}</span><span class="grow"><div class="t">${title}</div>${sub ? `<div class="m">${sub}</div>` : ''}</span>${right}${ico('chev', 'chev')}</button>`;
-  const rows = [];
-  rows.push(task(M.due === 0, '复习', M.due ? `${M.due} 个今天到期` : M.t.r ? `已复习 ${M.t.r} 个` : '今天没有到期内容', 'data-review="review"', M.due ? `<span class="r num">${M.due}</span>` : ''));
-  for (const x of M.courses) {
-    if (!x.sec) { rows.push(task(true, esc(x.c.title), '计划内的小节都学完了', `data-course="${x.c.id}"`)); continue; }
-    rows.push(task(x.done >= x.pace, `${esc(x.c.title)}`, `${esc(x.sec.title)}`, `data-sec="${x.sec.id}"`, `<span class="r num">${x.done}/${x.pace}</span>`));
-  }
-  if (M.wrong) rows.push(task(false, '巩固错题', `${M.wrong} 个答错或忘记的内容`, 'data-review="wrong"', `<span class="r num">${M.wrong}</span>`));
-  const days = []; const today = dayKey(); let k0 = today; while ((keyToDate(k0).getDay() + 6) % 7 !== 0) k0 = addDays(k0, -1);
-  for (let i = 0; i < 7; i++) { const k = addDays(k0, i), s = S().stats[k], n = s ? s.n + s.r : 0; days.push({ k, n, l: !n ? 0 : n < 15 ? 1 : n < 40 ? 2 : 3, ck: !!S().checkins[k], future: k > today }); }
-  v.innerHTML = `<div class="wrap"><header class="lt"><div class="t"><div class="date">${d.getMonth() + 1}月${d.getDate()}日 星期${WEEK[d.getDay()]}</div><h1>今日</h1></div><button class="round" data-go="settings" aria-label="设置">${ico('gear', '', 'duo')}</button></header>
-  <div class="stack">
-    ${hero}
-    <div class="stat3">
-      <div><span class="rb">${ring(nGoal ? M.t.n / nGoal : 0, 46, 3.6, 'var(--accent)')}${ico('layers')}</span><b data-count>${M.t.n}<small>/${nGoal || 0}</small></b><span>新学</span></div>
-      <div><span class="rb">${ring(rGoal ? M.t.r / rGoal : 0, 46, 3.6, 'var(--good)')}${ico('review')}</span><b data-count>${M.t.r}<small>/${rGoal}</small></b><span>复习</span></div>
-      <div><span class="rb">${ring(Math.min(1, sk / 7), 46, 3.6, 'var(--warn)')}${ico('flame')}</span><b data-count>${sk}<small> 天</small></b><span>连续打卡</span></div>
-    </div>
-    <div class="gh"><b>今日任务</b><button class="link" id="plan-btn">计划</button></div>
-    <div class="group">${rows.join('')}</div>
-    ${ck ? `<button class="btn soft block" disabled>${ico('check')}今日已打卡</button>` : `<button class="btn ${canCheck ? 'pri' : ''} block" id="ck" ${canCheck ? '' : 'disabled'}>${ico('calendar')}打卡${canCheck ? '' : ` · ${M.doneN}/${Math.max(M.goal, 1)}`}</button>`}
-    <div class="gh"><b>本周</b><button class="link" data-tabgo="review">统计</button></div>
-    <div class="week">${days.map(x => `<div class="${x.k === today ? 'today' : ''} ${x.future ? 'future' : ''}" ${x.future ? '' : `data-day="${x.k}" role="button" tabindex="0" aria-label="${x.k} 的学习记录"`}><span>${WEEK[keyToDate(x.k).getDay()]}</span><span class="d" data-l="${x.l}" title="${x.k}：${x.n} 个">${keyToDate(x.k).getDate()}</span><span class="ckm ${x.ck ? 'on' : ''}"></span></div>`).join('')}</div>
-  </div></div>`;
-  $('#ck')?.addEventListener('click', () => { S().checkins[dayKey()] = 1; logEvent('打卡'); saveState(); toast(`打卡成功，已连续 ${streak()} 天`); refresh(); Motion.confetti(); });
-  $('#plan-btn').onclick = planSheet;
-  $$('[data-sec]', v).forEach(b => b.onclick = () => startSection(b.dataset.sec));
-  $$('[data-course]', v).forEach(b => b.onclick = () => go('course', { id: b.dataset.course }));
-}
 
 /* ---- 课程书架 ---- */
 function viewLibrary() {
@@ -69,6 +29,7 @@ function viewLibrary() {
   <div class="stack"><button class="search-field" data-go="search">${ico('search')}搜索知识点、题目</button>
   ${cats.length > 2 ? `<div class="chips">${cats.map(c => `<button class="chip" data-cat="${esc(c)}" aria-pressed="${c === libCat}">${esc(c)}</button>`).join('')}</div>` : ''}
   ${Object.entries(groups).map(([cat, cs]) => `<div class="gh"><b>${esc(cat)}</b><span>${cs.length} 门</span></div><div class="shelf">${cs.map(tile).join('')}</div>`).join('')}
+  ${MATS.size ? `<div class="group icons"><button class="rowi" data-go="materials"><span class="tico" style="--c:#8e8e93">${ico('folder', '', 'duo')}</span><span class="grow"><div class="t">全部资料</div><div class="m">${MATS.size} 份${(n => n ? ` · ${n} 份未归类` : '')([...MATS.values()].filter(m => !m.course || !COURSES.has(m.course)).length)}</div></span>${ico('chev', 'chev')}</button></div>` : ''}
   <div class="gh"><b>添加</b></div><div class="shelf"><button class="tile press" id="newc2"><div class="cover new">${ico('plus')}新建课程</div><div class="tm"><span>导入教材，AI 规划</span></div></button></div>
   </div></div>`;
   $$('[data-cat]', v).forEach(b => b.onclick = () => { libCat = b.dataset.cat; refresh(); });
@@ -214,6 +175,7 @@ function rateBar(p, n) {
   return `${st ? `<div class="rated">${fmtNext(st)}</div>` : ''}<div class="rates ${n === 3 ? 'r3' : ''} ${p.g != null ? 'done' : ''}">${opts.map(([g, l]) => { const s = schedule(base, g, now); return `<button class="rate ${p.g === g ? 'on' : ''}" data-act="rate" data-g="${g}"><b>${l}</b><small>${s.ivl ? fmtDays(s.ivl) : fmtIvl(s.due - now)}</small></button>`; }).join('')}</div>`;
 }
 function endCard(pr) {
+  if (pr.kind === 'daily') return dailyEndCard();
   const el = h(`<article class="post"><div class="endc"></div></article>`), box = $('.endc', el);
   if (pr.kind === 'section') {
     const p = secProg(SECS.get(pr.sid));
@@ -289,40 +251,49 @@ function viewCourseMats({ id }) {
   const c = COURSES.get(id), v = $('#view'); if (!c) return back();
   const js = jobs().filter(j => j.course === id), linked = new Set(js.map(j => j.mat));
   const list = [...MATS.values()].filter(m => m.course === id || linked.has(m.id)).sort((a, b) => b.createdAt - a.createdAt);
-  v.innerHTML = appbar('', `<button class="ibtn" id="cm-add" aria-label="添加资料">${ico('plus')}</button>`) + `<div class="wrap"><div class="stack">
+  const loose = [...MATS.values()].filter(m => !m.course || !COURSES.has(m.course));
+  v.innerHTML = appbar('', loose.length ? `<button class="ibtn" id="cm-add" aria-label="从未归类资料添加">${ico('plus')}</button>` : '') + `<div class="wrap"><div class="stack">
   <header style="padding:4px 4px 0"><div class="eyebrow" style="color:${c.color}">${esc(c.title)}</div><h1 style="margin:4px 0 0;font-size:28px;font-weight:800">资料</h1></header>
+  ${importBox(id)}
   ${js.length ? `<div class="gh"><b>整理任务</b></div><div class="group">${js.map(jobCard).join('')}</div>` : ''}
-  ${list.length ? `<div class="group" style="--sepl:64px">${list.map(m => `<button class="rowi" data-mat="${m.id}">${matBadge(m)}<span class="grow"><div class="t">${esc(m.name)}</div><div class="m">${esc(matMeta(m))}</div></span>${ico('chev', 'chev')}</button>`).join('')}</div>`
-    : `<div class="empty">${ico('folder')}<b>还没有资料</b></div>`}
+  ${list.length ? `<div class="gh"><b>本课程资料</b><span>${list.length}</span></div><div class="group" style="--sepl:64px">${list.map(matRow).join('')}</div>`
+    : `<div class="empty">${ico('folder')}<b>还没有资料</b><span>导入这门课的教材、讲义或书页照片，AI 可以把它整理成卡片</span></div>`}
   </div></div>`;
   $('[data-back]', v).onclick = back;
+  bindImportBox(v, id);
   $$('[data-mat]', v).forEach(b => b.onclick = () => go('material', { id: b.dataset.mat }));
   bindJobButtons(v);
-  $('#cm-add').onclick = () => {
-    const others = [...MATS.values()].filter(m => !list.includes(m)).sort((a, b) => b.createdAt - a.createdAt);
-    menuSheet('添加资料', [
-      ...others.map(m => ({ icon: matIcon(m), label: m.name, sub: matMeta(m), run: () => organizeSheet(m, { course: id }) })),
-      { icon: 'upload', label: '导入新文件', run: () => { const i = h('<input type="file" multiple hidden>'); document.body.append(i); i.onchange = () => { importFiles([...i.files]); i.remove(); }; i.click(); } }
-    ]);
-  };
+  $('#cm-add')?.addEventListener('click', () => menuSheet('从未归类资料添加', loose.map(m => ({ icon: matIcon(m), label: m.name, sub: matMeta(m), run: () => { m.course = id; saveMat(m); refresh(); toast('已归到「' + c.title + '」'); } }))));
 }
+/* 资料的导入入口（文件、拍照、粘贴），course 为空时导入后再选课程 */
+function importBox(course) {
+  return `<div class="dropzone" data-drop><div class="imp3"><button data-imp="file"><span class="ib" style="--c:var(--accent)">${ico('folder', '', 'duo')}</span>文件</button><button data-imp="cam"><span class="ib" style="--c:#2f9e63">${ico('camera', '', 'duo')}</span>拍照</button><button data-imp="paste"><span class="ib" style="--c:#df8a0b">${ico('list', '', 'duo')}</span>粘贴</button></div>
+    <input type="file" hidden multiple data-f accept=".pdf,.docx,.txt,.md,.json,.csv,.tsv,image/*"><input type="file" hidden data-c accept="image/*" capture="environment" multiple></div>`;
+}
+function bindImportBox(v, course) {
+  const dz = $('[data-drop]', v); if (!dz) return;
+  const fi = $('[data-f]', dz), cam = $('[data-c]', dz), opt = course ? { course } : {};
+  $('[data-imp="file"]', dz).onclick = () => fi.click(); $('[data-imp="cam"]', dz).onclick = () => cam.click(); $('[data-imp="paste"]', dz).onclick = () => pasteSheet(course);
+  fi.onchange = () => { importFiles([...fi.files], opt); fi.value = ''; }; cam.onchange = () => { importFiles([...cam.files], opt); cam.value = ''; };
+  dz.ondragover = e => { e.preventDefault(); dz.classList.add('over'); }; dz.ondragleave = () => dz.classList.remove('over');
+  dz.ondrop = e => { e.preventDefault(); dz.classList.remove('over'); importFiles([...e.dataTransfer.files], opt); };
+}
+const matRow = m => `<button class="rowi" data-mat="${m.id}">${matBadge(m)}<span class="grow"><div class="t">${esc(m.name)}</div><div class="m">${esc(matMeta(m))}</div></span>${m.scanned ? '<span class="pill warn">扫描版</span>' : ''}${ico('chev', 'chev')}</button>`;
+/* 全部资料：按课程分组，未归类的放最后 */
 function viewMaterials() {
   const v = $('#view'), list = [...MATS.values()].sort((a, b) => b.createdAt - a.createdAt), js = jobs();
-  v.innerHTML = `<div class="wrap"><header class="lt"><div class="t"><h1>资料</h1></div></header><div class="stack">
-  <div id="mt-drop" class="dropzone"><div class="imp3"><button id="mt-imp"><span class="ib" style="--c:var(--accent)">${ico('folder', '', 'duo')}</span>文件</button><button id="mt-cam"><span class="ib" style="--c:#2f9e63">${ico('camera', '', 'duo')}</span>拍照</button><button id="mt-paste"><span class="ib" style="--c:#df8a0b">${ico('edit', '', 'duo')}</span>粘贴</button></div><input type="file" id="mt-file" multiple hidden accept=".pdf,.docx,.txt,.md,.markdown,.json,.csv,.tsv,image/*,application/pdf,text/plain"><input type="file" id="mt-camf" accept="image/*" capture="environment" multiple hidden></div>
+  const by = new Map(); for (const m of list) { const k = m.course && COURSES.has(m.course) ? m.course : ''; (by.get(k) || by.set(k, []).get(k)).push(m); }
+  const groups = [...shownCourses().filter(c => by.has(c.id)).map(c => [c, by.get(c.id)]), ...(by.has('') ? [[null, by.get('')]] : [])];
+  v.innerHTML = appbar('全部资料') + `<div class="wrap"><div class="stack">
+  ${importBox('')}
   ${js.length ? `<div class="gh"><b>整理任务</b></div><div class="group">${js.map(jobCard).join('')}</div>` : ''}
-  <div class="gh"><b>我的资料</b>${list.length ? `<span>${list.length}</span>` : ''}</div>
-  ${list.length ? `<div class="group" style="--sepl:64px">${list.map(m => `<button class="rowi" data-mat="${m.id}">${matBadge(m)}<span class="grow"><div class="t">${esc(m.name)}</div><div class="m">${esc(matMeta(m))}</div></span>${m.scanned ? '<span class="pill warn">扫描版</span>' : m.course ? '<span class="pill good">已整理</span>' : ''}${ico('chev', 'chev')}</button>`).join('')}</div>` : `<div class="card"><div class="empty">${ico('folder')}<b>还没有资料</b></div></div>`}
-  <div class="gh"><b>导出</b></div>
-  <div class="group icons">${shownCourses().map(c => `<button class="rowi" data-exp="${c.id}">${courseMark(c)}<span class="grow"><div class="t">${esc(c.title)}</div></span>${ico('chev', 'chev')}</button>`).join('')}<button class="rowi" data-go="settings"><span class="tico" style="--c:#8e8e93">${ico('download', '', 'duo')}</span><span class="grow"><div class="t">完整备份</div></span>${ico('chev', 'chev')}</button></div>
+  ${groups.length ? groups.map(([c, ms]) => `<div class="gh">${c ? `<b>${esc(c.title)}</b><button class="link" data-cm="${c.id}">课程资料</button>` : `<b>未归类</b><span>导入后选择所属课程</span>`}</div><div class="group" style="--sepl:64px">${ms.map(matRow).join('')}</div>`).join('')
+    : `<div class="empty">${ico('folder')}<b>还没有资料</b><span>资料放在各自的课程里：打开课程 → 资料，导入教材、讲义或照片</span></div>`}
   </div></div>`;
-  const fi = $('#mt-file'), cam = $('#mt-camf');
-  $('#mt-imp').onclick = () => fi.click(); $('#mt-cam').onclick = () => cam.click();
-  fi.onchange = () => { importFiles([...fi.files]); fi.value = ''; }; cam.onchange = () => { importFiles([...cam.files]); cam.value = ''; };
-  const dz = $('#mt-drop'); dz.ondragover = e => { e.preventDefault(); dz.classList.add('over'); }; dz.ondragleave = () => dz.classList.remove('over'); dz.ondrop = e => { e.preventDefault(); dz.classList.remove('over'); importFiles([...e.dataTransfer.files]); };
-  $('#mt-paste').onclick = pasteSheet;
+  $('[data-back]', v).onclick = back;
+  bindImportBox(v, '');
   $$('[data-mat]', v).forEach(b => b.onclick = () => go('material', { id: b.dataset.mat }));
-  $$('[data-exp]', v).forEach(b => b.onclick = () => exportSheet(COURSES.get(b.dataset.exp)));
+  $$('[data-cm]', v).forEach(b => b.onclick = () => go('cmats', { id: b.dataset.cm }));
   bindJobButtons(v);
 }
 function viewMaterial({ id }) {
@@ -331,21 +302,26 @@ function viewMaterial({ id }) {
   v.innerHTML = appbar('', `<button class="ibtn" id="mm-more" aria-label="更多">${ico('more')}</button>`) + `<div class="wrap"><div class="stack">
   <div class="chead" style="align-items:center">${matBadge(m, true)}<div class="grow"><h1 style="font-size:22px">${esc(m.name)}</h1><div class="m">${esc(matMeta(m))}</div></div></div>
   ${m.scanned ? `<div class="gf" style="margin:0 4px;color:var(--warn)">扫描版：建议先识别文字</div>` : ''}
-  <button class="btn pri block" id="mm-org">${ico('wand')}AI 整理成新课程</button>
+  ${c ? `<button class="btn pri block" id="mm-in">${ico('wand')}AI 整理进「${esc(c.title)}」</button>` : `<div class="card card-in" style="display:flex;gap:12px;align-items:center"><span class="grow small" style="color:var(--ink)">这份资料还没有归到课程</span><button class="btn sm soft" id="mm-set">选择课程</button></div><button class="btn pri block" id="mm-org">${ico('wand')}AI 整理成新课程</button>`}
   <div class="qa4"><button id="mm-fill"><span class="ib">${ico('plus', '', 'duo')}</span>补充到课程</button>${m.kind !== 'text' ? `<button id="mm-ocr"><span class="ib">${ico('spark', '', 'duo')}</span>识别文字</button>` : ''}${m.file || m.imgs ? `<button id="mm-open"><span class="ib">${ico('file', '', 'duo')}</span>原文件</button>` : ''}<button id="mm-exp"><span class="ib">${ico('download', '', 'duo')}</span>导出文字</button></div>
-  ${c ? `<div class="group icons"><button class="rowi" data-jcourse="${c.id}">${courseMark(c)}<span class="grow"><div class="t">${esc(c.title)}</div><div class="m">已整理 · ${courseStats(c).items} 个内容</div></span>${ico('chev', 'chev')}</button></div>` : ''}
+  ${c ? `<div class="group icons"><button class="rowi" data-jcourse="${c.id}">${courseMark(c)}<span class="grow"><div class="t">${esc(c.title)}</div><div class="m">所属课程 · ${courseStats(c).items} 个内容</div></span>${ico('chev', 'chev')}</button></div>` : ''}
   ${js.length ? `<div class="gh"><b>整理任务</b></div><div class="group">${js.map(jobCard).join('')}</div>` : ''}
   <div class="gh"><b>内容</b><span>${m.pages} ${m.kind === 'text' ? '段' : '页'}</span></div>
   <div class="group" id="mm-pages" style="--sepl:58px"><div class="empty"><span class="spin"></span></div></div>
   </div></div>`;
   $('[data-back]', v).onclick = back;
-  $('#mm-org').onclick = () => organizeSheet(m);
+  const setCourse = () => menuSheet('所属课程', shownCourses().map(x => ({ icon: x.id === m.course ? 'check' : 'book', label: x.title, sub: x.cat, run: () => { m.course = x.id; saveMat(m); refresh(); toast('已归到「' + x.title + '」'); } })));
+  $('#mm-org')?.addEventListener('click', () => organizeSheet(m));
+  $('#mm-in')?.addEventListener('click', () => organizeSheet(m, { course: c.id }));
+  $('#mm-set')?.addEventListener('click', setCourse);
   $('#mm-fill').onclick = () => organizeSheet(m, { course: m.course || shownCourses()[0]?.id });
   $('#mm-ocr')?.addEventListener('click', () => ocrSheet(m));
   $('#mm-open')?.addEventListener('click', () => openOriginal(m));
   $('#mm-exp').onclick = async () => Files.save(m.name + '.md', (await matPages(m)).map((t, i) => `<!-- 第 ${i + 1} 页 -->\n${t}`).join('\n\n'), 'text/markdown');
   bindJobButtons(v);
   $('#mm-more').onclick = () => menuSheet(m.name, [
+    { icon: 'book', label: '更改所属课程', run: setCourse },
+    c && { icon: 'wand', label: 'AI 整理成新课程', run: () => organizeSheet(m) },
     { icon: 'edit', label: '重命名', run: () => { const s = sheet('重命名', `<input class="inp" id="rn" value="${esc(m.name)}"><button class="btn pri" id="rn-ok">保存</button>`); $('#rn-ok', s.body).onclick = () => { m.name = $('#rn', s.body).value.trim() || m.name; saveMat(m); s.close(); refresh(); }; } },
     m.kind === 'pdf' && { icon: 'upload', label: '重新选择原文件', sub: '原文件在别的设备上时使用', run: () => { const i = h('<input type="file" accept="application/pdf" hidden>'); document.body.append(i); i.onchange = async () => { const f = i.files[0]; i.remove(); if (!f) return; await ensurePdfJs(); matPdf.set(m.id, await pdfjsLib.getDocument({ data: await f.arrayBuffer(), isEvalSupported: false }).promise); m.file = await Files.put(f, 'application/pdf'); saveMat(m); toast('已重新关联原文件'); refresh(); }; i.click(); } },
     { icon: 'trash', label: '删除资料', sub: '已生成的课程内容会保留', cls: 'danger', run: async () => { if (!await confirmBox('删除资料', `删除「${m.name}」及其文件？`, '删除', true)) return; for (const r of [m.file, m.text, ...(m.imgs || [])]) if (r) Files.del(r); Store.drop('mat/' + m.id); MATS.delete(m.id); back(); } }
