@@ -11,7 +11,7 @@ function todayModel() {
 function heatmap() {
   const today = dayKey(), st = S().stats, ck = S().checkins; let k = addDays(today, -7 * 17);
   while ((keyToDate(k).getDay() + 6) % 7 !== 0) k = addDays(k, -1);
-  const cells = []; for (; k <= today; k = addDays(k, 1)) { const s = st[k], n = s ? s.n + s.r : 0, l = !n ? 0 : n < 15 ? 1 : n < 40 ? 2 : n < 80 ? 3 : 4; cells.push(`<i data-l="${l}" class="${ck[k] ? 'ck' : ''} ${k === today ? 'today' : ''}" title="${k}：${n} 张"></i>`); }
+  const cells = []; for (; k <= today; k = addDays(k, 1)) { const s = st[k], n = s ? s.n + s.r : 0, l = !n ? 0 : n < 15 ? 1 : n < 40 ? 2 : n < 80 ? 3 : 4; cells.push(`<i data-day="${k}" data-l="${l}" class="${ck[k] ? 'ck' : ''} ${k === today ? 'today' : ''}" title="${k}：${n} 张"></i>`); }
   return `<div class="heat">${cells.join('')}</div>`;
 }
 function planSheet() {

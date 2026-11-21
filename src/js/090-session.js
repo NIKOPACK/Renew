@@ -86,6 +86,8 @@ function rate(p, g, manual) {
     const t = todayStats(); if (!p.snap) { t.n++; t.c[it.course] = (t.c[it.course] || 0) + 1; } else t.r++;
     const ok = p.auto != null ? p.auto : g >= 2; if (isQ(it) || p.auto != null) ok ? t.ok++ : t.bad++;
     t.sec += Math.min(180, Math.round((now - lastAct) / 1000)); lastAct = now;
+    const hs = ((S().hist ||= {})[dayKey()] ||= {})[it.sec] ||= [0, 0, 0, 0]; // 当天该小节：新学、复习、答对、答错
+    hs[p.snap ? 1 : 0]++; if (isQ(it) || p.auto != null) hs[ok ? 2 : 3]++;
   }
   Feed.results.set(it.id, { g, ok: p.auto != null ? p.auto : g >= 3, q: isQ(it) });
   p.g = g; p.phase = 'back';

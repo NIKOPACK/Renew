@@ -227,6 +227,22 @@ await run('笔记：阅读进度与书签；课程资料页；复习间隔显示
   await ctx.close();
 });
 
+await run('学习记录：按天查看与学习历史', async () => {
+  const { page, ctx, errors } = await newPage();
+  await page.evaluate(() => go('section', { id: 'learn1s1' })); await page.waitForTimeout(500); await page.click('#start'); await page.waitForSelector('.post .rate');
+  await page.locator('.post .rate[data-g="3"]').first().click(); await page.waitForTimeout(300);
+  await page.click('[data-close-s]'); await page.waitForTimeout(500); await page.evaluate(() => go('today', {}, { tab: true })); await page.waitForTimeout(600);
+  await page.click('.week [data-day].today'); await page.waitForSelector('.sheet [data-goto-sec]'); await page.waitForTimeout(400); await shot(page, 'day');
+  check(await page.evaluate(() => $('.sheet [data-goto-sec]')?.dataset.gotoSec) === 'learn1s1', '今日页点当天：显示学过的小节');
+  await page.click('.sheet [data-goto-sec]'); await page.waitForTimeout(700);
+  check(await page.evaluate(() => Nav.stack.at(-1).view === 'section' && Nav.stack.at(-1).params.id === 'learn1s1'), '从记录跳到小节继续学习');
+  await page.click('.tabbar [data-tab="review"]'); await page.waitForTimeout(600);
+  check(await page.evaluate(() => $('.lt h1').textContent === '学习记录' && !!$('.group.hist [data-day]')), '学习记录页：标题与学习历史');
+  await shot(page, 'records');
+  check(!errors.length, '没有脚本错误' + (errors.length ? '：' + errors.join(' | ') : ''));
+  await ctx.close();
+});
+
 await run('深色模式', async () => {
   const { page, ctx, errors } = await newPage({ dark: true });
   const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);

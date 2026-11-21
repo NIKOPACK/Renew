@@ -1,6 +1,6 @@
 /* ============ 导航 ============ */
 const Nav = { stack: [], tab: 'today' };
-const TAB_META = { today: ['home', '今日'], library: ['book', '课程'], review: ['review', '复习'], materials: ['folder', '资料'], ai: ['spark', 'AI'] };
+const TAB_META = { today: ['home', '今日'], library: ['book', '课程'], review: ['calendar', '记录'], materials: ['folder', '资料'], ai: ['spark', 'AI'] };
 function renderTabbar() {
   const due = Math.min(dueItems().length, reviewLeft());
   $$('.tabbar button').forEach(b => {

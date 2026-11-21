@@ -1,5 +1,19 @@
 /* ============ 界面（v4：iOS 风格） ============ */
-const coverHTML = (c, extra = '') => `<div class="cover" style="--c:${c.color}"><span class="cat">${esc(c.cat)}</span><b>${esc(c.title)}</b><span class="mono">${esc(c.title[0])}</span>${extra}</div>`;
+/* 课程封面：按课程名、分类中的关键词选学科图标（课程可用 icon 字段指定），渐变底 + 白色双色图标 */
+const TOPIC_ICONS = [
+  [/数据结构|算法|algorithm|data struct|leetcode/i, 'tree'], [/组成原理|计算机组成|体系结构|硬件|芯片|cpu|电路|单片机/i, 'cpu'],
+  [/操作系统|linux|unix|shell|命令行|\bos\b/i, 'terminal'], [/计算机网络|网络|tcp|http|通信/i, 'network'],
+  [/编程|代码|程序|python|java|c\+\+|前端|后端|javascript|golang|rust|软件/i, 'code'], [/学习|记忆|心理|认知|脑/i, 'brain'],
+  [/统计|概率/i, 'sigma'], [/数学|高数|微积分|线代|线性代数|离散|函数|math|calculus/i, 'fn'],
+  [/英语|日语|韩语|法语|德语|单词|词汇|口语|语法|english|vocab|language/i, 'translate'], [/物理|physics|力学|量子/i, 'atom'],
+  [/化学|chemistry/i, 'flask'], [/生物|医学|生理|解剖|药|biology|medic/i, 'dna'], [/历史|history|古代/i, 'scroll'],
+  [/法律|法学|政治|宪法|law/i, 'scales'], [/经济|金融|会计|财务|投资|管理|econom|financ/i, 'chart'], [/地理|geograph/i, 'globe'],
+  [/音乐|music|乐理/i, 'music'], [/美术|设计|绘画|艺术|design|art/i, 'palette'], [/语文|文学|古诗|写作|阅读|作文/i, 'nib'],
+  [/考研|考试|备考|exam/i, 'student']
+];
+const courseIcon = c => c.icon && IC[c.icon] ? c.icon : (TOPIC_ICONS.find(([re]) => re.test(`${c.title} ${c.cat || ''}`)) || [, 'bookopen'])[1];
+const courseMark = (c, cls = 'tico') => `<span class="${cls}" style="--c:${c.color}">${ico(courseIcon(c), '', 'duo')}</span>`;
+const coverHTML = (c, extra = '') => `<div class="cover" style="--c:${c.color}"><span class="cat">${esc(c.cat)}</span><b>${esc(c.title)}</b><span class="art">${ico(courseIcon(c), '', 'duo')}</span>${extra}</div>`;
 const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
 
 /* ---- 今日 ---- */
@@ -10,7 +24,7 @@ function viewToday() {
   let hero = '';
   if (next) {
     const p = secProg(next.sec), st = secStatus(next.sec), all = p.kp + p.q, dn = p.kpd + p.qd;
-    hero = `<button class="cont press" data-sec="${next.sec.id}" style="--c:${next.c.color}"><span class="cv" style="font-size:28px;align-items:center;justify-content:center">${esc(next.c.title[0])}</span><span class="grow"><div class="k">${st === 'learning' ? '继续学习' : st === 'empty' ? '待生成内容' : '下一节'} · ${esc(next.c.title)}</div><div class="tt">${esc(next.sec.title)}</div><div class="pbar"><i style="width:${pct(dn, all)}%;background:${next.c.color}"></i></div><div class="m">${st === 'empty' ? '待生成' : `${p.kp} 个知识点 · ${p.q} 道练习`}</div></span><span class="play">${ico('play', '', 'fill')}</span></button>`;
+    hero = `<button class="cont press" data-sec="${next.sec.id}" style="--c:${next.c.color}"><span class="cv">${ico(courseIcon(next.c), '', 'duo')}</span><span class="grow"><div class="k">${st === 'learning' ? '继续学习' : st === 'empty' ? '待生成内容' : '下一节'} · ${esc(next.c.title)}</div><div class="tt">${esc(next.sec.title)}</div><div class="pbar"><i style="width:${pct(dn, all)}%;background:${next.c.color}"></i></div><div class="m">${st === 'empty' ? '待生成' : `${p.kp} 个知识点 · ${p.q} 道练习`}</div></span><span class="play">${ico('play', '', 'fill')}</span></button>`;
   } else if (!M.courses.length) hero = `<button class="cont press" data-tabgo="library"><span class="cv" style="--c:var(--accent)">${ico('book')}</span><span class="grow"><div class="k">开始</div><div class="tt">选择一门课程</div></span><span class="play">${ico('chev')}</span></button>`;
   const nGoal = M.courses.reduce((s, x) => s + (x.sec ? Math.max(x.pace, x.done) : x.done), 0);
   const rGoal = M.t.r + M.due;
@@ -36,7 +50,7 @@ function viewToday() {
     <div class="group">${rows.join('')}</div>
     ${ck ? `<button class="btn soft block" disabled>${ico('check')}今日已打卡</button>` : `<button class="btn ${canCheck ? 'pri' : ''} block" id="ck" ${canCheck ? '' : 'disabled'}>${ico('calendar')}打卡${canCheck ? '' : ` · ${M.doneN}/${Math.max(M.goal, 1)}`}</button>`}
     <div class="gh"><b>本周</b><button class="link" data-tabgo="review">统计</button></div>
-    <div class="week">${days.map(x => `<div class="${x.k === today ? 'today' : ''}"><span>${WEEK[keyToDate(x.k).getDay()]}</span><span class="d" data-l="${x.l}" title="${x.k}：${x.n} 个">${keyToDate(x.k).getDate()}</span><span class="ckm ${x.ck ? 'on' : ''}"></span></div>`).join('')}</div>
+    <div class="week">${days.map(x => `<div class="${x.k === today ? 'today' : ''} ${x.future ? 'future' : ''}" ${x.future ? '' : `data-day="${x.k}" role="button" tabindex="0" aria-label="${x.k} 的学习记录"`}><span>${WEEK[keyToDate(x.k).getDay()]}</span><span class="d" data-l="${x.l}" title="${x.k}：${x.n} 个">${keyToDate(x.k).getDate()}</span><span class="ckm ${x.ck ? 'on' : ''}"></span></div>`).join('')}</div>
   </div></div>`;
   $('#ck')?.addEventListener('click', () => { S().checkins[dayKey()] = 1; logEvent('打卡'); saveState(); toast(`打卡成功，已连续 ${streak()} 天`); refresh(); Motion.confetti(); });
   $('#plan-btn').onclick = planSheet;
@@ -237,13 +251,14 @@ function viewReview() {
   const byCourse = {}; due.slice(0, left).forEach(it => byCourse[it.course] = (byCourse[it.course] || 0) + 1);
   const days = []; for (let i = 29; i >= 0; i--) { const k = addDays(today, -i), s = S().stats[k]; days.push({ k, n: s?.n || 0, r: s?.r || 0, sec: s?.sec || 0 }); }
   const mx = Math.max(1, ...days.map(d => d.n + d.r)), tot = days.reduce((a, d) => a + d.n + d.r, 0), act = days.filter(d => d.n + d.r).length, mins = Math.round(days.reduce((a, d) => a + d.sec, 0) / 60);
-  v.innerHTML = `<div class="wrap"><header class="lt"><div class="t"><h1>复习</h1></div></header><div class="stack">
+  v.innerHTML = `<div class="wrap"><header class="lt"><div class="t"><h1>学习记录</h1></div></header><div class="stack">
   <div class="dueh"><div class="grow"><div class="big" data-count>${dueN}</div><div class="lab">${dueN ? `今天待复习 · 约 ${Math.max(1, Math.round(dueN * .4))} 分钟` : due.length ? '今天的复习额度已用完' : '今天没有到期的内容'}</div></div>${dueN ? `<button class="play" id="rv-go" aria-label="开始复习" style="width:56px;height:56px">${ico('play', '', 'fill')}</button>` : ''}</div>
   <div class="group icons">
     <button class="rowi" data-rk="wrong"><span class="tico" style="--c:var(--bad)">${ico('alert', '', 'duo')}</span><span class="grow"><div class="t">错题本</div></span><span class="r num">${wrong.length}</span>${ico('chev', 'chev')}</button>
     <button class="rowi" data-rk="star"><span class="tico" style="--c:var(--warn)">${ico('star', '', 'duo')}</span><span class="grow"><div class="t">收藏</div></span><span class="r num">${star.length}</span>${ico('chev', 'chev')}</button>
   </div>
-  ${Object.keys(byCourse).length > 1 ? `<div class="gh"><b>按课程</b></div><div class="group icons">${Object.entries(byCourse).map(([cid, n]) => { const c = COURSES.get(cid); return `<button class="rowi" data-rc="${cid}"><span class="tico" style="--c:${c.color}">${esc(c.title[0])}</span><span class="grow"><div class="t">${esc(c.title)}</div></span><span class="r num">${n}</span>${ico('chev', 'chev')}</button>`; }).join('')}</div>` : ''}
+  ${Object.keys(byCourse).length > 1 ? `<div class="gh"><b>按课程</b></div><div class="group icons">${Object.entries(byCourse).map(([cid, n]) => { const c = COURSES.get(cid); return `<button class="rowi" data-rc="${cid}">${courseMark(c)}<span class="grow"><div class="t">${esc(c.title)}</div></span><span class="r num">${n}</span>${ico('chev', 'chev')}</button>`; }).join('')}</div>` : ''}
+  ${historyGroup()}
   <div class="gh"><b>未来 7 天</b><span>已学 ${learned} · 牢固 ${mastered}</span></div>
   <div class="card card-in">${learned ? `<div class="fc">${fc.map((x, i) => `<div class="c ${i === 0 ? 't' : ''}"><b>${x.n}</b><i style="height:${x.n / max * 72}px"></i><span>${i === 0 ? '今天' : WEEK[keyToDate(x.k).getDay()]}</span></div>`).join('')}</div>` : `<div class="small" style="text-align:center;padding:18px 0">学过的内容会按遗忘曲线排进这里</div>`}</div>
   <div class="gh"><b>近 30 天</b><span>${act} 天 · ${tot} 个 · ${mins} 分钟</span></div>
@@ -252,6 +267,7 @@ function viewReview() {
   <div class="card card-in">${heatmap()}</div>
   </div></div>`;
   $('#rv-go')?.addEventListener('click', () => openReview('review'));
+  $('#hist-more')?.addEventListener('click', e => { e.currentTarget.parentElement.classList.add('all'); e.currentTarget.remove(); });
   $$('[data-rk]', v).forEach(b => b.onclick = () => openReview(b.dataset.rk));
   $$('[data-rc]', v).forEach(b => b.onclick = () => openReview('review', { course: b.dataset.rc }));
 }
@@ -295,7 +311,7 @@ function viewMaterials() {
   <div class="gh"><b>我的资料</b>${list.length ? `<span>${list.length}</span>` : ''}</div>
   ${list.length ? `<div class="group" style="--sepl:64px">${list.map(m => `<button class="rowi" data-mat="${m.id}">${matBadge(m)}<span class="grow"><div class="t">${esc(m.name)}</div><div class="m">${esc(matMeta(m))}</div></span>${m.scanned ? '<span class="pill warn">扫描版</span>' : m.course ? '<span class="pill good">已整理</span>' : ''}${ico('chev', 'chev')}</button>`).join('')}</div>` : `<div class="card"><div class="empty">${ico('folder')}<b>还没有资料</b></div></div>`}
   <div class="gh"><b>导出</b></div>
-  <div class="group icons">${shownCourses().map(c => `<button class="rowi" data-exp="${c.id}"><span class="tico" style="--c:${c.color}">${esc(c.title[0])}</span><span class="grow"><div class="t">${esc(c.title)}</div></span>${ico('chev', 'chev')}</button>`).join('')}<button class="rowi" data-go="settings"><span class="tico" style="--c:#8e8e93">${ico('download', '', 'duo')}</span><span class="grow"><div class="t">完整备份</div></span>${ico('chev', 'chev')}</button></div>
+  <div class="group icons">${shownCourses().map(c => `<button class="rowi" data-exp="${c.id}">${courseMark(c)}<span class="grow"><div class="t">${esc(c.title)}</div></span>${ico('chev', 'chev')}</button>`).join('')}<button class="rowi" data-go="settings"><span class="tico" style="--c:#8e8e93">${ico('download', '', 'duo')}</span><span class="grow"><div class="t">完整备份</div></span>${ico('chev', 'chev')}</button></div>
   </div></div>`;
   const fi = $('#mt-file'), cam = $('#mt-camf');
   $('#mt-imp').onclick = () => fi.click(); $('#mt-cam').onclick = () => cam.click();
@@ -314,7 +330,7 @@ function viewMaterial({ id }) {
   ${m.scanned ? `<div class="gf" style="margin:0 4px;color:var(--warn)">扫描版：建议先识别文字</div>` : ''}
   <button class="btn pri block" id="mm-org">${ico('wand')}AI 整理成新课程</button>
   <div class="qa4"><button id="mm-fill"><span class="ib">${ico('plus', '', 'duo')}</span>补充到课程</button>${m.kind !== 'text' ? `<button id="mm-ocr"><span class="ib">${ico('spark', '', 'duo')}</span>识别文字</button>` : ''}${m.file || m.imgs ? `<button id="mm-open"><span class="ib">${ico('file', '', 'duo')}</span>原文件</button>` : ''}<button id="mm-exp"><span class="ib">${ico('download', '', 'duo')}</span>导出文字</button></div>
-  ${c ? `<div class="group icons"><button class="rowi" data-jcourse="${c.id}"><span class="tico" style="--c:${c.color}">${esc(c.title[0])}</span><span class="grow"><div class="t">${esc(c.title)}</div><div class="m">已整理 · ${courseStats(c).items} 个内容</div></span>${ico('chev', 'chev')}</button></div>` : ''}
+  ${c ? `<div class="group icons"><button class="rowi" data-jcourse="${c.id}">${courseMark(c)}<span class="grow"><div class="t">${esc(c.title)}</div><div class="m">已整理 · ${courseStats(c).items} 个内容</div></span>${ico('chev', 'chev')}</button></div>` : ''}
   ${js.length ? `<div class="gh"><b>整理任务</b></div><div class="group">${js.map(jobCard).join('')}</div>` : ''}
   <div class="gh"><b>内容</b><span>${m.pages} ${m.kind === 'text' ? '段' : '页'}</span></div>
   <div class="group" id="mm-pages" style="--sepl:58px"><div class="empty"><span class="spin"></span></div></div>

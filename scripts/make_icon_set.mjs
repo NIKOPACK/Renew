@@ -17,7 +17,12 @@ const MAP = {
   chat: 'chat-circle-dots', wand: 'magic-wand', trash: 'trash', eyeoff: 'eye-slash', edit: 'note-pencil',
   list: 'list-bullets', bulb: 'lightbulb', target: 'target', send: 'arrow-up:bold', file: 'file',
   download: 'download-simple', aa: 'text-aa', stop: 'stop', folder: 'folder-simple', search: 'magnifying-glass',
-  doc: 'file-text', bookmark: 'bookmark-simple', bookmarks: 'bookmarks-simple', minus: 'minus'
+  doc: 'file-text', bookmark: 'bookmark-simple', bookmarks: 'bookmarks-simple', minus: 'minus',
+  // 课程封面的学科图标
+  tree: 'tree-structure', cpu: 'cpu', terminal: 'terminal-window', network: 'network', globe: 'globe-hemisphere-east',
+  brain: 'brain', fn: 'function', sigma: 'sigma', translate: 'translate', atom: 'atom', flask: 'flask', dna: 'dna',
+  scroll: 'scroll', scales: 'scales', chart: 'chart-line-up', code: 'code', music: 'music-notes', palette: 'palette',
+  nib: 'pen-nib', bookopen: 'book-open-text', student: 'student'
 };
 const inner = f => fs.readFileSync(f, 'utf8').replace(/^[\s\S]*?<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '').trim();
 const out = {};
