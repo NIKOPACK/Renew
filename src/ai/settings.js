@@ -1,0 +1,64 @@
+/* ============ 设置 → AI 服务（独立 App / 网页版：用户自带 API Key） ============ */
+let AI_CFG = null; // 当前配置的内存副本，供设置页同步显示
+function aiSettingsGroup() {
+  const c = AI_CFG, pr = c && AI_PRESETS[c.provider];
+  return `<div class="gh"><b>AI 服务</b></div><div class="group icons">
+    <button class="rowi" id="s-ai"><span class="tico" style="--c:${AI.ok ? 'var(--accent)' : 'var(--warn)'}">${ico('spark')}</span><span class="grow"><div class="t">${c?.key ? esc(pr?.label || c.provider) : '未设置'}</div><div class="m">${c?.key ? esc(c.model || '未选择模型') : '填写你自己的 API Key 后，出题、讲解、问答和资料整理都可以使用'}</div></span>${ico('chev', 'chev')}</button>
+  </div>`;
+}
+function bindAiSettingsGroup(v) { $('#s-ai', v)?.addEventListener('click', () => aiConfigSheet()); }
+async function aiConfigSheet() {
+  const saved = AI_CFG || await Platform.aiConfig.get() || {};
+  const st = { provider: saved.provider || 'deepseek', key: saved.key || '', model: saved.model || '', base: saved.base || '', vision: saved.vision, models: [] };
+  const preset = () => AI_PRESETS[st.provider];
+  const groups = [['国内', ['deepseek', 'qwen', 'kimi', 'glm']], ['海外', ['claude', 'openai']], ['其他', ['custom']]];
+  const body = h(`<div style="display:flex;flex-direction:column;gap:14px">
+    ${groups.map(([g, ids]) => `<div class="field"><span>${g}</span><div class="chips aip">${ids.map(id => `<button class="chip" data-p="${id}" aria-pressed="${st.provider === id}">${AI_PRESETS[id].label}</button>`).join('')}</div></div>`).join('')}
+    <div id="ai-f" style="display:flex;flex-direction:column;gap:12px"></div>
+    <div id="ai-msg" class="small" style="min-height:1.2em"></div>
+    <div class="acts"><button class="btn" id="ai-test">测试连接</button><button class="btn pri" id="ai-save">保存</button></div>
+    <p class="small" style="margin:0">API Key 只保存在这台设备上，直接发给你选择的服务商，费用由该服务商按你的账户计费。</p>
+  </div>`);
+  const s = sheet('AI 服务', body), msg = t => $('#ai-msg', body).innerHTML = t;
+  const draw = () => {
+    const p = preset(), custom = st.provider === 'custom';
+    if (!st.model && p.model) st.model = p.model;
+    if (st.vision === undefined) st.vision = p.vision;
+    $('#ai-f', body).innerHTML = `
+      <label class="field"><span>API Key${p.site ? `<small style="font-weight:400;color:var(--ink-2)"> · 在 ${p.site} 获取</small>` : ''}</span><input class="inp" id="ai-key" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${p.kind === 'anthropic' ? 'sk-ant-…' : 'sk-…'}" value="${esc(st.key)}"></label>
+      ${custom || st.provider === 'openai' || st.base ? `<label class="field"><span>接口地址</span><input class="inp" id="ai-base" inputmode="url" autocapitalize="off" spellcheck="false" placeholder="https://…/v1" value="${esc(st.base || p.base)}"></label>` : ''}
+      <label class="field"><span>模型</span><div class="row"><input class="inp grow" id="ai-model" list="ai-ml" autocapitalize="off" spellcheck="false" placeholder="模型名称" value="${esc(st.model)}"><button class="btn sm soft" id="ai-list">获取列表</button></div><datalist id="ai-ml">${st.models.map(m => `<option value="${esc(m)}">`).join('')}</datalist></label>
+      <div class="rowi" style="padding:0"><span class="grow"><div class="t">模型能识别图片</div><div class="m">开启后可以拍照识别书页、把扫描版 PDF 发给 AI</div></span><button class="toggle" role="switch" id="ai-vis" aria-checked="${!!st.vision}" aria-label="模型能识别图片"></button></div>`;
+    $('#ai-key', body).oninput = e => st.key = e.target.value.trim();
+    $('#ai-base', body)?.addEventListener('input', e => st.base = e.target.value.trim());
+    $('#ai-model', body).oninput = e => st.model = e.target.value.trim();
+    $('#ai-vis', body).onclick = e => { st.vision = !st.vision; e.currentTarget.setAttribute('aria-checked', st.vision); };
+    $('#ai-list', body).onclick = async () => {
+      if (!st.key) return msg('先填写 API Key');
+      msg('<span class="spin"></span> 正在获取模型列表…');
+      try { st.models = await AIClient.models(cfgOf()); msg(st.models.length ? `找到 ${st.models.length} 个模型，点模型输入框选择` : '没有获取到模型，请手动填写'); draw(); }
+      catch (e) { msg(`<span style="color:var(--bad)">${esc(AI.err(e))}</span>`); }
+    };
+  };
+  const cfgOf = () => { const p = preset(); return { provider: st.provider, kind: p.kind, key: st.key, model: st.model, base: st.base || p.base, vision: !!st.vision }; };
+  $$('.aip [data-p]', body).forEach(b => b.onclick = () => {
+    if (st.provider === b.dataset.p) return;
+    st.provider = b.dataset.p; st.model = ''; st.base = ''; st.vision = undefined; st.models = [];
+    if (saved.provider === st.provider) { st.key = saved.key; st.model = saved.model; st.base = saved.base || ''; st.vision = saved.vision; } else st.key = '';
+    $$('.aip [data-p]', body).forEach(x => x.setAttribute('aria-pressed', x === b)); msg(''); draw();
+  });
+  $('#ai-test', body).onclick = async () => {
+    const c = cfgOf(); if (!c.key) return msg('先填写 API Key'); if (!c.base && c.kind === 'openai') return msg('先填写接口地址');
+    msg('<span class="spin"></span> 正在连接…');
+    try { const t = await AIClient.test(c); msg(`<span style="color:var(--good)">连接成功</span>${t ? '：' + esc(t.slice(0, 40)) : ''}`); Motion.haptic('ok'); }
+    catch (e) { msg(`<span style="color:var(--bad)">${esc(AI.err(e))}</span>`); Motion.haptic('bad'); }
+  };
+  $('#ai-save', body).onclick = async () => {
+    const c = cfgOf(); if (!c.key) return msg('先填写 API Key'); if (!c.model) return msg('先填写或选择模型');
+    await Platform.aiConfig.set(c); AI_CFG = c; await AI.reload(); s.close(); toast('AI 服务已保存'); refresh();
+  };
+  draw();
+  return s;
+}
+/* 启动时读一次配置，供设置页显示 */
+Platform.aiConfig.get().then(c => { AI_CFG = c; }).catch(() => {});

@@ -1,0 +1,70 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+
+      - name: 版本号取自标签
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          npm version "$VERSION" --no-git-tag-version --allow-same-version
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "RENEW_VERSION_NAME=$VERSION" >> "$GITHUB_ENV"
+          echo "RENEW_VERSION_CODE=${{ github.run_number }}" >> "$GITHUB_ENV"
+
+      - run: npm test
+      - run: npx cap sync android
+
+      - name: 准备签名（仓库配置了密钥时）
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            {
+              echo "RENEW_KEYSTORE=$RUNNER_TEMP/release.jks"
+              echo "RENEW_KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD"
+              echo "RENEW_KEY_ALIAS=$KEY_ALIAS"
+              echo "RENEW_KEY_PASSWORD=$KEY_PASSWORD"
+            } >> "$GITHUB_ENV"
+          fi
+
+      - name: 构建 Android
+        working-directory: android
+        run: |
+          mkdir -p ../release
+          if [ -n "$RENEW_KEYSTORE" ]; then
+            ./gradlew assembleRelease bundleRelease --no-daemon
+            cp app/build/outputs/apk/release/app-release.apk "../release/Renew-$VERSION.apk"
+            cp app/build/outputs/bundle/release/app-release.aab "../release/Renew-$VERSION.aab"
+          else
+            ./gradlew assembleDebug --no-daemon
+            cp app/build/outputs/apk/debug/app-debug.apk "../release/Renew-$VERSION-debug.apk"
+          fi
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: release/*
+          generate_release_notes: true

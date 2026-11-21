@@ -1,0 +1,10 @@
+node_modules/
+www/
+build/
+dist/
+tests/screenshots/
+*.keystore
+*.jks
+.DS_Store
+.idea/
+.vscode/

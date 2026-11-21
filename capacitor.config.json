@@ -1,0 +1,23 @@
+{
+  "appId": "io.github.nikopack.renew",
+  "appName": "温新",
+  "webDir": "www",
+  "backgroundColor": "#f2f2f7",
+  "ios": {
+    "contentInset": "never",
+    "scrollEnabled": true
+  },
+  "android": {
+    "allowMixedContent": false
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchAutoHide": false,
+      "backgroundColor": "#f2f2f7",
+      "showSpinner": false
+    },
+    "LocalNotifications": {
+      "iconColor": "#3461f0"
+    }
+  }
+}
