@@ -10,13 +10,13 @@ function viewToday() {
   let hero = '';
   if (next) {
     const p = secProg(next.sec), st = secStatus(next.sec), all = p.kp + p.q, dn = p.kpd + p.qd;
-    hero = `<button class="cont press" data-sec="${next.sec.id}" style="--c:${next.c.color}"><span class="cv" style="font-size:28px;align-items:center;justify-content:center">${esc(next.c.title[0])}</span><span class="grow"><div class="k">${st === 'learning' ? '继续学习' : st === 'empty' ? '待生成内容' : '下一节'} · ${esc(next.c.title)}</div><div class="tt">${esc(next.sec.title)}</div><div class="pbar"><i style="width:${pct(dn, all)}%;background:${next.c.color}"></i></div><div class="m">${st === 'empty' ? '待生成' : `${p.kp} 个知识点 · ${p.q} 道练习`}</div></span><span class="play">${ico('play')}</span></button>`;
+    hero = `<button class="cont press" data-sec="${next.sec.id}" style="--c:${next.c.color}"><span class="cv" style="font-size:28px;align-items:center;justify-content:center">${esc(next.c.title[0])}</span><span class="grow"><div class="k">${st === 'learning' ? '继续学习' : st === 'empty' ? '待生成内容' : '下一节'} · ${esc(next.c.title)}</div><div class="tt">${esc(next.sec.title)}</div><div class="pbar"><i style="width:${pct(dn, all)}%;background:${next.c.color}"></i></div><div class="m">${st === 'empty' ? '待生成' : `${p.kp} 个知识点 · ${p.q} 道练习`}</div></span><span class="play">${ico('play', '', 'fill')}</span></button>`;
   } else if (!M.courses.length) hero = `<button class="cont press" data-tabgo="library"><span class="cv" style="--c:var(--accent)">${ico('book')}</span><span class="grow"><div class="k">开始</div><div class="tt">选择一门课程</div></span><span class="play">${ico('chev')}</span></button>`;
   const nGoal = M.courses.reduce((s, x) => s + (x.sec ? Math.max(x.pace, x.done) : x.done), 0);
   const rGoal = M.t.r + M.due;
   const task = (done, title, sub, attrs, right = '') => `<button class="rowi ${done ? 'done' : ''}" ${attrs}><span class="chk ${done ? 'on' : ''}">${ico('check')}</span><span class="grow"><div class="t">${title}</div>${sub ? `<div class="m">${sub}</div>` : ''}</span>${right}${ico('chev', 'chev')}</button>`;
   const rows = [];
-  rows.push(task(M.due === 0, '复习到期内容', M.due ? `${M.due} 个今天到期` : M.t.r ? `已复习 ${M.t.r} 个` : '今天没有到期内容', 'data-review="review"', M.due ? `<span class="r num">${M.due}</span>` : ''));
+  rows.push(task(M.due === 0, '复习', M.due ? `${M.due} 个今天到期` : M.t.r ? `已复习 ${M.t.r} 个` : '今天没有到期内容', 'data-review="review"', M.due ? `<span class="r num">${M.due}</span>` : ''));
   for (const x of M.courses) {
     if (!x.sec) { rows.push(task(true, esc(x.c.title), '计划内的小节都学完了', `data-course="${x.c.id}"`)); continue; }
     rows.push(task(x.done >= x.pace, `${esc(x.c.title)}`, `${esc(x.sec.title)}`, `data-sec="${x.sec.id}"`, `<span class="r num">${x.done}/${x.pace}</span>`));
@@ -24,7 +24,7 @@ function viewToday() {
   if (M.wrong) rows.push(task(false, '巩固错题', `${M.wrong} 个答错或忘记的内容`, 'data-review="wrong"', `<span class="r num">${M.wrong}</span>`));
   const days = []; const today = dayKey(); let k0 = today; while ((keyToDate(k0).getDay() + 6) % 7 !== 0) k0 = addDays(k0, -1);
   for (let i = 0; i < 7; i++) { const k = addDays(k0, i), s = S().stats[k], n = s ? s.n + s.r : 0; days.push({ k, n, l: !n ? 0 : n < 15 ? 1 : n < 40 ? 2 : 3, ck: !!S().checkins[k], future: k > today }); }
-  v.innerHTML = `<div class="wrap"><header class="lt"><div class="t"><div class="date">${d.getMonth() + 1}月${d.getDate()}日 星期${WEEK[d.getDay()]}</div><h1>今日</h1></div><button class="round" data-go="settings" aria-label="设置">${ico('gear')}</button></header>
+  v.innerHTML = `<div class="wrap"><header class="lt"><div class="t"><div class="date">${d.getMonth() + 1}月${d.getDate()}日 星期${WEEK[d.getDay()]}</div><h1>今日</h1></div><button class="round" data-go="settings" aria-label="设置">${ico('gear', '', 'duo')}</button></header>
   <div class="stack">
     ${hero}
     <div class="stat3">
@@ -51,7 +51,7 @@ function viewLibrary() {
   const groups = {}; all.filter(c => libCat === '全部' || c.cat === libCat).forEach(c => (groups[c.cat] ||= []).push(c));
   const tile = c => { const s = courseStats(c), p = pct(s.learned, s.items), done = s.items && !s.remain && s.learned;
     return `<button class="tile press" data-course="${c.id}">${coverHTML(c, done ? `<span class="done">${ico('check')}</span>` : '')}<div class="tm"><b>${s.items ? (s.learned ? p + '%' : '未开始') : '待生成'}</b><span>${s.secs} 节</span></div><div class="pbar"><i style="width:${p}%;background:${c.color}"></i></div></button>`; };
-  v.innerHTML = `<div class="wrap"><header class="lt"><div class="t"><h1>课程</h1></div><button class="round acc" id="newc" aria-label="新建课程">${ico('plus')}</button></header>
+  v.innerHTML = `<div class="wrap"><header class="lt"><div class="t"><h1>课程</h1></div><button class="round acc" id="newc" aria-label="新建课程">${ico('plus', '', 'duo')}</button></header>
   <div class="stack"><button class="search-field" data-go="search">${ico('search')}搜索知识点、题目</button>
   ${cats.length > 2 ? `<div class="chips">${cats.map(c => `<button class="chip" data-cat="${esc(c)}" aria-pressed="${c === libCat}">${esc(c)}</button>`).join('')}</div>` : ''}
   ${Object.entries(groups).map(([cat, cs]) => `<div class="gh"><b>${esc(cat)}</b><span>${cs.length} 门</span></div><div class="shelf">${cs.map(tile).join('')}</div>`).join('')}
@@ -66,18 +66,14 @@ function viewLibrary() {
 function viewCourse({ id }) {
   const c = COURSES.get(id), v = $('#view'); if (!c) return back();
   const s = courseStats(c), cp = coursePlan(id), next = nextSection(c);
-  const finish = cp.pace > 0 && s.remain ? addDays(dayKey(), Math.ceil(s.remain / cp.pace)) : null;
   const secRow = sec => { const st = secStatus(sec), p = secProg(sec), all = p.kp + p.q, d = p.kpd + p.qd;
     const right = next && next.id === sec.id ? '<span class="pill acc">下一节</span>' : st === 'empty' ? '<span class="pill">待生成</span>' : st === 'external' ? '<span class="pill warn">别处已学</span>' : st === 'skip' ? '<span class="pill">暂不学</span>' : st === 'learning' ? `<span class="r num">${d}/${all}</span>` : st === 'done' ? '' : `<span class="r num">${all}</span>`;
     return `<button class="rowi" data-sec="${sec.id}"><span class="sti" data-s="${st}" style="--p:${pct(d, all)}%">${st === 'done' ? ico('check') : st === 'external' ? ico('sync') : ''}</span><span class="grow"><div class="t">${esc(sec.title)}</div></span>${right}${ico('chev', 'chev')}</button>`; };
   v.innerHTML = appbar('', `<button class="ibtn" id="cmore" aria-label="更多">${ico('more')}</button>`) + `<div class="wrap"><div class="stack">
   <div class="chead">${coverHTML(c)}<div class="grow"><h1>${esc(c.title)}</h1><div class="m">${c.chapters.length} 章 · ${s.secs} 节 · 已学 ${pct(s.learned, s.items)}%${s.due ? ` · ${s.due} 个待复习` : ''}</div></div></div>
-  ${next ? `<button class="btn pri block" id="cont">${ico('play')}${secStatus(next) === 'learning' ? '继续' : '开始'}：${esc(next.title)}</button>` : `<button class="btn soft block" data-review-course="${c.id}">${ico('review')}复习这门课</button>`}
-  <div class="qa4"><button id="cplan"><span class="ib">${ico('target')}</span>计划</button><button id="csync"><span class="ib">${ico('sync')}</span>同步进度</button><button id="cnotes"><span class="ib">${ico('doc')}</span>笔记</button><button id="cmat"><span class="ib">${ico('folder')}</span>用资料补充</button></div>
-  <div class="group">
-    <div class="rowi"><span class="grow"><div class="t">每天 ${cp.pace} 个</div><div class="m">${cp.on ? (finish ? `预计 ${finish} 学完` : s.remain ? '' : '新内容已学完') : '未加入今日任务'}${cp.target ? ` · 目标 ${cp.target}` : ''}</div></span></div>
-    ${s.emptySecs ? `<button class="rowi" id="cgen"><span class="grow"><div class="t" style="color:var(--accent)">AI 生成 ${s.emptySecs} 个空小节</div></span>${ico('chev', 'chev')}</button>` : ''}
-  </div>
+  ${next ? `<button class="btn pri block" id="cont">${ico('play', '', 'fill')}${secStatus(next) === 'learning' ? '继续' : '开始'}：${esc(next.title)}</button>` : `<button class="btn soft block" data-review-course="${c.id}">${ico('review')}复习这门课</button>`}
+  <div class="qa4"><button id="cplan"><span class="ib">${ico('target', '', 'duo')}</span>计划</button><button id="csync"><span class="ib">${ico('sync', '', 'duo')}</span>同步进度</button><button id="cnotes"><span class="ib">${ico('doc', '', 'duo')}</span>笔记</button><button id="cmat"><span class="ib">${ico('folder', '', 'duo')}</span>资料</button></div>
+  ${s.emptySecs ? `<div class="group"><button class="rowi" id="cgen"><span class="grow"><div class="t" style="color:var(--accent)">AI 生成 ${s.emptySecs} 个空小节</div></span>${ico('chev', 'chev')}</button></div>` : ''}
   ${c.chapters.map(ch => { const done = ch.sections.filter(x => ['done', 'external'].includes(secStatus(x))).length; return `<div class="gh" id="ch-${ch.id}"><b>${esc(ch.title)}</b><span class="num">${done}/${ch.sections.length}</span></div><div class="group" style="--sepl:50px">${ch.sections.map(secRow).join('')}</div>`; }).join('')}
   </div></div>`;
   $('[data-back]', v).onclick = back;
@@ -87,7 +83,7 @@ function viewCourse({ id }) {
   $('#cplan').onclick = planSheet; $('#csync').onclick = () => syncSheet(c);
   $('#cgen')?.addEventListener('click', () => batchGenSheet(c));
   $('#cnotes').onclick = () => go('notes', { course: c.id });
-  $('#cmat').onclick = () => { const ms = [...MATS.values()].sort((a, b) => b.createdAt - a.createdAt); if (!ms.length) { go('materials', {}, { tab: true }); toast('先导入一份资料'); return; } menuSheet('选择资料', [...ms.map(m => ({ icon: matIcon(m), label: m.name, sub: matMeta(m), run: () => organizeSheet(m, { course: c.id }) })), { icon: 'upload', label: '导入新资料', run: () => go('materials', {}, { tab: true }) }]); };
+  $('#cmat').onclick = () => go('cmats', { id: c.id });
   $('#cmore').onclick = () => menuSheet(c.title, [
     { icon: 'download', label: '导出', sub: '课程包、Markdown 笔记、Anki 卡片', run: () => exportSheet(c) },
     { icon: 'target', label: cp.on ? '移出今日任务' : '加入今日任务', run: () => { cp.on = !cp.on; saveState(); refresh(); } },
@@ -107,9 +103,9 @@ function viewSection({ id }) {
   const step = (cls, n, t, m) => `<div class="s ${cls}"><span class="c">${cls === 'done' ? ico('check') : n}</span><b>${t}</b><span>${m}</span></div>`;
   v.innerHTML = appbar(c.title, `<button class="ibtn" id="smore" aria-label="更多">${ico('more')}</button>`) + `<div class="wrap"><div class="stack">
   <header style="padding:4px 4px 0"><div class="eyebrow" style="color:${c.color}">${esc(ch.title)}</div><h1 style="margin:4px 0 6px;font-size:28px;font-weight:800;line-height:1.2;letter-spacing:-.01em">${esc(sec.title)}</h1><button class="small" id="sst" style="color:var(--ink-2)">${SEC_LABEL[st]} · ${p.kp} 个知识点 · ${p.q} 道练习 ›</button></header>
-  ${st === 'empty' ? `<div class="card card-in" style="display:flex;flex-direction:column;gap:12px;align-items:center;text-align:center;padding:28px 18px"><span class="round acc" style="width:56px;height:56px">${ico('wand')}</span><b style="font-size:18px">这一节还没有内容</b>${sec.points.length ? `<span class="small">${sec.points.map(esc).join(' · ')}</span>` : ''}<button class="btn pri block" id="egen">${ico('wand')}生成本节内容</button><button class="btn ghost" id="eimp">导入卡片文本</button></div>`
+  ${st === 'empty' ? `<div class="card card-in" style="display:flex;flex-direction:column;gap:12px;align-items:center;text-align:center;padding:28px 18px"><span class="round acc" style="width:56px;height:56px">${ico('wand', '', 'duo')}</span><b style="font-size:18px">这一节还没有内容</b>${sec.points.length ? `<span class="small">${sec.points.map(esc).join(' · ')}</span>` : ''}<button class="btn pri block" id="egen">${ico('wand')}生成本节内容</button><button class="btn ghost" id="eimp">导入卡片文本</button></div>`
     : `<div class="card"><div class="steps3">${step(learnDone ? 'done' : 'cur', 1, '学习', `${p.ld}/${p.l}`)}<span class="ln"></span>${step(learnDone && p.p && !pracDone ? 'cur' : p.p && pracDone ? 'done' : '', 2, '练习', `${p.pd}/${p.p}`)}<span class="ln"></span>${step(allDone ? 'done' : '', 3, '小结', allDone ? '完成' : '—')}</div>
-    <div style="padding:10px 16px 16px;display:flex;flex-direction:column;gap:6px"><button class="btn pri block" id="start">${ico('play')}${st === 'todo' ? '开始学习' : st === 'done' ? '重新学习' : learnDone ? '继续练习' : '继续学习'}</button>
+    <div style="padding:10px 16px 16px;display:flex;flex-direction:column;gap:6px"><button class="btn pri block" id="start">${ico('play', '', 'fill')}${st === 'todo' ? '开始学习' : st === 'done' ? '重新学习' : learnDone ? '继续练习' : '继续学习'}</button>
     <div class="row" style="justify-content:center;gap:4px">${p.p ? `<button class="btn ghost sm" id="prac">只做练习</button>` : ''}<button class="btn ghost sm" id="snotes">笔记</button><button class="btn ghost sm" id="sgen">AI 补充</button></div></div></div>`}
   ${kps.length ? `<div class="gh"><b>知识点</b><span>${p.kpd}/${p.kp}</span></div><div class="group" style="--sepl:36px">${kps.map(it => `<div><button class="rowi" data-kp="${it.id}"><span class="dotst ${getSt(it) ? 'h' : ''}"></span><span class="grow"><div class="t">${esc(it.title || '知识点')}${it.imp >= 2 ? '<span class="badge-hot" title="高频"></span>' : ''}</div><div class="kprev">${esc(plain(it.q).slice(0, 80))}</div></span>${ico('chev', 'chev')}</button></div>`).join('')}</div>` : ''}
   ${qs.length ? `<div class="gh"><b>练习</b><span>${p.qd}/${p.q}</span></div><div class="group" style="--sepl:36px">${qs.map(it => { const s = getSt(it); return `<button class="rowi" data-q="${it.id}"><span class="dotst ${!s ? '' : s.lr === 1 ? 'n' : 'y'}"></span><span class="grow"><div class="m" style="margin:0 0 2px;color:var(--warn);font-weight:600">${TYPE_LABEL[it.t]}</div><div class="t" style="font-size:15px">${esc(plain(it.title || it.q).slice(0, 70))}</div></span>${ico('chev', 'chev')}</button>`; }).join('')}</div>` : ''}
@@ -163,7 +159,7 @@ function postHTML(p) {
   if (it.t === 'kp') {
     body = `<h3 class="pt">${esc(it.title || '知识点')}</h3>`;
     if (p.phase === 'front') foot = `<button class="btn pri block" data-act="reveal">回忆后展开</button>`;
-    else { body += `<div class="keypts md">${md(it.q)}</div>` + (it.d ? panel('open', '详解', 'bulb', it.d, p.open) : (AI.ok ? `<button class="btn soft sm" style="margin-top:14px" data-act="gen-d">${ico('wand')}AI 生成详解</button>` : '')); foot = rateBar(p, p.review || p.g != null ? 4 : 3); }
+    else { body += `<div class="keypts md">${md(it.q)}</div>` + (it.d ? panel('open', '详解', 'bulb', it.d, p.open) : (AI.ok ? `<button class="btn soft sm" style="margin-top:14px" data-act="gen-d">${ico('wand')}AI 生成详解</button>` : '')); foot = rateBar(p, p.review ? 4 : 3); }
   } else if (it.t === 'choice' || it.t === 'multi') {
     const done = p.phase === 'back', ans = [].concat(it.a);
     body = (it.title ? `<h3 class="pt">${esc(it.title)}</h3>` : '') + `<div class="md" style="margin-top:6px">${md(it.q)}</div><div class="opts">` + it.o.map((o, i) => {
@@ -200,7 +196,7 @@ function verdict(p) { return p.auto == null ? '' : `<div class="verdict ${p.auto
 function rateBar(p, n) {
   const base = p.g != null ? p.snap : getSt(p.it), now = Date.now(), st = p.g != null ? getSt(p.it) : null;
   const opts = n === 3 ? [[1, '没懂'], [3, '记住了'], [4, '太简单']] : [[1, '忘了'], [2, '模糊'], [3, '记得'], [4, '简单']];
-  return `${st ? `<div class="rated">${fmtIvl(st.due - now)}后复习</div>` : ''}<div class="rates ${n === 3 ? 'r3' : ''} ${p.g != null ? 'done' : ''}">${opts.map(([g, l]) => { const s = schedule(base, g, now); return `<button class="rate ${p.g === g ? 'on' : ''}" data-act="rate" data-g="${g}"><b>${l}</b><small>${fmtIvl(s.due - now)}</small></button>`; }).join('')}</div>`;
+  return `${st ? `<div class="rated">${fmtNext(st)}</div>` : ''}<div class="rates ${n === 3 ? 'r3' : ''} ${p.g != null ? 'done' : ''}">${opts.map(([g, l]) => { const s = schedule(base, g, now); return `<button class="rate ${p.g === g ? 'on' : ''}" data-act="rate" data-g="${g}"><b>${l}</b><small>${s.ivl ? fmtDays(s.ivl) : fmtIvl(s.due - now)}</small></button>`; }).join('')}</div>`;
 }
 function endCard(pr) {
   const el = h(`<article class="post"><div class="endc"></div></article>`), box = $('.endc', el);
@@ -242,10 +238,10 @@ function viewReview() {
   const days = []; for (let i = 29; i >= 0; i--) { const k = addDays(today, -i), s = S().stats[k]; days.push({ k, n: s?.n || 0, r: s?.r || 0, sec: s?.sec || 0 }); }
   const mx = Math.max(1, ...days.map(d => d.n + d.r)), tot = days.reduce((a, d) => a + d.n + d.r, 0), act = days.filter(d => d.n + d.r).length, mins = Math.round(days.reduce((a, d) => a + d.sec, 0) / 60);
   v.innerHTML = `<div class="wrap"><header class="lt"><div class="t"><h1>复习</h1></div></header><div class="stack">
-  <div class="dueh"><div class="grow"><div class="big" data-count>${dueN}</div><div class="lab">${dueN ? `今天待复习 · 约 ${Math.max(1, Math.round(dueN * .4))} 分钟` : due.length ? '今天的复习额度已用完' : '今天没有到期的内容'}</div></div>${dueN ? `<button class="play" id="rv-go" aria-label="开始复习" style="width:56px;height:56px">${ico('play')}</button>` : ''}</div>
+  <div class="dueh"><div class="grow"><div class="big" data-count>${dueN}</div><div class="lab">${dueN ? `今天待复习 · 约 ${Math.max(1, Math.round(dueN * .4))} 分钟` : due.length ? '今天的复习额度已用完' : '今天没有到期的内容'}</div></div>${dueN ? `<button class="play" id="rv-go" aria-label="开始复习" style="width:56px;height:56px">${ico('play', '', 'fill')}</button>` : ''}</div>
   <div class="group icons">
-    <button class="rowi" data-rk="wrong"><span class="tico" style="--c:var(--bad)">${ico('alert')}</span><span class="grow"><div class="t">错题本</div></span><span class="r num">${wrong.length}</span>${ico('chev', 'chev')}</button>
-    <button class="rowi" data-rk="star"><span class="tico" style="--c:var(--warn)">${ico('star')}</span><span class="grow"><div class="t">收藏</div></span><span class="r num">${star.length}</span>${ico('chev', 'chev')}</button>
+    <button class="rowi" data-rk="wrong"><span class="tico" style="--c:var(--bad)">${ico('alert', '', 'duo')}</span><span class="grow"><div class="t">错题本</div></span><span class="r num">${wrong.length}</span>${ico('chev', 'chev')}</button>
+    <button class="rowi" data-rk="star"><span class="tico" style="--c:var(--warn)">${ico('star', '', 'duo')}</span><span class="grow"><div class="t">收藏</div></span><span class="r num">${star.length}</span>${ico('chev', 'chev')}</button>
   </div>
   ${Object.keys(byCourse).length > 1 ? `<div class="gh"><b>按课程</b></div><div class="group icons">${Object.entries(byCourse).map(([cid, n]) => { const c = COURSES.get(cid); return `<button class="rowi" data-rc="${cid}"><span class="tico" style="--c:${c.color}">${esc(c.title[0])}</span><span class="grow"><div class="t">${esc(c.title)}</div></span><span class="r num">${n}</span>${ico('chev', 'chev')}</button>`; }).join('')}</div>` : ''}
   <div class="gh"><b>未来 7 天</b><span>已学 ${learned} · 牢固 ${mastered}</span></div>
@@ -269,15 +265,37 @@ function jobCard(j) {
   ${running ? `<button class="btn sm" data-jpause>暂停</button>` : j.status !== 'done' ? `<button class="btn sm soft" data-jrun="${j.id}">${p.d ? '继续' : '开始'}</button>` : c ? `<button class="btn sm soft" data-jcourse="${c.id}">查看</button>` : ''}
   ${!running ? `<button class="ibtn" data-jdel="${j.id}" aria-label="删除任务" style="color:var(--ink-3)">${ico('trash')}</button>` : ''}</div>`;
 }
+/* ---- 课程资料：只列出与这门课关联的资料（整理进这门课的资料及其整理任务） ---- */
+function viewCourseMats({ id }) {
+  const c = COURSES.get(id), v = $('#view'); if (!c) return back();
+  const js = jobs().filter(j => j.course === id), linked = new Set(js.map(j => j.mat));
+  const list = [...MATS.values()].filter(m => m.course === id || linked.has(m.id)).sort((a, b) => b.createdAt - a.createdAt);
+  v.innerHTML = appbar('', `<button class="ibtn" id="cm-add" aria-label="添加资料">${ico('plus')}</button>`) + `<div class="wrap"><div class="stack">
+  <header style="padding:4px 4px 0"><div class="eyebrow" style="color:${c.color}">${esc(c.title)}</div><h1 style="margin:4px 0 0;font-size:28px;font-weight:800">资料</h1></header>
+  ${js.length ? `<div class="gh"><b>整理任务</b></div><div class="group">${js.map(jobCard).join('')}</div>` : ''}
+  ${list.length ? `<div class="group" style="--sepl:64px">${list.map(m => `<button class="rowi" data-mat="${m.id}">${matBadge(m)}<span class="grow"><div class="t">${esc(m.name)}</div><div class="m">${esc(matMeta(m))}</div></span>${ico('chev', 'chev')}</button>`).join('')}</div>`
+    : `<div class="empty">${ico('folder')}<b>还没有资料</b></div>`}
+  </div></div>`;
+  $('[data-back]', v).onclick = back;
+  $$('[data-mat]', v).forEach(b => b.onclick = () => go('material', { id: b.dataset.mat }));
+  bindJobButtons(v);
+  $('#cm-add').onclick = () => {
+    const others = [...MATS.values()].filter(m => !list.includes(m)).sort((a, b) => b.createdAt - a.createdAt);
+    menuSheet('添加资料', [
+      ...others.map(m => ({ icon: matIcon(m), label: m.name, sub: matMeta(m), run: () => organizeSheet(m, { course: id }) })),
+      { icon: 'upload', label: '导入新文件', run: () => { const i = h('<input type="file" multiple hidden>'); document.body.append(i); i.onchange = () => { importFiles([...i.files]); i.remove(); }; i.click(); } }
+    ]);
+  };
+}
 function viewMaterials() {
   const v = $('#view'), list = [...MATS.values()].sort((a, b) => b.createdAt - a.createdAt), js = jobs();
   v.innerHTML = `<div class="wrap"><header class="lt"><div class="t"><h1>资料</h1></div></header><div class="stack">
-  <div id="mt-drop" class="dropzone"><div class="imp3"><button id="mt-imp"><span class="ib" style="--c:var(--accent)">${ico('folder')}</span>文件</button><button id="mt-cam"><span class="ib" style="--c:#2f9e63">${ico('camera')}</span>拍照</button><button id="mt-paste"><span class="ib" style="--c:#df8a0b">${ico('edit')}</span>粘贴</button></div><input type="file" id="mt-file" multiple hidden accept=".pdf,.docx,.txt,.md,.markdown,.json,.csv,.tsv,image/*,application/pdf,text/plain"><input type="file" id="mt-camf" accept="image/*" capture="environment" multiple hidden></div>
+  <div id="mt-drop" class="dropzone"><div class="imp3"><button id="mt-imp"><span class="ib" style="--c:var(--accent)">${ico('folder', '', 'duo')}</span>文件</button><button id="mt-cam"><span class="ib" style="--c:#2f9e63">${ico('camera', '', 'duo')}</span>拍照</button><button id="mt-paste"><span class="ib" style="--c:#df8a0b">${ico('edit', '', 'duo')}</span>粘贴</button></div><input type="file" id="mt-file" multiple hidden accept=".pdf,.docx,.txt,.md,.markdown,.json,.csv,.tsv,image/*,application/pdf,text/plain"><input type="file" id="mt-camf" accept="image/*" capture="environment" multiple hidden></div>
   ${js.length ? `<div class="gh"><b>整理任务</b></div><div class="group">${js.map(jobCard).join('')}</div>` : ''}
   <div class="gh"><b>我的资料</b>${list.length ? `<span>${list.length}</span>` : ''}</div>
   ${list.length ? `<div class="group" style="--sepl:64px">${list.map(m => `<button class="rowi" data-mat="${m.id}">${matBadge(m)}<span class="grow"><div class="t">${esc(m.name)}</div><div class="m">${esc(matMeta(m))}</div></span>${m.scanned ? '<span class="pill warn">扫描版</span>' : m.course ? '<span class="pill good">已整理</span>' : ''}${ico('chev', 'chev')}</button>`).join('')}</div>` : `<div class="card"><div class="empty">${ico('folder')}<b>还没有资料</b></div></div>`}
   <div class="gh"><b>导出</b></div>
-  <div class="group icons">${shownCourses().map(c => `<button class="rowi" data-exp="${c.id}"><span class="tico" style="--c:${c.color}">${esc(c.title[0])}</span><span class="grow"><div class="t">${esc(c.title)}</div></span>${ico('chev', 'chev')}</button>`).join('')}<button class="rowi" data-go="settings"><span class="tico" style="--c:#8e8e93">${ico('download')}</span><span class="grow"><div class="t">完整备份</div></span>${ico('chev', 'chev')}</button></div>
+  <div class="group icons">${shownCourses().map(c => `<button class="rowi" data-exp="${c.id}"><span class="tico" style="--c:${c.color}">${esc(c.title[0])}</span><span class="grow"><div class="t">${esc(c.title)}</div></span>${ico('chev', 'chev')}</button>`).join('')}<button class="rowi" data-go="settings"><span class="tico" style="--c:#8e8e93">${ico('download', '', 'duo')}</span><span class="grow"><div class="t">完整备份</div></span>${ico('chev', 'chev')}</button></div>
   </div></div>`;
   const fi = $('#mt-file'), cam = $('#mt-camf');
   $('#mt-imp').onclick = () => fi.click(); $('#mt-cam').onclick = () => cam.click();
@@ -295,7 +313,7 @@ function viewMaterial({ id }) {
   <div class="chead" style="align-items:center">${matBadge(m, true)}<div class="grow"><h1 style="font-size:22px">${esc(m.name)}</h1><div class="m">${esc(matMeta(m))}</div></div></div>
   ${m.scanned ? `<div class="gf" style="margin:0 4px;color:var(--warn)">扫描版：建议先识别文字</div>` : ''}
   <button class="btn pri block" id="mm-org">${ico('wand')}AI 整理成新课程</button>
-  <div class="qa4"><button id="mm-fill"><span class="ib">${ico('plus')}</span>补充到课程</button>${m.kind !== 'text' ? `<button id="mm-ocr"><span class="ib">${ico('spark')}</span>识别文字</button>` : ''}${m.file || m.imgs ? `<button id="mm-open"><span class="ib">${ico('file')}</span>原文件</button>` : ''}<button id="mm-exp"><span class="ib">${ico('download')}</span>导出文字</button></div>
+  <div class="qa4"><button id="mm-fill"><span class="ib">${ico('plus', '', 'duo')}</span>补充到课程</button>${m.kind !== 'text' ? `<button id="mm-ocr"><span class="ib">${ico('spark', '', 'duo')}</span>识别文字</button>` : ''}${m.file || m.imgs ? `<button id="mm-open"><span class="ib">${ico('file', '', 'duo')}</span>原文件</button>` : ''}<button id="mm-exp"><span class="ib">${ico('download', '', 'duo')}</span>导出文字</button></div>
   ${c ? `<div class="group icons"><button class="rowi" data-jcourse="${c.id}"><span class="tico" style="--c:${c.color}">${esc(c.title[0])}</span><span class="grow"><div class="t">${esc(c.title)}</div><div class="m">已整理 · ${courseStats(c).items} 个内容</div></span>${ico('chev', 'chev')}</button></div>` : ''}
   ${js.length ? `<div class="gh"><b>整理任务</b></div><div class="group">${js.map(jobCard).join('')}</div>` : ''}
   <div class="gh"><b>内容</b><span>${m.pages} ${m.kind === 'text' ? '段' : '页'}</span></div>
@@ -343,12 +361,12 @@ function viewSettings() {
     <div class="rowi"><span class="grow"><div class="t">别处已学每天放入</div></span><div class="stepper"><button data-e="-5">−</button><input id="s-ext" inputmode="numeric" value="${pl.extPerDay}"><button data-e="5">＋</button></div></div></div>
   <div class="gh"><b>数据</b></div>
   <div class="group icons">
-    <div class="rowi"><span class="tico" style="--c:${Store.mode === 'cloud' ? 'var(--good)' : 'var(--warn)'}">${ico(Store.mode === 'cloud' ? 'sync' : 'alert')}</span><span class="grow"><div class="t">${Store.mode === 'cloud' ? Platform.cloudLabel : '只保存在这台设备'}</div><div class="m">${Store.mode === 'cloud' ? Platform.cloudSub : '建议定期导出备份'}</div></span></div>
-    <button class="rowi" id="s-export"><span class="tico">${ico('download')}</span><span class="grow"><div class="t">导出完整备份</div></span>${ico('chev', 'chev')}</button>
-    <button class="rowi" id="s-import"><span class="tico">${ico('upload')}</span><span class="grow"><div class="t">导入备份</div></span>${ico('chev', 'chev')}</button>
-    ${hiddenN ? `<button class="rowi" id="s-unhide"><span class="tico" style="--c:#8e8e93">${ico('eyeoff')}</span><span class="grow"><div class="t">恢复 ${hiddenN} 张隐藏的卡片</div></span></button>` : ''}
-    ${hc.length ? `<button class="rowi" id="s-unhidec"><span class="tico" style="--c:#8e8e93">${ico('book')}</span><span class="grow"><div class="t">恢复隐藏的课程</div></span></button>` : ''}
-    <button class="rowi" id="s-reset"><span class="tico" style="--c:var(--bad)">${ico('trash')}</span><span class="grow"><div class="t" style="color:var(--bad)">清空学习记录</div></span></button>
+    <div class="rowi"><span class="tico" style="--c:${Store.mode === 'cloud' ? 'var(--good)' : 'var(--warn)'}">${ico(Store.mode === 'cloud' ? 'sync' : 'alert', '', 'duo')}</span><span class="grow"><div class="t">${Store.mode === 'cloud' ? Platform.cloudLabel : '只保存在这台设备'}</div><div class="m">${Store.mode === 'cloud' ? Platform.cloudSub : '建议定期导出备份'}</div></span></div>
+    <button class="rowi" id="s-export"><span class="tico">${ico('download', '', 'duo')}</span><span class="grow"><div class="t">导出完整备份</div></span>${ico('chev', 'chev')}</button>
+    <button class="rowi" id="s-import"><span class="tico">${ico('upload', '', 'duo')}</span><span class="grow"><div class="t">导入备份</div></span>${ico('chev', 'chev')}</button>
+    ${hiddenN ? `<button class="rowi" id="s-unhide"><span class="tico" style="--c:#8e8e93">${ico('eyeoff', '', 'duo')}</span><span class="grow"><div class="t">恢复 ${hiddenN} 张隐藏的卡片</div></span></button>` : ''}
+    ${hc.length ? `<button class="rowi" id="s-unhidec"><span class="tico" style="--c:#8e8e93">${ico('book', '', 'duo')}</span><span class="grow"><div class="t">恢复隐藏的课程</div></span></button>` : ''}
+    <button class="rowi" id="s-reset"><span class="tico" style="--c:var(--bad)">${ico('trash', '', 'duo')}</span><span class="grow"><div class="t" style="color:var(--bad)">清空学习记录</div></span></button>
   </div>
   <div class="gf">温新 ${APP_VERSION} · 开源软件（MIT）· github.com/NIKOPACK/Renew</div>
   </div></div>`;

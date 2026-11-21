@@ -36,6 +36,7 @@
     "@capacitor/android": "^8.6.2",
     "@capacitor/cli": "^8.6.2",
     "@capacitor/ios": "^8.6.2",
+    "@phosphor-icons/core": "^2.1.1",
     "esbuild": "^0.28.2",
     "katex": "^0.16.9",
     "mammoth": "^1.6.0",

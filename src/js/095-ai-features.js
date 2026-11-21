@@ -78,7 +78,7 @@ function genSheet({ sid, kpN, qN, focus = '', weak = false }) {
     <div id="g-mat"></div>
     <div class="row"><label class="field grow"><span>知识点卡</span><select class="inp" id="g-k">${[0, 2, 3, 4, 5, 6, 8, 10].map(n => `<option ${n === kpN ? 'selected' : ''}>${n}</option>`).join('')}</select></label><label class="field grow"><span>练习题</span><select class="inp" id="g-q">${[0, 2, 3, 4, 5, 6, 8, 10].map(n => `<option ${n === qN ? 'selected' : ''}>${n}</option>`).join('')}</select></label></div>
     <label class="field"><span>侧重（可选）</span><input class="inp" id="g-f" value="${esc(focus)}" placeholder="例如：多出辨析题；侧重某个概念"></label>
-    <div class="acts"><button class="btn pri" id="g-go">${ico('wand')}${AI.ok ? '生成' : '复制提示词'}</button><button class="btn" id="g-stop" hidden>${ico('stop')}停止</button></div><div id="g-out"></div></div>`);
+    <div class="acts"><button class="btn pri" id="g-go">${ico('wand')}${AI.ok ? '生成' : '复制提示词'}</button><button class="btn" id="g-stop" hidden>${ico('stop', '', 'fill')}停止</button></div><div id="g-out"></div></div>`);
   const s = sheet(empty ? '生成本节内容' : 'AI 补充内容', body), getMat = materialPicker($('#g-mat', body));
   let ctl = null; s.onclose = () => ctl?.abort(); $('#g-stop', body).onclick = () => ctl?.abort();
   $('#g-go', body).onclick = async () => {
@@ -115,7 +115,7 @@ function importSheet(sid) {
 }
 function batchGenSheet(c) {
   const empties = courseSecs(c).filter(s => secStatus(s) === 'empty');
-  const body = h(`<div style="display:flex;flex-direction:column;gap:12px"><p class="small" style="margin:0">${empties.length} 个空小节，每节约 1 分钟，可随时停止。</p><div class="menu" id="bg-list">${empties.map(s => `<button data-s="${s.id}" disabled><span class="sti" data-s="empty"></span><span class="grow">${esc(s.title)}<small>等待</small></span></button>`).join('')}</div><div class="acts"><button class="btn pri" id="bg-go">${ico('wand')}开始生成</button><button class="btn" id="bg-stop" hidden>${ico('stop')}停止</button></div></div>`);
+  const body = h(`<div style="display:flex;flex-direction:column;gap:12px"><p class="small" style="margin:0">${empties.length} 个空小节，每节约 1 分钟，可随时停止。</p><div class="menu" id="bg-list">${empties.map(s => `<button data-s="${s.id}" disabled><span class="sti" data-s="empty"></span><span class="grow">${esc(s.title)}<small>等待</small></span></button>`).join('')}</div><div class="acts"><button class="btn pri" id="bg-go">${ico('wand')}开始生成</button><button class="btn" id="bg-stop" hidden>${ico('stop', '', 'fill')}停止</button></div></div>`);
   const s = sheet('AI 生成「' + c.title + '」', body); let ctl = null, stopped = false;
   s.onclose = () => { stopped = true; ctl?.abort(); refresh(); };
   $('#bg-stop', body).onclick = () => { stopped = true; ctl?.abort(); };

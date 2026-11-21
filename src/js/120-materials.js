@@ -67,7 +67,7 @@ function matMeta(m) {
 async function ocrSheet(m) {
   const lim = AI.limits?.images; if (!AI.require()) return; if (!lim) return toast('当前模型不支持图片，请在设置里换成支持图片的模型');
   const pages = await matPages(m), todo = pages.map((t, i) => t.trim() ? null : i + 1).filter(Boolean);
-  const body = h(`<div style="display:flex;flex-direction:column;gap:12px"><p class="small" style="margin:0">${todo.length} 页待识别</p><div class="row"><label class="field grow"><span>起始页</span><input class="inp" id="oc-a" inputmode="numeric" value="${todo[0] || 1}"></label><label class="field grow"><span>结束页</span><input class="inp" id="oc-b" inputmode="numeric" value="${Math.min(m.pages, (todo[0] || 1) + 19)}"></label></div><div class="acts"><button class="btn pri" id="oc-go">${ico('wand')}开始识别</button><button class="btn" id="oc-stop" hidden>${ico('stop')}停止</button></div><div id="oc-out" class="small"></div></div>`);
+  const body = h(`<div style="display:flex;flex-direction:column;gap:12px"><p class="small" style="margin:0">${todo.length} 页待识别</p><div class="row"><label class="field grow"><span>起始页</span><input class="inp" id="oc-a" inputmode="numeric" value="${todo[0] || 1}"></label><label class="field grow"><span>结束页</span><input class="inp" id="oc-b" inputmode="numeric" value="${Math.min(m.pages, (todo[0] || 1) + 19)}"></label></div><div class="acts"><button class="btn pri" id="oc-go">${ico('wand')}开始识别</button><button class="btn" id="oc-stop" hidden>${ico('stop', '', 'fill')}停止</button></div><div id="oc-out" class="small"></div></div>`);
   const s = sheet('AI 识别文字', body); let stop = false, ctl; s.onclose = () => { stop = true; ctl?.abort(); };
   $('#oc-stop', body).onclick = () => { stop = true; ctl?.abort(); };
   $('#oc-go', body).onclick = async () => {

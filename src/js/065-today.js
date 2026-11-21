@@ -15,20 +15,26 @@ function heatmap() {
   return `<div class="heat">${cells.join('')}</div>`;
 }
 function planSheet() {
-  const body = h(`<div style="display:flex;flex-direction:column;gap:14px"></div>`);
+  const body = h(`<div style="display:flex;flex-direction:column;gap:18px"></div>`);
+  const stepper = (attr, id, val, unit) => `<div class="pstep"><button ${attr}="${id}" data-d="-1" aria-label="减少">${ico('minus')}</button><input ${attr.replace('step', 'val')}="${id}" inputmode="numeric" value="${val}" aria-label="${unit}"><button ${attr}="${id}" data-d="1" aria-label="增加">${ico('plus')}</button></div>`;
   const draw = () => {
-    body.innerHTML = '' +
-      shownCourses().map(c => { const cp = coursePlan(c.id), s = courseStats(c); const days = cp.target ? Math.max(1, daysBetween(dayKey(), cp.target)) : 0; const rec = days ? Math.ceil(s.remain / days) : 0;
-        return `<section class="card card-in" style="display:flex;flex-direction:column;gap:12px"><div class="row"><span class="dot" style="width:10px;height:10px;border-radius:50%;background:${c.color}"></span><b class="grow">${esc(c.title)}</b><span class="small">剩 ${s.remain} 个</span><button class="toggle" role="switch" aria-checked="${cp.on}" data-on="${c.id}" aria-label="学习${esc(c.title)}"></button></div>
-        ${cp.on ? `<div class="row" style="flex-wrap:wrap;align-items:flex-end"><label class="field grow" style="min-width:140px"><span>目标完成日期</span><input class="inp" type="date" data-target="${c.id}" value="${esc(cp.target)}"></label><div class="field"><span>每天新学</span><div class="stepper"><button data-step="${c.id}" data-d="-2">−</button><input data-pace="${c.id}" inputmode="numeric" value="${cp.pace}"><button data-step="${c.id}" data-d="2">＋</button></div></div></div>${rec && rec !== cp.pace ? `<button class="btn sm soft" data-rec="${c.id}" data-v="${rec}">按目标改为每天 ${rec} 个</button>` : ''}` : ''}</section>`; }).join('') +
-      `<div class="row"><span class="grow small">每天复习上限</span><div class="stepper"><button data-mr="-50">−</button><input id="mr" inputmode="numeric" value="${plan().maxReview}"><button data-mr="50">＋</button></div></div>`;
+    body.innerHTML = shownCourses().map(c => {
+      const cp = coursePlan(c.id), st = courseStats(c), days = cp.target ? Math.max(1, daysBetween(dayKey(), cp.target)) : 0, rec = days ? Math.ceil(st.remain / days) : 0;
+      return `<div class="group plan-g">
+        <div class="rowi"><span class="pdot" style="--c:${c.color}"></span><span class="grow"><div class="t">${esc(c.title)}</div><div class="m">${st.remain ? `还剩 ${st.remain} 个内容` : '已全部学完'}</div></span><button class="toggle" role="switch" aria-checked="${cp.on}" data-on="${c.id}" aria-label="学习${esc(c.title)}"></button></div>
+        ${cp.on ? `<div class="rowi"><span class="grow t">每天新学</span>${stepper('data-step', c.id, cp.pace, '每天新学')}</div>
+        <label class="rowi"><span class="grow t">目标日期</span><input class="pdate ${cp.target ? '' : 'empty'}" type="date" data-target="${c.id}" value="${esc(cp.target)}" min="${dayKey()}">${cp.target ? `<button class="pclr" data-clr="${c.id}" aria-label="清除目标日期">${ico('x')}</button>` : ''}</label>
+        ${rec && rec !== cp.pace ? `<div class="rowi prec"><span class="grow m">按目标需要每天 ${rec} 个</span><button class="btn sm soft" data-rec="${c.id}" data-v="${rec}">采用</button></div>` : ''}` : ''}
+      </div>`; }).join('') +
+      `<div class="group plan-g"><div class="rowi"><span class="grow t">每天复习上限</span>${stepper('data-mstep', 'r', plan().maxReview, '每天复习上限')}</div></div>`;
     $$('[data-on]', body).forEach(b => b.onclick = () => { const cp = coursePlan(b.dataset.on); cp.on = !cp.on; saveState(); draw(); });
     $$('[data-target]', body).forEach(i => i.onchange = () => { coursePlan(i.dataset.target).target = i.value; saveState(); draw(); });
-    $$('[data-pace]', body).forEach(i => i.onchange = () => { coursePlan(i.dataset.pace).pace = Math.max(0, Math.min(300, parseInt(i.value) || 0)); saveState(); draw(); });
-    $$('[data-step]', body).forEach(b => b.onclick = () => { const cp = coursePlan(b.dataset.step); cp.pace = Math.max(0, cp.pace + +b.dataset.d); saveState(); draw(); });
+    $$('[data-clr]', body).forEach(b => b.onclick = e => { e.preventDefault(); coursePlan(b.dataset.clr).target = ''; saveState(); draw(); });
+    $$('[data-val]', body).forEach(i => i.onchange = () => { coursePlan(i.dataset.val).pace = Math.max(0, Math.min(300, parseInt(i.value) || 0)); saveState(); draw(); });
+    $$('[data-step]', body).forEach(b => b.onclick = () => { const cp = coursePlan(b.dataset.step); cp.pace = Math.max(0, Math.min(300, cp.pace + +b.dataset.d * (cp.pace >= 20 ? 5 : 1))); saveState(); draw(); });
     $$('[data-rec]', body).forEach(b => b.onclick = () => { coursePlan(b.dataset.rec).pace = +b.dataset.v; saveState(); draw(); });
-    $$('[data-mr]', body).forEach(b => b.onclick = () => { plan().maxReview = Math.max(10, plan().maxReview + +b.dataset.mr); saveState(); draw(); });
-    $('#mr', body).onchange = e => { plan().maxReview = Math.max(10, parseInt(e.target.value) || 200); saveState(); };
+    $$('[data-mstep]', body).forEach(b => b.onclick = () => { plan().maxReview = Math.max(10, Math.min(2000, plan().maxReview + +b.dataset.d * 50)); saveState(); draw(); });
+    $$('[data-mval]', body).forEach(i => i.onchange = () => { plan().maxReview = Math.max(10, parseInt(i.value) || 200); saveState(); draw(); });
   };
   draw();
   const s = sheet('学习计划', body); s.onclose = () => refresh();

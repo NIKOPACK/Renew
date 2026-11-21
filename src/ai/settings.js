@@ -3,7 +3,7 @@ let AI_CFG = null; // 当前配置的内存副本，供设置页同步显示
 function aiSettingsGroup() {
   const c = AI_CFG, pr = c && AI_PRESETS[c.provider];
   return `<div class="gh"><b>AI 服务</b></div><div class="group icons">
-    <button class="rowi" id="s-ai"><span class="tico" style="--c:${AI.ok ? 'var(--accent)' : 'var(--warn)'}">${ico('spark')}</span><span class="grow"><div class="t">${c?.key ? esc(pr?.label || c.provider) : '未设置'}</div><div class="m">${c?.key ? esc(c.model || '未选择模型') : '填写你自己的 API Key 后，出题、讲解、问答和资料整理都可以使用'}</div></span>${ico('chev', 'chev')}</button>
+    <button class="rowi" id="s-ai"><span class="tico" style="--c:${AI.ok ? 'var(--accent)' : 'var(--warn)'}">${ico('spark', '', 'duo')}</span><span class="grow"><div class="t">${c?.key ? esc(pr?.label || c.provider) : '未设置'}</div><div class="m">${c?.key ? esc(c.model || '未选择模型') : '填写你自己的 API Key 后，出题、讲解、问答和资料整理都可以使用'}</div></span>${ico('chev', 'chev')}</button>
   </div>`;
 }
 function bindAiSettingsGroup(v) { $('#s-ai', v)?.addEventListener('click', () => aiConfigSheet()); }

@@ -145,6 +145,7 @@ def web():
     out(f'{ROOT}/resources/web/apple-touch-icon.png', full.convert('RGB').resize((180, 180), Image.LANCZOS))
     out(f'{ROOT}/resources/web/favicon-64.png', masked(full, 'rounded').resize((64, 64), Image.LANCZOS))
     out(f'{ROOT}/docs/images/icon.png', masked(full, 'rounded').resize((256, 256), Image.LANCZOS))
+    out(f'{ROOT}/resources/brand-128.png', masked(full, 'rounded').resize((128, 128), Image.LANCZOS))  # 界面内的品牌标志（构建时内联）
 
 
 if __name__ == '__main__':

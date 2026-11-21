@@ -5,7 +5,7 @@ function renderTabbar() {
   const due = Math.min(dueItems().length, reviewLeft());
   $$('.tabbar button').forEach(b => {
     const [i, l] = TAB_META[b.dataset.tab];
-    b.innerHTML = `${ico(i)}<span>${l}</span>${b.dataset.tab === 'review' && due ? `<span class="badge">${due > 99 ? '99+' : due}</span>` : ''}`;
+    b.innerHTML = `${ico(i, '', b.dataset.tab === Nav.tab ? 'fill' : '')}<span>${l}</span>${b.dataset.tab === 'review' && due ? `<span class="badge">${due > 99 ? '99+' : due}</span>` : ''}`;
     b.dataset.tab === Nav.tab ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current');
   });
 }
@@ -25,7 +25,7 @@ function render(anim, restore) {
   const ghost = anim && v.firstElementChild && !v.querySelector('.loading') ? navCapture(fx) : null;
   document.body.classList.toggle('immersive', newImm);
   document.body.classList.toggle('aiv', top.view === 'ai');
-  const fn = { today: viewToday, library: viewLibrary, course: viewCourse, section: viewSection, review: viewReview, ai: viewAI, settings: viewSettings, session: viewSession, materials: viewMaterials, material: viewMaterial, notes: viewNotes, search: viewSearch }[top.view];
+  const fn = { today: viewToday, library: viewLibrary, course: viewCourse, section: viewSection, review: viewReview, ai: viewAI, settings: viewSettings, session: viewSession, materials: viewMaterials, cmats: viewCourseMats, material: viewMaterial, notes: viewNotes, search: viewSearch }[top.view];
   fn(top.params || {});
   renderTabbar(); updatePill();
   if (anim) { v.classList.remove('enter', 'solo'); void v.offsetWidth; v.classList.add('enter'); if (!ghost && !['next', 'prev'].includes(fx)) v.classList.add('solo'); }

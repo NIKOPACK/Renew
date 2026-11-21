@@ -16,7 +16,7 @@ function viewAI() {
   const hello = hr < 5 ? '夜深了' : hr < 11 ? '早上好' : hr < 14 ? '中午好' : hr < 18 ? '下午好' : '晚上好';
   const empty = !c || !c.msgs.length;
   v.innerHTML = `<div class="appbar aibar"><div class="wrap"><button class="ibtn" id="ch-back" aria-label="返回">${ico('back')}</button><button class="tbtn" id="ch-hist"><span>${c ? esc(c.title) : '温新 AI'}</span>${ico('down')}</button><button class="ibtn" id="ch-new" aria-label="新对话">${ico('edit')}</button></div></div>
-  <div class="wrap"><div class="cm ${empty ? 'blank' : ''}" id="cm">${empty ? `<div class="hello2"><span class="hi">${ico('spark')}</span><h2>${hello}</h2>${AI.ready && !AI.ok && Platform.aiConfigurable ? `<button class="btn pri" id="ch-setup">${ico('spark')}设置 AI 服务</button><p class="small" style="margin:0;text-align:center">填写你自己的 API Key 后即可使用</p>` : ''}</div>` : ''}</div></div>
+  <div class="wrap"><div class="cm ${empty ? 'blank' : ''}" id="cm">${empty ? `<div class="hello2"><img class="hi" src="__BRAND_MARK__" alt="温新"><h2>${hello}</h2>${AI.ready && !AI.ok && Platform.aiConfigurable ? `<button class="btn pri" id="ch-setup">${ico('spark')}设置 AI 服务</button><p class="small" style="margin:0;text-align:center">填写你自己的 API Key 后即可使用</p>` : ''}</div>` : ''}</div></div>
   <button class="tobottom" id="ch-down" hidden aria-label="回到底部">${ico('down')}</button>
   <div class="composer3" id="cmp"><div class="wrap">
     ${empty ? `<div class="chips sgs">${SUGGEST.map(([t], i) => `<button class="chip" data-sg="${i}">${t}</button>`).join('')}</div>` : ''}
@@ -24,7 +24,7 @@ function viewAI() {
       <div class="crow"><button class="cb" id="ch-plus" aria-label="工具">${ico('plus')}</button><button class="cctx" id="ch-ctx">${ico('book')}<span>${ctx ? esc(ctx.title) : '全部课程'}</span></button><span class="grow"></span><button class="send" id="ch-send" aria-label="发送">${ico('send')}</button></div></div>
   </div></div>`;
   const inp = $('#ch-in'), send = $('#ch-send');
-  const sync = () => { send.innerHTML = Chat.busy ? ico('stop') : ico('send'); send.classList.toggle('stop', Chat.busy); send.disabled = !Chat.busy && !inp.value.trim(); };
+  const sync = () => { send.innerHTML = Chat.busy ? ico('stop', '', 'fill') : ico('send'); send.classList.toggle('stop', Chat.busy); send.disabled = !Chat.busy && !inp.value.trim(); };
   inp.oninput = () => { inp.style.height = 'auto'; inp.style.height = Math.min(160, inp.scrollHeight) + 'px'; sync(); };
   inp.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && matchMedia('(pointer:fine)').matches) { e.preventDefault(); send.click(); } };
   send.onclick = () => { if (Chat.busy) { Chat.ctl?.abort(); return; } const t = inp.value.trim(); if (!t) return; inp.value = ''; inp.style.height = ''; aiSend(t); };
@@ -67,4 +67,5 @@ function kbFix() {
   const vv = visualViewport, off = Math.max(0, innerHeight - vv.height - vv.offsetTop); cmp.style.bottom = off + 'px';
 }
 window.visualViewport?.addEventListener('resize', kbFix); window.visualViewport?.addEventListener('scroll', kbFix);
-addEventListener('scroll', () => { const b = $('#ch-down'); if (b) b.hidden = innerHeight + scrollY > document.documentElement.scrollHeight - 240; }, { passive: true });
+const syncDown = () => { const b = $('#ch-down'); if (b) b.hidden = !!$('#cm.blank') || innerHeight + scrollY > document.documentElement.scrollHeight - 240; };
+addEventListener('scroll', syncDown, { passive: true });

@@ -507,8 +507,7 @@ textarea.inp{min-height:120px;line-height:1.6;resize:vertical}
 .cm{padding:8px 0 calc(190px + env(safe-area-inset-bottom,0px))}
 .cm.blank{min-height:calc(100dvh - 260px);display:flex;align-items:center;justify-content:center}
 .hello2{display:flex;flex-direction:column;align-items:center;gap:14px}
-.hello2 .hi{width:52px;height:52px;border-radius:16px;display:grid;place-items:center;background:var(--accent);color:#fff}
-.hello2 .hi .ic{width:28px;height:28px}
+.hello2 .hi{width:68px;height:68px;border-radius:17px;display:block;box-shadow:0 8px 24px rgba(52,97,240,.28)}
 .hello2 h2{margin:0;color:var(--ink);font-size:28px;font-weight:700;letter-spacing:-.01em}
 .composer3{position:fixed;left:0;right:0;bottom:0;z-index:34;padding:16px 0 max(10px,env(safe-area-inset-bottom,0px));background:linear-gradient(to bottom,transparent,var(--bg) 26%)}
 .composer3 .sgs{margin-bottom:10px}
@@ -657,3 +656,28 @@ textarea.inp{min-height:120px;line-height:1.6;resize:vertical}
 html.native,html.native body{overscroll-behavior:none}
 html.native :not(input,textarea,[contenteditable]){-webkit-user-select:none;user-select:none}
 html.native .md,html.native .md *{-webkit-user-select:text;user-select:text}
+/* ---------- 笔记：书签与阅读进度 ---------- */
+.doc-kp,.doc-q{position:relative}
+.doc-kp>h3,.doc-q>.ptype{padding-right:34px}
+.bm{position:absolute;top:8px;right:-6px;width:34px;height:34px;display:grid;place-items:center;color:var(--ink-3);border-radius:10px}
+.doc-q>.bm{top:10px}
+.bm .ic{width:19px;height:19px}
+.bm.on{color:var(--accent)}
+.bm:active{background:var(--fill-2)}
+.appbar .readprog{position:absolute;left:0;right:0;bottom:-.5px;height:2.5px;pointer-events:none}
+.appbar .readprog i{display:block;height:100%;width:0;background:var(--accent);border-radius:0 2px 2px 0;transition:width .12s linear}
+/* ---------- 学习计划 ---------- */
+.plan-g .rowi{min-height:52px}
+.plan-g .t{font-size:16px}
+.pdot{width:12px;height:12px;border-radius:50%;background:var(--c);flex:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--c) 18%,transparent)}
+.pstep{display:flex;align-items:center;background:var(--fill-2);border-radius:10px;height:34px;flex:none}
+.pstep button{width:36px;height:34px;display:grid;place-items:center;color:var(--accent);border-radius:10px}
+.pstep button:active{background:var(--fill)}
+.pstep .ic{width:16px;height:16px}
+.pstep input{width:46px;height:34px;border:0;background:none;text-align:center;font-size:16px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--ink);padding:0;-moz-appearance:textfield}
+.pdate{border:0;background:var(--fill-2);border-radius:10px;height:34px;padding:0 10px;font-size:15px;color:var(--accent);font-family:inherit;min-width:0;max-width:170px}
+.pdate.empty{color:var(--ink-3)}
+.pdate::-webkit-calendar-picker-indicator{opacity:.55}
+.pclr{width:30px;height:30px;display:grid;place-items:center;color:var(--ink-3);margin-left:4px;flex:none}
+.pclr .ic{width:14px;height:14px}
+.prec{background:var(--accent-tint)}

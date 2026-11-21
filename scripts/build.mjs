@@ -31,7 +31,8 @@ const css = r('src/css/app.css'), body = r('src/body.html').trim();
 function script(platformFiles, lateFiles = []) {
   const parts = ['"use strict";', ...platformFiles.map(r)];
   for (const f of coreFiles) { if (f.endsWith('-boot.js')) parts.push(...lateFiles.map(r)); parts.push(r('src/js/' + f)); }
-  return parts.join('\n').replaceAll('__VERSION__', pkg.version);
+  const brand = 'data:image/png;base64,' + fs.readFileSync(path.join(ROOT, 'resources/brand-128.png')).toString('base64');
+  return parts.join('\n').replaceAll('__VERSION__', pkg.version).replaceAll('__BRAND_MARK__', brand);
 }
 
 function buildArtifact() {

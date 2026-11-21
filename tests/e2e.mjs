@@ -197,6 +197,36 @@ await run('课程包导出与导入', async () => {
   await ctx.close();
 });
 
+await run('笔记：阅读进度与书签；课程资料页；复习间隔显示', async () => {
+  const { page, ctx, errors } = await newPage();
+  await page.evaluate(() => go('notes', { course: 'learn' })); await page.waitForSelector('[data-bm]'); await page.waitForTimeout(400);
+  const ids = await page.evaluate(() => $$('#view article[data-it]').map(a => a.dataset.it));
+  await page.click(`[data-bm="${ids[3]}"]`); await page.waitForTimeout(300);
+  check(await page.evaluate(id => bookmarks('learn').some(b => b.it === id), ids[3]), '添加书签');
+  await page.click(`[data-bm="${ids[3]}"]`); await page.waitForTimeout(200);
+  check(await page.evaluate(() => bookmarks('learn').length) === 0, '再次点击取消书签（不会重复触发）');
+  await page.click(`[data-bm="${ids[5]}"]`);
+  await page.evaluate(id => document.getElementById('a-' + id).scrollIntoView(), ids[8]); await page.waitForTimeout(1300);
+  const saved = await page.evaluate(() => S().reading?.learn?.it);
+  check(!!saved, '滚动时记录阅读位置');
+  await page.evaluate(() => back()); await page.waitForTimeout(500);
+  await page.evaluate(() => go('notes', { course: 'learn' })); await page.waitForTimeout(800);
+  const vis = await page.evaluate(id => { const r = document.getElementById('a-' + id).getBoundingClientRect(); return r.top < innerHeight && r.bottom > 0 && scrollY > 200; }, saved);
+  check(vis, '重新打开时回到上次读到的位置');
+  await page.click('#nt-bms'); await page.waitForSelector('.sheet [data-go-it]'); await shot(page, 'bookmarks');
+  check(await page.locator('.sheet [data-go-it]').count() === 2, '书签列表：上次读到 + 1 个书签');
+  await page.locator('.sheet [data-go-it]').nth(1).click(); await page.waitForTimeout(800);
+  check(await page.evaluate(id => Math.abs(document.getElementById('a-' + id).getBoundingClientRect().top - 76) < 40, ids[5]), '点书签跳到对应位置');
+  await page.evaluate(() => go('course', { id: 'learn' })); await page.waitForTimeout(600); await page.click('#cmat'); await page.waitForTimeout(600);
+  check(await page.evaluate(() => Nav.stack.at(-1).view) === 'cmats' && await page.locator('#view .empty').count() === 1, '课程资料页：没有资料时为空');
+  await page.evaluate(() => go('section', { id: 'learn1s2' })); await page.waitForTimeout(500); await page.click('#start'); await page.waitForSelector('.post .rate');
+  const labels = await page.evaluate(() => $$('.post .rate small').slice(0, 3).map(x => x.textContent));
+  check(labels.every(t => /分钟|天|周|月|年/.test(t)) && !labels.some(t => /小时/.test(t)), '复习间隔按天显示：' + labels.join(' / '));
+  await page.evaluate(() => planSheet()); await page.waitForSelector('.pstep'); await page.waitForTimeout(400); await shot(page, 'plan');
+  check(!errors.length, '没有脚本错误' + (errors.length ? '：' + errors.join(' | ') : ''));
+  await ctx.close();
+});
+
 await run('深色模式', async () => {
   const { page, ctx, errors } = await newPage({ dark: true });
   const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
