@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """生成全部图标与启动图。
 
-源图：resources/icon-symbol.png（透明背景的主体图形：打开的旧书里长出一朵雏菊——书是温故，花是知新；海报风格：平涂奶油色与黑色硬边光影）
+源图：resources/icon-symbol.png（透明背景的主体图形：摊开的书页间压着一朵雏菊——把学过的东西珍藏、记住；海报风格：平涂奶油色与黑色硬边光影）
 用法：python3 scripts/make_icons.py      （需要 Pillow：pip install pillow）
 
 输出：
@@ -15,10 +15,10 @@ from PIL import Image, ImageDraw, ImageFilter
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, 'resources', 'icon-symbol.png')
-TOP, BOTTOM = (24, 24, 26), (24, 24, 26)        # 背景：平涂墨黑，衬托奶油色的书与花
+TOP, BOTTOM = (24, 24, 26), (24, 24, 26)        # 背景：平涂墨黑，衬托奶油色的书页与花
 SPLASH_BG = (242, 242, 247)                   # 与 App 浅色背景一致
-SCALE_ICON = 0.76                             # 完整图标中主体占的比例
-SCALE_ADAPTIVE = 0.56                         # 自适应图标前景（需落在 66/108 的安全区内）
+SCALE_ICON = 0.84                             # 完整图标中主体占的比例
+SCALE_ADAPTIVE = 0.52                         # 自适应图标前景（需落在 66/108 的安全区内）
 DENS = {'mdpi': 1, 'hdpi': 1.5, 'xhdpi': 2, 'xxhdpi': 3, 'xxxhdpi': 4}
 RES = os.path.join(ROOT, 'android', 'app', 'src', 'main', 'res')
 IOS = os.path.join(ROOT, 'ios', 'App', 'App', 'Assets.xcassets')
