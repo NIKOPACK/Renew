@@ -128,7 +128,7 @@ function sessionBar(pr) {
 }
 function postHTML(p) {
   const it = p.it, c = COURSES.get(it.course), sec = SECS.get(it.sec), showSrc = Feed.params?.kind !== 'section';
-  const head = `<div class="ph"><span class="ptype ${isQ(it) ? 'q' : ''}">${TYPE_LABEL[it.t]}</span>${it.imp >= 2 ? '<span class="hot">· 高频</span>' : ''}${p.review ? '<span class="pill acc">· 复习</span>' : ''}<span class="src">${showSrc ? esc(c.title) + ' · ' + esc(sec.title) : ''}</span><button class="more ask" data-act="ask" aria-label="问 AI">${ico('spark')}</button><button class="more" data-act="more" aria-label="更多">${ico('more')}</button></div>`;
+  const head = `<div class="ph"><span class="ptype ${isQ(it) ? 'q' : ''}">${TYPE_LABEL[it.t]}</span>${it.imp >= 2 ? '<span class="hot">高频</span>' : ''}<span class="src">${showSrc ? `<i class="cdot" style="--c:${c.color}" title="${esc(c.title)}"></i><span>${esc(sec.title)}</span>` : ''}</span><button class="more" data-act="more" aria-label="更多：问 AI、笔记、收藏">${ico('more')}</button></div>`;
   let body = '', foot = '';
   const sol = () => it.x ? panel('sol', '详细解答', 'bulb', it.x, p.sol) : '';
   const note = S().notes?.[it.id] ? panel('noteOpen', '我的笔记', 'edit', S().notes[it.id], p.noteOpen) : '';

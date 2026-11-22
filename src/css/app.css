@@ -766,3 +766,9 @@ html.native .md,html.native .md *{-webkit-user-select:text;user-select:text}
 :root[data-skin="dark"] .hello2 .hi.hl,:root[data-theme="dark"]:not([data-skin]) .hello2 .hi.hl{display:none}
 :root[data-skin="dark"] .hello2 .hi.hd,:root[data-theme="dark"]:not([data-skin]) .hello2 .hi.hd{display:block}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]):not([data-skin]) .hello2 .hi.hl{display:none}:root:not([data-theme="light"]):not([data-skin]) .hello2 .hi.hd{display:block}}
+/* 卡片头部：类型 · 高频 · 小节（课程用色点表示） · 更多 */
+.ph .hot{font-size:11px;font-weight:700;color:var(--bad);background:var(--bad-soft);padding:1px 6px;border-radius:6px;line-height:1.5}
+.ph .src{display:flex;align-items:center;gap:6px;justify-content:flex-end;color:var(--ink-3)}
+.ph .cdot{width:7px;height:7px;border-radius:50%;background:var(--c);flex:none}
+.ph .src+.more{margin-left:0}
+.ph .src>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
