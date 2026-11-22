@@ -307,6 +307,7 @@ await run('首页学习流、笔记标签页、资料归入课程', async () => 
   check(st.tabs === 'today,library,notebook,review,ai', '标签栏：今日 课程 笔记 记录 AI（资料不再单独占一栏）');
   await page.locator('#feed .post .rate[data-g="3"]').first().click(); await page.waitForTimeout(400);
   check(await page.evaluate(() => /^1/.test($('.dayband .db-k b').textContent)), '在首页评分后今日进度立即更新');
+  check(await page.evaluate(() => { const it = [...ITEMS.values()].find(i => i.t === 'kp' && getSt(i)), keep = Feed.params; Feed.params = { kind: 'review' }; const el = makePost(it); Feed.params = keep; return !!$('.keypts', el) && !$('[data-act="reveal"]', el) && $$('.rate', el).length === 4; }), '复习知识点：直接显示内容，不需要「回忆后展开」');
   await page.evaluate(() => scrollTo(0, 900)); await page.waitForTimeout(300); const y0 = await page.evaluate(() => scrollY);
   await page.click('.tabbar [data-tab="library"]'); await page.waitForTimeout(500); await page.click('.tabbar [data-tab="today"]'); await page.waitForTimeout(600);
   st = await page.evaluate(() => ({ kind: Feed.params === Daily.pr, rated: $$('#feed .rate.on').length, y: scrollY }));

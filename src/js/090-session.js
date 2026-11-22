@@ -53,7 +53,7 @@ function makePost(it) {
   const pk = 'p' + (++Feed.seq), st = getSt(it), pr = Feed.params;
   const review = !!st && pr.kind !== 'section' && pr.kind !== 'star';
   const p = { pk, it, review, phase: 'front', picks: new Set(), pick: null, rev: new Set(), step: 0, g: null, snap: undefined, requeued: false, auto: null, open: false, sol: false };
-  if (it.t === 'kp' && !review) p.phase = 'back';
+  if (it.t === 'kp') p.phase = 'back'; // 知识点直接显示内容（复习时也不需要先回忆再展开）
   Feed.posts.set(pk, p);
   const el = h(`<article class="post" data-pk="${pk}"></article>`); el.innerHTML = postHTML(p); return Motion.reveal(el);
 }
