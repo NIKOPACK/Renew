@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """生成全部图标与启动图。
 
-源图：resources/icon-symbol.png（透明背景的主体图形：一叠卡片 + 新芽）
+源图：resources/icon-symbol.png（透明背景的主体图形：一叠卡片 + 雏菊，丝网印刷海报风格：黑色硬边光影、奶油色、菱格三角纹）
 用法：python3 scripts/make_icons.py      （需要 Pillow：pip install pillow）
 
 输出：
@@ -15,10 +15,10 @@ from PIL import Image, ImageDraw, ImageFilter
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, 'resources', 'icon-symbol.png')
-TOP, BOTTOM = (88, 132, 255), (47, 84, 224)   # 背景渐变：品牌蓝
+TOP, BOTTOM = (46, 85, 235), (46, 85, 235)     # 背景：平涂品牌蓝（海报风格，不用渐变）
 SPLASH_BG = (242, 242, 247)                   # 与 App 浅色背景一致
-SCALE_ICON = 0.66                             # 完整图标中主体占的比例
-SCALE_ADAPTIVE = 0.40                         # 自适应图标前景（需落在 66/108 的安全区内）
+SCALE_ICON = 0.74                             # 完整图标中主体占的比例
+SCALE_ADAPTIVE = 0.52                         # 自适应图标前景（需落在 66/108 的安全区内）
 DENS = {'mdpi': 1, 'hdpi': 1.5, 'xhdpi': 2, 'xxhdpi': 3, 'xxxhdpi': 4}
 RES = os.path.join(ROOT, 'android', 'app', 'src', 'main', 'res')
 IOS = os.path.join(ROOT, 'ios', 'App', 'App', 'Assets.xcassets')
@@ -73,7 +73,7 @@ def masked(im, shape):
 
 def silhouette(size, scale):
     """白色单色图：用于通知小图标与 Android 13 主题图标。
-    新芽和最前面的卡片不透明，后面两张卡片半透明，保留「一叠卡片」的层次。"""
+    奶油色部分不透明，浅蓝点缀稍透明，黑色光影只留淡淡一层，保留花瓣与菱格纹的轮廓。"""
     lay = symbol_layer(size, scale)
     px, a = lay.load(), Image.new('L', (size, size), 0)
     ap = a.load()
@@ -82,9 +82,12 @@ def silhouette(size, scale):
             r, g, b, al = px[x, y]
             if al < 100:
                 continue
-            sprout = g > r + 25 and g > b + 25
-            front = min(r, g, b) > 228
-            ap[x, y] = 255 if (sprout or front) else 120
+            if min(r, g, b) > 150:
+                ap[x, y] = 255            # 奶油色
+            elif b > r + 40:
+                ap[x, y] = 190            # 浅蓝点缀
+            else:
+                ap[x, y] = 70             # 黑色光影
     o = Image.new('RGBA', (size, size), (255, 255, 255, 0))
     o.putalpha(a)
     return o
