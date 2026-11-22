@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """生成全部图标与启动图。
 
-源图：resources/icon-symbol.png（透明背景的主体图形：一叠卡片 + 雏菊，丝网印刷海报风格：黑色硬边光影、奶油色、菱格三角纹）
+源图：resources/icon-symbol.png（透明背景的主体图形：打开的书 + 一圈循环箭头，寓意温故知新、反复复习；海报风格：平涂、黑色硬边阴影）
 用法：python3 scripts/make_icons.py      （需要 Pillow：pip install pillow）
 
 输出：
@@ -15,10 +15,10 @@ from PIL import Image, ImageDraw, ImageFilter
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, 'resources', 'icon-symbol.png')
-TOP, BOTTOM = (46, 85, 235), (46, 85, 235)     # 背景：平涂品牌蓝（海报风格，不用渐变）
+TOP, BOTTOM = (242, 234, 216), (242, 234, 216)  # 背景：平涂奶油色，衬托蓝色箭头
 SPLASH_BG = (242, 242, 247)                   # 与 App 浅色背景一致
-SCALE_ICON = 0.74                             # 完整图标中主体占的比例
-SCALE_ADAPTIVE = 0.52                         # 自适应图标前景（需落在 66/108 的安全区内）
+SCALE_ICON = 0.76                             # 完整图标中主体占的比例
+SCALE_ADAPTIVE = 0.56                         # 自适应图标前景（需落在 66/108 的安全区内）
 DENS = {'mdpi': 1, 'hdpi': 1.5, 'xhdpi': 2, 'xxhdpi': 3, 'xxxhdpi': 4}
 RES = os.path.join(ROOT, 'android', 'app', 'src', 'main', 'res')
 IOS = os.path.join(ROOT, 'ios', 'App', 'App', 'Assets.xcassets')
@@ -73,7 +73,7 @@ def masked(im, shape):
 
 def silhouette(size, scale):
     """白色单色图：用于通知小图标与 Android 13 主题图标。
-    奶油色部分不透明，浅蓝点缀稍透明，黑色光影只留淡淡一层，保留花瓣与菱格纹的轮廓。"""
+    循环箭头和书页不透明，黑色阴影只留淡淡一层。"""
     lay = symbol_layer(size, scale)
     px, a = lay.load(), Image.new('L', (size, size), 0)
     ap = a.load()
@@ -82,12 +82,10 @@ def silhouette(size, scale):
             r, g, b, al = px[x, y]
             if al < 100:
                 continue
-            if min(r, g, b) > 150:
-                ap[x, y] = 255            # 奶油色
-            elif b > r + 40:
-                ap[x, y] = 190            # 浅蓝点缀
+            if min(r, g, b) > 150 or b > r + 40:
+                ap[x, y] = 255            # 书页、箭头
             else:
-                ap[x, y] = 70             # 黑色光影
+                ap[x, y] = 80             # 黑色阴影
     o = Image.new('RGBA', (size, size), (255, 255, 255, 0))
     o.putalpha(a)
     return o
