@@ -292,7 +292,7 @@ function viewNotebook() {
   ${cards.length ? `<div class="gh"><b>卡片笔记</b><span>${cards.length}</span></div><div class="group">${cards.map(it => `<button class="rowi" data-cnote="${it.id}"><span class="grow"><div class="t">${esc(plain(it.title || it.q).slice(0, 40))}</div><div class="m">${esc(COURSES.get(it.course).title)} · ${esc(plain(S().notes[it.id]).slice(0, 50))}</div></span>${ico('chev', 'chev')}</button>`).join('')}</div>` : ''}
   ${!list.length && !cards.length ? `<div class="empty">${ico('notebook')}<b>还没有笔记</b><span>学完一节后，把收获、疑问和联想记下来。学习时卡片右上角「…」也可以给单张卡片写笔记。</span></div>` : ''}
   </div></div>`;
-  $('#nb-new').onclick = () => nbCourse ? newNote({ course: nbCourse }) : pickCourse('写哪门课的笔记', c => newNote({ course: c.id }));
+  $('#nb-new').onclick = () => nbCourse ? newNote({ course: nbCourse }) : pickCourse('选择科目', c => newNote({ course: c.id }));
   $('#nb-ai').onclick = reflectToday;
   $('#nb-star').onclick = () => starN ? openReview('star') : toast('学习时点卡片右上角「…」→ 收藏');
   $('#nb-bm').onclick = () => { const bc = cs.filter(c => bookmarks(c.id).some(b => ITEMS.has(b.it))); if (!bc.length) return toast('阅读课程笔记时，点知识点右上角的书签图标添加'); if (bc.length === 1) return bookmarkSheet(bc[0]); menuSheet('书签', bc.map(c => ({ icon: 'bookmarks', label: c.title, sub: bookmarks(c.id).length + ' 处', run: () => bookmarkSheet(c) }))); };

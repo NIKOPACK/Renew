@@ -772,3 +772,5 @@ html.native .md,html.native .md *{-webkit-user-select:text;user-select:text}
 .ph .cdot{width:7px;height:7px;border-radius:50%;background:var(--c);flex:none}
 .ph .src+.more{margin-left:0}
 .ph .src>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+/* 按钮、菜单、弹层标题等控件不响应长按选字 */
+.sheet-h h2,.menu,.btn,.chip,.rowi,.tabbar,.seg,.ibtn,.round,.nb3,.qa4,.dayband,.rate{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
