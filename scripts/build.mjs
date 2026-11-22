@@ -31,8 +31,9 @@ const css = r('src/css/app.css'), body = r('src/body.html').trim();
 function script(platformFiles, lateFiles = []) {
   const parts = ['"use strict";', ...platformFiles.map(r)];
   for (const f of coreFiles) { if (f.endsWith('-boot.js')) parts.push(...lateFiles.map(r)); parts.push(r('src/js/' + f)); }
-  const brand = 'data:image/png;base64,' + fs.readFileSync(path.join(ROOT, 'resources/brand-128.png')).toString('base64');
-  return parts.join('\n').replaceAll('__VERSION__', pkg.version).replaceAll('__BRAND_MARK__', brand);
+  const b64 = f => 'data:image/png;base64,' + fs.readFileSync(path.join(ROOT, 'resources', f)).toString('base64');
+  const brand = b64('brand-mark.png'), brandDark = b64('brand-mark-dark.png');
+  return parts.join('\n').replaceAll('__VERSION__', pkg.version).replaceAll('__BRAND_MARK_DARK__', brandDark).replaceAll('__BRAND_MARK__', brand);
 }
 
 function buildArtifact() {

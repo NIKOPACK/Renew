@@ -93,16 +93,29 @@ def silhouette(size, scale):
     return o
 
 
+def on_dark(im):
+    """深色背景用：把接近黑色的部分换成中灰"""
+    px = im.copy(); p = px.load()
+    for y in range(px.size[1]):
+        for x in range(px.size[0]):
+            r, g, b, a = p[x, y]
+            if a and max(r, g, b) < 90:
+                k = max(r, g, b) / 90
+                p[x, y] = (round(92 + 60 * k), round(96 + 60 * k), round(108 + 50 * k), a)
+    return px
+
+
+def small(path, im):
+    """内联进页面的图片：减少颜色数，控制体积"""
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    im.quantize(colors=96, method=Image.Quantize.FASTOCTREE).save(path, optimize=True)
+
+
 def splash(w, h):
+    """启动图：浅色底上只放主体图形（不加底板和阴影）"""
     bg = Image.new('RGBA', (w, h), SPLASH_BG + (255,))
-    s = round(min(w, h) * 0.28)
-    ic = masked(full_icon(s * 2), 'rounded').resize((s, s), Image.LANCZOS)
-    shadow = Image.new('RGBA', (w, h), (0, 0, 0, 0))
-    sm = Image.new('L', (s, s), 0)
-    ImageDraw.Draw(sm).rounded_rectangle((0, 0, s - 1, s - 1), radius=round(s * 0.225), fill=60)
-    shadow.paste((40, 60, 140, 255), ((w - s) // 2, (h - s) // 2 + round(s * 0.04)), sm)
-    shadow = shadow.filter(ImageFilter.GaussianBlur(s * 0.05))
-    bg.alpha_composite(shadow)
+    s = round(min(w, h) * 0.34)
+    ic = symbol_layer(s * 2, 1).resize((s, s), Image.LANCZOS)
     bg.alpha_composite(ic, ((w - s) // 2, (h - s) // 2))
     return bg.convert('RGB')
 
@@ -148,7 +161,9 @@ def web():
     out(f'{ROOT}/resources/web/apple-touch-icon.png', full.convert('RGB').resize((180, 180), Image.LANCZOS))
     out(f'{ROOT}/resources/web/favicon-64.png', masked(full, 'rounded').resize((64, 64), Image.LANCZOS))
     out(f'{ROOT}/docs/images/icon.png', masked(full, 'rounded').resize((256, 256), Image.LANCZOS))
-    out(f'{ROOT}/resources/brand-128.png', masked(full, 'rounded').resize((128, 128), Image.LANCZOS))  # 界面内的品牌标志（构建时内联）
+    mark = symbol_layer(480, 1).resize((240, 240), Image.LANCZOS)  # 界面内的品牌标志：透明背景的主体图形（构建时内联）
+    small(f'{ROOT}/resources/brand-mark.png', mark)
+    small(f'{ROOT}/resources/brand-mark-dark.png', on_dark(mark))  # 深色模式：黑色光影提亮成灰色，避免融进黑底
 
 
 if __name__ == '__main__':
