@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """生成全部图标与启动图。
 
-源图：resources/icon-symbol.png（透明背景的主体图形：打开的书 + 一圈循环箭头，寓意温故知新、反复复习；海报风格：平涂、黑色硬边阴影）
+源图：resources/icon-symbol.png（透明背景的主体图形：打开的旧书里长出一朵雏菊——书是温故，花是知新；海报风格：平涂奶油色与黑色硬边光影）
 用法：python3 scripts/make_icons.py      （需要 Pillow：pip install pillow）
 
 输出：
@@ -15,7 +15,7 @@ from PIL import Image, ImageDraw, ImageFilter
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, 'resources', 'icon-symbol.png')
-TOP, BOTTOM = (242, 234, 216), (242, 234, 216)  # 背景：平涂奶油色，衬托蓝色箭头
+TOP, BOTTOM = (24, 24, 26), (24, 24, 26)        # 背景：平涂墨黑，衬托奶油色的书与花
 SPLASH_BG = (242, 242, 247)                   # 与 App 浅色背景一致
 SCALE_ICON = 0.76                             # 完整图标中主体占的比例
 SCALE_ADAPTIVE = 0.56                         # 自适应图标前景（需落在 66/108 的安全区内）
@@ -41,10 +41,11 @@ SYMBOL = Image.open(SRC).convert('RGBA')
 SYMBOL = SYMBOL.crop(SYMBOL.getchannel('A').point(lambda a: 255 if a > 8 else 0).getbbox())
 
 
-def symbol_layer(size, scale):
-    w, h = SYMBOL.size
+def symbol_layer(size, scale, src=None):
+    src = src or SYMBOL
+    w, h = src.size
     k = scale * size / max(w, h)
-    s = SYMBOL.resize((max(1, round(w * k)), max(1, round(h * k))), Image.LANCZOS)
+    s = src.resize((max(1, round(w * k)), max(1, round(h * k))), Image.LANCZOS)
     layer = Image.new('RGBA', (size, size), (0, 0, 0, 0))
     layer.alpha_composite(s, ((size - s.size[0]) // 2, (size - s.size[1]) // 2))
     return layer
@@ -53,7 +54,7 @@ def symbol_layer(size, scale):
 def full_icon(size, scale=SCALE_ICON):
     """方形完整图标（不带圆角，系统负责裁切）"""
     base = gradient(size, size).convert('RGBA')
-    base.alpha_composite(symbol_layer(size, scale))
+    base.alpha_composite(symbol_layer(size, scale, SYMBOL_DARK))
     return base
 
 
@@ -73,7 +74,7 @@ def masked(im, shape):
 
 def silhouette(size, scale):
     """白色单色图：用于通知小图标与 Android 13 主题图标。
-    循环箭头和书页不透明，黑色阴影只留淡淡一层。"""
+    奶油色的花与书页不透明，黑色光影只留淡淡一层。"""
     lay = symbol_layer(size, scale)
     px, a = lay.load(), Image.new('L', (size, size), 0)
     ap = a.load()
@@ -82,8 +83,8 @@ def silhouette(size, scale):
             r, g, b, al = px[x, y]
             if al < 100:
                 continue
-            if min(r, g, b) > 150 or b > r + 40:
-                ap[x, y] = 255            # 书页、箭头
+            if min(r, g, b) > 150:
+                ap[x, y] = 255            # 花瓣、书页
             else:
                 ap[x, y] = 80             # 黑色阴影
     o = Image.new('RGBA', (size, size), (255, 255, 255, 0))
@@ -99,8 +100,11 @@ def on_dark(im):
             r, g, b, a = p[x, y]
             if a and max(r, g, b) < 90:
                 k = max(r, g, b) / 90
-                p[x, y] = (round(92 + 60 * k), round(96 + 60 * k), round(108 + 50 * k), a)
+                p[x, y] = (round(104 + 56 * k), round(98 + 54 * k), round(90 + 50 * k), a)
     return px
+
+
+SYMBOL_DARK = on_dark(SYMBOL)   # 黑底图标用：花茎、叶子和阴影提亮成暖灰
 
 
 def small(path, im):
@@ -125,7 +129,7 @@ def android():
         out(f'{RES}/mipmap-{d}/ic_launcher.png', masked(full, 'rounded').resize((legacy, legacy), Image.LANCZOS))
         out(f'{RES}/mipmap-{d}/ic_launcher_round.png', masked(full, 'circle').resize((legacy, legacy), Image.LANCZOS))
         a = round(108 * k)
-        out(f'{RES}/mipmap-{d}/ic_launcher_foreground.png', symbol_layer(a * 2, SCALE_ADAPTIVE).resize((a, a), Image.LANCZOS))
+        out(f'{RES}/mipmap-{d}/ic_launcher_foreground.png', symbol_layer(a * 2, SCALE_ADAPTIVE, SYMBOL_DARK).resize((a, a), Image.LANCZOS))
         out(f'{RES}/mipmap-{d}/ic_launcher_background.png', gradient(a, a))
         out(f'{RES}/mipmap-{d}/ic_launcher_monochrome.png', silhouette(a * 2, SCALE_ADAPTIVE).resize((a, a), Image.LANCZOS))
         n = round(24 * k)
@@ -161,7 +165,7 @@ def web():
     out(f'{ROOT}/docs/images/icon.png', masked(full, 'rounded').resize((256, 256), Image.LANCZOS))
     mark = symbol_layer(480, 1).resize((240, 240), Image.LANCZOS)  # 界面内的品牌标志：透明背景的主体图形（构建时内联）
     small(f'{ROOT}/resources/brand-mark.png', mark)
-    small(f'{ROOT}/resources/brand-mark-dark.png', on_dark(mark))  # 深色模式：黑色光影提亮成灰色，避免融进黑底
+    small(f'{ROOT}/resources/brand-mark-dark.png', symbol_layer(480, 1, SYMBOL_DARK).resize((240, 240), Image.LANCZOS))  # 深色模式：黑色光影提亮成灰色，避免融进黑底
 
 
 if __name__ == '__main__':
