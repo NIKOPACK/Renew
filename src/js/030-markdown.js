@@ -8,6 +8,7 @@ function callout(ty, ttl, body) { const k = CALLOUT[ty] ? ty : 'note', [l, ic] =
 function md(src, opt = {}) {
   const slots = [], put = html => `\u0000${slots.push(html) - 1}\u0000`;
   let s = String(src ?? '').replace(/\r/g, '');
+  { const fences = s.match(/^[ \t>]*```/gm) || []; if (fences.length % 2) { const i = s.lastIndexOf('```'), lang = (s.slice(i + 3).match(/^(\w+)/) || [])[1]; if (lang && Viz.has(lang)) s = s.slice(0, i) + '\n' + put('<div class="viz-wait"><span class="spin"></span>正在画图…</div>') + '\n'; } }
   s = s.replace(/^>[ \t]*\[!(\w+)\][ \t]*(.*)\n?((?:^>.*(?:\n|$))*)/gm, (_, ty, ttl, body) => '\n' + put(callout(ty, ttl, body.replace(/^>[ \t]?/gm, ''))) + '\n');
   s = s.replace(/```([^\n]*)\n([\s\S]*?)```/g, (_, lang, code) => '\n' + put(Viz.has(lang.trim()) ? Viz.render(lang.trim(), code) : `<pre class="${lang.trim() === 'diagram' ? 'fig' : ''}"><code>${esc(code.replace(/\n$/, ''))}</code></pre>`) + '\n');
   let cz = 0;

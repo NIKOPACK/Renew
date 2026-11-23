@@ -356,7 +356,7 @@ await run('首页学习流、笔记标签页、资料归入课程', async () => 
 await run('内置作图：函数图像、流程图、树、格子、时序图', async () => {
   const { page, ctx, errors } = await newPage();
   const r = await page.evaluate(() => {
-    const F = '```', one = (lang, src) => { const el = h(`<div>${md(F + lang + '\n' + src + '\n' + F)}</div>`); return { svg: !!$('figure.viz svg', el), err: $('p.small', el)?.textContent || '', html: el.innerHTML }; };
+    const F = '```', one = (lang, src) => { const el = h(`<div>${md(F + lang + '\n' + src + '\n' + F)}</div>`); return { svg: !!$('figure.viz svg.vz', el), err: $('p.small', el)?.textContent || '', html: el.innerHTML }; };
     return {
       plot: one('plot', 'x 0..10 天\ny 0..100 记住\nf 100*exp(-x/2) | 不复习\nf 100*exp(-(x-3)/6) @3..10\np (1,10) (2,20) 数据\nh 50 阈值\nv 3 复习'),
       bar: one('plot', 'bar O(1):1 | O(n):8 | O(n²):64'),
@@ -367,7 +367,7 @@ await run('内置作图：函数图像、流程图、树、格子、时序图', 
       seq: one('seq', '甲 -> 乙 : SYN\n--- 建立 ---\n乙 --> 甲 : ACK\nnote 甲 : 完成'),
       bad: one('plot', 'f exp(\nx 0..1'),
       safe: one('plot', 'f alert(1)\nx 0..1'),
-      learn: (() => { const it = [...ITEMS.values()].find(i => /遗忘曲线/.test(i.title || '') && i.d); return !!it && /```plot/.test(it.d) && !!$('figure.viz svg', h(`<div>${md(it.d)}</div>`)); })()
+      learn: (() => { const it = [...ITEMS.values()].find(i => /遗忘曲线/.test(i.title || '') && i.d); return !!it && /```plot/.test(it.d) && !!$('figure.viz svg.vz', h(`<div>${md(it.d)}</div>`)); })()
     };
   });
   check(r.plot.svg && /<path d="M/.test(r.plot.html) && /不复习/.test(r.plot.html), '函数图像：曲线、分段函数、数据点、参考线');
@@ -380,6 +380,55 @@ await run('内置作图：函数图像、流程图、树、格子、时序图', 
   check(!r.bad.svg && /图示无法绘制/.test(r.bad.err), '写错时显示源文本和错误原因');
   check(!r.safe.svg && /不认识的符号/.test(r.safe.err), '函数表达式不会执行任意代码');
   check(r.learn, '示例课程的遗忘曲线用 plot 画出');
+  check(!errors.length, '没有脚本错误' + (errors.length ? '：' + errors.join(' | ') : ''));
+  await ctx.close();
+});
+
+await run('AI 回复里的图：助手、问 AI、笔记；Mermaid 兼容；放大查看', async () => {
+  const { page, ctx, errors } = await newPage(); const reqs = [];
+  const F = '```';
+  const REPLY = `先看图：\n\n${F}plot\nx 0..10 天\ny 0..100 记住(%)\nf 100*exp(-x/2) | 不复习\n${F}\n\n流程如下：\n\n${F}mermaid\nflowchart LR\n  A[开始] -->|读入| B{x > 0?}\n  B -- 是 --> C[输出正数]\n  B -->|否| D[输出非正数]\n${F}\n\n${F}mermaid\nsequenceDiagram\n  participant C as 客户端\n  participant S as 服务器\n  C->>S: SYN\n  S-->>C: SYN+ACK\n${F}\n\n${F}tree\n45\n  24\n  53\n${F}`;
+  const chunks = REPLY.match(/[\s\S]{1,23}/g);
+  await page.route('https://api.deepseek.com/**', async r => {
+    const req = r.request(), body = req.postDataJSON?.() || null; reqs.push(body);
+    return r.fulfill({ headers: { 'content-type': 'text/event-stream' }, body: sse(chunks.map(c => oa({ content: c }))) });
+  });
+  await page.evaluate(async () => { await Platform.aiConfig.set({ provider: 'deepseek', kind: 'openai', key: 'sk-test', model: 'deepseek-chat', base: 'https://api.deepseek.com' }); await AI.reload(); });
+  // AI 助手
+  await page.click('.tabbar [data-tab="ai"]'); await page.waitForSelector('#ch-in');
+  await page.fill('#ch-in', '画一下遗忘曲线'); await page.click('#ch-send'); await page.waitForFunction(() => !Chat.busy, null, { timeout: 15000 }); await page.waitForTimeout(300);
+  let n = await page.evaluate(() => ({ figs: $$('.am figure.viz svg.vz').length, kinds: $$('.am figure.viz svg.vz').map(s => s.getAttribute('class')).join(','), raw: /```|-->|->>/.test($$('.am .md').map(x => x.textContent).join('')) }));
+  check(n.figs === 4 && /vz-plot/.test(n.kinds) && /vz-graph/.test(n.kinds) && /vz-seq/.test(n.kinds) && /vz-tree/.test(n.kinds) && !n.raw, `AI 助手的回复画出 4 张图（含 Mermaid 流程图、时序图）：${n.kinds}`);
+  const sys = JSON.stringify(reqs.at(-1)?.messages || []);
+  check(/```plot/.test(sys) && /```graph/.test(sys) && /```seq/.test(sys), 'AI 助手的提示里有作图说明');
+  await shot(page, 'ai-viz');
+  // 放大查看
+  await page.locator('.am figure.viz').nth(1).click(); await page.waitForSelector('.vzv svg'); await page.waitForTimeout(200);
+  const w0 = await page.evaluate(() => +$('.vzv svg').getAttribute('width'));
+  await page.click('.vzv [data-z="in"]'); await page.click('.vzv [data-z="in"]'); await page.waitForTimeout(100);
+  const z = await page.evaluate(() => ({ w: +$('.vzv svg').getAttribute('width'), tag: $('.vzv-in').firstElementChild.tagName.toLowerCase(), pct: $('.vzv-pct').textContent }));
+  check(z.tag === 'svg' && z.w > w0 * 1.9 && /196%/.test(z.pct), `点开图可以放大：矢量 SVG 宽度 ${Math.round(w0)} → ${Math.round(z.w)}（${z.pct}）`);
+  await shot(page, 'viz-zoom');
+  await page.mouse.move(200, 400); await page.mouse.down(); await page.mouse.move(120, 330, { steps: 4 }); await page.mouse.up();
+  check(await page.evaluate(() => $('.vzv-sc').scrollLeft > 0 || $('.vzv-sc').scrollTop > 0), '放大后可以拖动查看');
+  await page.click('.vzv [data-z="close"]'); await page.waitForTimeout(150);
+  check(await page.evaluate(() => !$('.vzv') && !document.body.classList.contains('vzv-on')), '关闭查看器');
+  // 流式输出：没写完的图先显示占位
+  check(await page.evaluate(() => { const el = h(`<div>${md('讲解\n\n```plot\nx 0..1\nf x')}</div>`); return !!$('.viz-wait', el) && !/```plot/.test(el.textContent); }), '图还没写完时显示「正在画图」，不露出代码');
+  // 问 AI（卡片）
+  await page.evaluate(() => go('section', { id: 'learn1s1' })); await page.waitForTimeout(400); await page.click('#start'); await page.waitForSelector('.post');
+  await page.evaluate(() => askAI([...Feed.posts.values()][0].it, [...Feed.posts.values()][0])); await page.waitForSelector('#ak-in', { timeout: 5000 });
+  await page.fill('#ak-in', '画个图'); await page.click('#ak-go');
+  await page.waitForFunction(() => $$('.sheet .am figure.viz svg.vz').length >= 4, null, { timeout: 15000 }).catch(() => {});
+  check(await page.evaluate(() => $$('.sheet .am figure.viz svg.vz').length) === 4, '问 AI 的回复画出图');
+  check(/```plot/.test(JSON.stringify(reqs.at(-1)?.messages || [])), '问 AI 的提示里有作图说明');
+  await page.evaluate(() => $$('.sheet [data-close]').forEach(b => b.click())); await page.waitForTimeout(400);
+  // 笔记里的 AI
+  await page.evaluate(() => newNote({ course: 'learn', sec: 'learn1s1' })); await page.waitForSelector('#ne-body');
+  await page.fill('#ne-body', '遗忘曲线先快后慢'); await page.click('[data-tool="expand"]'); await page.waitForSelector('.aiacts [data-a="1"]', { timeout: 15000 });
+  check(await page.evaluate(() => $$('.aout figure.viz svg.vz').length) === 4 && /```plot/.test(JSON.stringify(reqs.at(-1)?.messages || [])), '笔记 AI 扩写的结果画出图，提示里有作图说明');
+  await page.click('.aiacts [data-a="1"]'); await page.waitForTimeout(300); await page.click('#ne-mode'); await page.waitForTimeout(500);
+  check(await page.evaluate(() => $$('.nread figure.viz svg.vz').length) === 4, '图保存在笔记里，预览时显示');
   check(!errors.length, '没有脚本错误' + (errors.length ? '：' + errors.join(' | ') : ''));
   await ctx.close();
 });

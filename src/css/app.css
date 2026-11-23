@@ -793,3 +793,25 @@ html.native .md,html.native .md *{-webkit-user-select:text;user-select:text}
 .viz .vz-pill{fill:var(--surface);stroke:var(--sep)}
 .viz .vz-leg{fill:var(--surface);opacity:.85}
 .viz .vz-life{stroke:var(--sep);stroke-width:1.4;stroke-dasharray:3 3}
+/* ---------- 图示：点开放大 ---------- */
+.viz{position:relative;cursor:zoom-in;overflow:hidden}
+.viz svg{max-width:100%;height:auto}
+.viz .vz-zoom{position:absolute;right:8px;top:8px;width:26px;height:26px;border-radius:8px;display:grid;place-items:center;background:var(--surface);color:var(--ink-2);opacity:.85;box-shadow:0 0 0 .5px var(--sep)}
+.viz .vz-zoom .ic{width:15px;height:15px}
+.viz-wait{display:flex;align-items:center;gap:8px;padding:14px;border-radius:14px;background:var(--fill-2);color:var(--ink-2);font-size:14px}
+.viz-wait .spin{width:16px;height:16px;border-width:2px}
+body.vzv-on{overflow:hidden}
+.vzv{position:fixed;inset:0;z-index:80;background:var(--bg);display:flex;flex-direction:column;animation:fade .2s}
+.vzv-sc{flex:1;overflow:auto;touch-action:none;cursor:grab;overscroll-behavior:contain;display:grid;scrollbar-width:none}
+.vzv-sc::-webkit-scrollbar{display:none}
+.vzv-sc:active{cursor:grabbing}
+.vzv-in{margin:auto;padding:16px;box-sizing:content-box}
+.vzv-in svg{display:block;color:var(--ink);font-family:var(--ui);overflow:visible;max-width:none}
+.vzv-bar{display:flex;align-items:center;gap:6px;padding:8px max(12px,env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) max(12px,env(safe-area-inset-left,0px));border-top:.5px solid var(--sep);background:var(--bar);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.vzv-bar .ibtn{color:var(--ink)}
+.vzv-pct{min-width:64px;height:36px;border-radius:18px;background:var(--fill);font-size:14px;font-weight:600;font-variant-numeric:tabular-nums}
+.vzv-in.viz{background:none;cursor:inherit;overflow:visible;padding:16px;border-radius:0;text-align:left}
+.vzv-in.viz svg{max-width:none}
+.viz:not(.vzv-in){padding-bottom:30px}
+.viz .vz-zoom{top:auto;bottom:6px;right:8px;width:22px;height:22px;opacity:.7}
+.viz .vz-zoom .ic{width:13px;height:13px}

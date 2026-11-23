@@ -13,7 +13,7 @@ const Viz = (() => {
   const X = s => esc(s);
   const r1 = n => Math.round(n * 10) / 10;
   const COLORS = ['var(--accent)', 'var(--bad)', 'var(--good)', 'var(--warn)', '#8a4fd0', '#1f7fbf'];
-  const svg = (w, h, body, cls) => `<svg class="vz ${cls}" viewBox="0 0 ${r1(w)} ${r1(h)}" width="${r1(w)}" style="max-width:100%;height:auto" role="img" xmlns="http://www.w3.org/2000/svg" font-size="${FS}">${body}</svg>`;
+  const svg = (w, h, body, cls) => `<svg class="vz ${cls}" viewBox="-8 -6 ${r1(w + 16)} ${r1(h + 12)}" width="${r1(w + 16)}" height="${r1(h + 12)}" style="max-width:100%;height:auto" role="img" xmlns="http://www.w3.org/2000/svg" font-size="${FS}">${body}</svg>`;
   const arrowDef = id => `<defs><marker id="${id}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 1L10 5L0 9z" fill="var(--ink-2)"/></marker></defs>`;
   const label = (x, y, s, o = {}) => `<text x="${r1(x)}" y="${r1(y)}" text-anchor="${o.a || 'middle'}" dominant-baseline="${o.b || 'central'}"${o.cls ? ` class="${o.cls}"` : ''}${o.fs ? ` font-size="${o.fs}"` : ''}${o.fill ? ` fill="${o.fill}"` : ''}>${X(s)}</text>`;
 
@@ -336,11 +336,54 @@ const Viz = (() => {
     return svg(W, H, arrowDef(id) + g + body, 'vz-seq');
   }
 
+  /* ---------- 兼容 Mermaid：AI 常写的流程图、时序图、饼图，转换成内置写法 ---------- */
+  function fromMermaid(src) {
+    const lines = src.split('\n').map(l => l.replace(/%%.*$/, '').replace(/;\s*$/, '').trim()).filter(Boolean);
+    const head = lines[0] || '';
+    const unq = s => s.replace(/^["'`]|["'`]$/g, '').replace(/<br\s*\/?>/gi, ' ');
+    if (/^sequenceDiagram/i.test(head)) {
+      const alias = {}, out = [];
+      for (const l of lines.slice(1)) { let m;
+        if ((m = l.match(/^(?:participant|actor)\s+(\S+)(?:\s+as\s+(.+))?$/i))) { alias[m[1]] = unq(m[2] || m[1]); out.push('participant ' + alias[m[1]]); continue; }
+        const A = n => alias[n.trim()] || unq(n.trim());
+        if ((m = l.match(/^note\s+(?:over|left of|right of)\s+([^:,]+)(?:,[^:]+)?\s*:\s*(.+)$/i))) { out.push(`note ${A(m[1])} : ${m[2]}`); continue; }
+        if ((m = l.match(/^(alt|else|opt|loop|par|critical|break|rect)\b\s*(.*)$/i))) { if (m[2] && !/^rgb/.test(m[2])) out.push(`--- ${m[2]} ---`); continue; }
+        if (/^(end|activate|deactivate|autonumber|title)\b/i.test(l)) continue;
+        if ((m = l.match(/^(.+?)\s*(-->>|->>|-->|->|--x|-x|--\)|-\))\s*[+-]?\s*(.+?)\s*:\s*(.*)$/))) { out.push(`${A(m[1])} ${m[2].startsWith('--') ? '-->' : '->'} ${A(m[3])} : ${m[4]}`); continue; }
+      }
+      return { lang: 'seq', code: out.join('\n') };
+    }
+    if (/^pie\b/i.test(head)) {
+      const parts = lines.slice(1).map(l => l.match(/^["']?(.+?)["']?\s*:\s*([\d.]+)$/)).filter(Boolean).map(m => `${m[1]}:${m[2]}`);
+      const t = (head.match(/title\s+(.+)$/) || lines.find(l => /^title\s/.test(l))?.match(/^title\s+(.+)$/) || [])[1] || '';
+      return { lang: 'plot', code: `bar ${parts.join(' | ')}${t ? `\ny 0..${Math.max(...parts.map(p => +p.split(':').pop())) * 1.15} ${t}` : ''}` };
+    }
+    const dm = head.match(/^(?:graph|flowchart)\s*(TD|TB|LR|RL|BT)?/i), out = [];
+    if (dm) out.push('dir ' + ((dm[1] || 'TB').toUpperCase() === 'TD' ? 'TB' : (dm[1] || 'TB').toUpperCase()));
+    for (let l of dm ? lines.slice(1) : lines) {
+      if (/^(classDef|class|style|linkStyle|subgraph|end|direction|click)\b/i.test(l)) continue;
+      l = l.replace(/:::\w+/g, '');
+      let lab = '';
+      l = l.replace(/(<?)(--|==|-\.)\s*([^-=>.|][^>|]*?)\s*(-->|==>|\.->)/, (_, lt, a, t) => { lab = unq(t.trim()); return lt ? ' <-> ' : a === '-.' ? ' -.-> ' : ' -> '; });
+      l = l.replace(/(<?-{2,3}>|<?={2,3}>|-\.+->|-{3,}|<-->)\s*\|([^|]*)\|/g, (_, a, t) => { lab = unq(t.trim()); return a; });
+      l = l.replace(/<-{2,3}>|<={2,3}>/g, '<->').replace(/-\.+->/g, '-.->').replace(/={2,3}>/g, '->').replace(/-{2,3}>/g, '->').replace(/-{3,}/g, '--');
+      l = l.replace(/\(\[([^\]]*)\]\)/g, '($1)').replace(/\[\[([^\]]*)\]\]/g, '[$1]').replace(/\[\(([^)]*)\)\]/g, '[$1]').replace(/\{\{([^}]*)\}\}/g, '{$1}').replace(/(\w)>([^\]>]*)\]/g, '$1[$2]').replace(/\[\/([^\]]*)\/\]/g, '[$1]').replace(/\[\\([^\]]*)\\\]/g, '[$1]');
+      l = l.replace(/([\[\(\{])\s*"([^"]*)"\s*([\]\)\}])/g, '$1$2$3').replace(/&\s*/g, '');
+      out.push(lab ? `${l} : ${lab}` : l);
+    }
+    return { lang: 'graph', code: out.join('\n') };
+  }
+  const looksMermaid = (lang, src) => lang === 'mermaid' || (lang === 'graph' && /^\s*(graph|flowchart)\s*(TD|TB|LR|RL|BT)?\s*;?\s*$/im.test(src.split('\n').find(l => l.trim()) || '')) || (lang === 'graph' && /-->|==>/.test(src)) || (lang === 'seq' && /->>|^\s*sequenceDiagram/m.test(src));
+
   const KINDS = { plot, graph, tree, cells, seq };
   return {
-    has: lang => lang in KINDS,
+    has: lang => lang in KINDS || lang === 'mermaid',
     render(lang, code) {
-      try { return `<figure class="viz">${KINDS[lang](code)}</figure>`; }
+      try {
+        if (looksMermaid(lang, code)) ({ lang, code } = fromMermaid(code));
+        if (!(lang in KINDS)) throw new Error('暂不支持这种图');
+        return `<figure class="viz" title="点开放大查看">${KINDS[lang](code)}<span class="vz-zoom" aria-hidden="true">${ico('grow')}</span></figure>`;
+      }
       catch (e) { return `<pre class="fig"><code>${esc(code)}</code></pre><p class="small" style="color:var(--bad)">图示无法绘制：${esc(e.message || e)}</p>`; }
     },
     compile
