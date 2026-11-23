@@ -4,6 +4,11 @@ const isCoursePack = d => ['renew-course', 'xueliu-course'].includes(d?.format) 
 const isBackup = d => ['renew', 'xueliu'].includes(d?.app) && !!d.docs;
 function importPack(pack, name) {
   const src = pack.course; if (!src?.chapters) return toast('课程包内容不完整');
+  const old = src.id && COURSES.get(src.id);
+  if (old && !old.builtin && !pack._copy) return menuSheet(`已经有「${old.title}」`, [
+    { icon: 'sync', label: '更新这门课', sub: '换成课程包里的内容，学习进度、笔记和书签都保留', run: () => updateFromPack(old, src) },
+    { icon: 'plus', label: '另存为新课程', run: () => importPack({ ...pack, _copy: 1 }, name) }
+  ]);
   const exists = COURSES.has(src.id), cid = exists || !src.id ? newId('u') : src.id, idMap = {};
   const course = { id: cid, title: src.title + (exists ? '（导入）' : ''), cat: src.cat || '我的课程', desc: src.desc || '', color: src.color || PALETTE[COURSES.size % PALETTE.length], chapters: [] };
   src.chapters.forEach((ch, ci) => {
@@ -18,6 +23,25 @@ function importPack(pack, name) {
   if (pack.progress) { const d = srsDoc(cid); for (const [oid, st] of Object.entries(pack.progress)) if (idMap[oid]) d.c[idMap[oid]] = st; saveSrs(cid); }
   coursePlan(cid); logEvent('导入课程 ' + course.title); saveState();
   toast(`已导入「${course.title}」`); Nav.tab = 'library'; Nav.stack = [{ view: 'library' }, { view: 'course', params: { id: cid } }]; render(true);
+}
+/* 用课程包更新已有课程：卡片 id 不变，学习记录（按卡片 id 保存）、笔记、书签自然保留 */
+function updateFromPack(old, src) {
+  const cid = old.id, keep = new Set();
+  for (const sec of courseSecs(old)) { for (const it of sec.items) ITEMS.delete(it.id); SECS.delete(sec.id); }
+  old.chapters.forEach(ch => CHAPS.delete(ch.id)); COURSES.delete(cid);
+  const course = { ...(Store.get('course/' + cid) || {}), id: cid, title: src.title || old.title, cat: src.cat || old.cat, desc: src.desc || old.desc, color: old.color, chapters: [] };
+  src.chapters.forEach((ch, ci) => {
+    const chId = `${cid}c${ci + 1}`, chap = { id: chId, title: ch.title, sections: [] };
+    (ch.sections || []).forEach((s, si) => { const sid = `${chId}s${si + 1}`; chap.sections.push({ id: sid, title: s.title, points: s.points || [] }); keep.add('sec/' + sid);
+      const items = (s.items || []).map((it, k) => ({ ...stripItem(it), id: it.id && !ITEMS.has(it.id) ? it.id : `${sid}-p${k.toString(36)}` }));
+      if (items.length) Store.put('sec/' + sid, { items }); else Store.drop('sec/' + sid); });
+    course.chapters.push(chap);
+  });
+  for (const k of Store.keys('sec/' + cid + 'c')) if (!keep.has(k)) Store.drop(k);
+  Store.put('course/' + cid, course); addCourse(course, false);
+  for (const ch of course.chapters) for (const s of ch.sections) for (const it of Store.get('sec/' + s.id)?.items || []) addItem(it, SECS.get(s.id), false);
+  logEvent('更新课程 ' + course.title); saveState();
+  toast(`已更新「${course.title}」，学习进度已保留`); Nav.tab = 'library'; Nav.stack = [{ view: 'library' }, { view: 'course', params: { id: cid } }]; render(true);
 }
 function parseCourseDSL(text) {
   const course = { title: '', cat: '我的课程', color: '', desc: '', chapters: [] }; let ch = null, sec = null, buf = [];

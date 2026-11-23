@@ -193,6 +193,16 @@ await run('课程包导出与导入', async () => {
     return { before, after: prog('learncopy'), format: pack.format };
   });
   check(r.format === 'renew-course' && r.before === r.after, `导入后每节的学习/练习划分不变（${r.after}）`);
+  // 再次导入同一门课的新版本：更新原课程，保留学习进度和笔记
+  const u = await page.evaluate(async () => {
+    const c = COURSES.get('learncopy'), it = courseSecs(c)[0].items[0]; setSt(it, schedule(null, 3, Date.now())); saveSrs(c.id); (S().notes ||= {})[it.id] = '我的笔记'; saveState();
+    const pack = coursePack(c); pack.course.chapters[0].sections[0].items[0].title = '更新后的标题';
+    importPack(pack); await new Promise(r => setTimeout(r, 400));
+    const btn = [...document.querySelectorAll('.sheet .menu button')].find(b => /更新这门课/.test(b.textContent)); btn.click(); await new Promise(r => setTimeout(r, 400));
+    const n = ITEMS.get(it.id);
+    return { copies: [...COURSES.values()].filter(x => /学习的科学/.test(x.title)).length, title: n?.title, st: !!getSt(n), note: S().notes[it.id] };
+  });
+  check(u.copies === 2 && u.title === '更新后的标题' && u.st && u.note === '我的笔记', '重新导入同一门课：可直接更新，学习进度和笔记保留，不会多出一份');
   check(!errors.length, '没有脚本错误');
   await ctx.close();
 });
@@ -339,6 +349,37 @@ await run('首页学习流、笔记标签页、资料归入课程', async () => 
   check(m.course === 'learn' && /整理进「学习的科学」/.test(m.btn), '在课程资料页导入：资料直接归到这门课，下一步「整理进本课程」');
   await page.evaluate(() => go('materials')); await page.waitForTimeout(500);
   check(await page.evaluate(() => $('.gh b')?.textContent === '学习的科学' && !!$('[data-back]')), '全部资料按课程分组');
+  check(!errors.length, '没有脚本错误' + (errors.length ? '：' + errors.join(' | ') : ''));
+  await ctx.close();
+});
+
+await run('内置作图：函数图像、流程图、树、格子、时序图', async () => {
+  const { page, ctx, errors } = await newPage();
+  const r = await page.evaluate(() => {
+    const F = '```', one = (lang, src) => { const el = h(`<div>${md(F + lang + '\n' + src + '\n' + F)}</div>`); return { svg: !!$('figure.viz svg', el), err: $('p.small', el)?.textContent || '', html: el.innerHTML }; };
+    return {
+      plot: one('plot', 'x 0..10 天\ny 0..100 记住\nf 100*exp(-x/2) | 不复习\nf 100*exp(-(x-3)/6) @3..10\np (1,10) (2,20) 数据\nh 50 阈值\nv 3 复习'),
+      bar: one('plot', 'bar O(1):1 | O(n):8 | O(n²):64'),
+      graph: one('graph', 'A(开始) -> B{判断?}\nB -> C[是] : 是\nB -> D[否] : 否\nD -> A'),
+      ugraph: one('graph', 'A -- B : 4\nB -- C : 1\nC -- A : 2'),
+      tree: one('tree', 'A\n  B\n    -\n    D *\n  <1> C'),
+      cells: one('cells', 'list: 1 | 2 | NULL\nptr: 0=p\narr[位]: OP@4 | A@12 >> 16 位\nidx: auto\ncol: 返回地址 => [ebp+4] | 旧 ebp\narr: ~ | a'),
+      seq: one('seq', '甲 -> 乙 : SYN\n--- 建立 ---\n乙 --> 甲 : ACK\nnote 甲 : 完成'),
+      bad: one('plot', 'f exp(\nx 0..1'),
+      safe: one('plot', 'f alert(1)\nx 0..1'),
+      learn: (() => { const it = [...ITEMS.values()].find(i => /遗忘曲线/.test(i.title || '') && i.d); return !!it && /```plot/.test(it.d) && !!$('figure.viz svg', h(`<div>${md(it.d)}</div>`)); })()
+    };
+  });
+  check(r.plot.svg && /<path d="M/.test(r.plot.html) && /不复习/.test(r.plot.html), '函数图像：曲线、分段函数、数据点、参考线');
+  check(r.bar.svg && (r.bar.html.match(/<rect/g) || []).length >= 3, '柱状图');
+  check(r.graph.svg && /<path d="M[^"]*L/.test(r.graph.html) && /marker-end/.test(r.graph.html), '流程图：菱形判断、带箭头的边、回边');
+  check(r.ugraph.svg && /4/.test(r.ugraph.html), '无向带权图');
+  check(r.tree.svg && !/>-</.test(r.tree.html) && /class="vz-node hl"/.test(r.tree.html), '二叉树：空孩子占位不画出、高亮结点');
+  check(r.cells.svg && /16 位/.test(r.cells.html) && /\[ebp\+4\]/.test(r.cells.html), '数组、链表、指针、位宽格子、竖排格子');
+  check(r.seq.svg && /SYN/.test(r.seq.html) && /建立/.test(r.seq.html), '时序图');
+  check(!r.bad.svg && /图示无法绘制/.test(r.bad.err), '写错时显示源文本和错误原因');
+  check(!r.safe.svg && /不认识的符号/.test(r.safe.err), '函数表达式不会执行任意代码');
+  check(r.learn, '示例课程的遗忘曲线用 plot 画出');
   check(!errors.length, '没有脚本错误' + (errors.length ? '：' + errors.join(' | ') : ''));
   await ctx.close();
 });

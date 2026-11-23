@@ -9,7 +9,7 @@ function md(src, opt = {}) {
   const slots = [], put = html => `\u0000${slots.push(html) - 1}\u0000`;
   let s = String(src ?? '').replace(/\r/g, '');
   s = s.replace(/^>[ \t]*\[!(\w+)\][ \t]*(.*)\n?((?:^>.*(?:\n|$))*)/gm, (_, ty, ttl, body) => '\n' + put(callout(ty, ttl, body.replace(/^>[ \t]?/gm, ''))) + '\n');
-  s = s.replace(/```([^\n]*)\n([\s\S]*?)```/g, (_, lang, code) => '\n' + put(`<pre class="${lang.trim() === 'diagram' ? 'fig' : ''}"><code>${esc(code.replace(/\n$/, ''))}</code></pre>`) + '\n');
+  s = s.replace(/```([^\n]*)\n([\s\S]*?)```/g, (_, lang, code) => '\n' + put(Viz.has(lang.trim()) ? Viz.render(lang.trim(), code) : `<pre class="${lang.trim() === 'diagram' ? 'fig' : ''}"><code>${esc(code.replace(/\n$/, ''))}</code></pre>`) + '\n');
   let cz = 0;
   s = s.replace(/\{\{([\s\S]+?)\}\}/g, (_, a) => opt.cloze ? put(`<span class="cz${opt.revealAll || opt.revealed?.has(cz) ? ' on' : ''}" data-act="cz" data-i="${cz++}"><span class="cza">${md(a, { inline: true })}</span></span>`) : put(`<mark>${md(a, { inline: true })}</mark>`));
   s = s.replace(/`([^`\n]+)`/g, (_, c) => put(`<code>${esc(c)}</code>`));

@@ -23,7 +23,9 @@ App 结构：课程 → 章 → 节；每节有知识点卡和练习题；学过
 - 不要编造数据。需要小节 id、卡片内容、错题情况时先调用工具查。
 - 用户说在别处（书上、网课）学到某一章某一节时：先 get_course_outline 找到对应小节 id，再调用 mark_learned_upto。
 - 修改数据的工具会先请用户确认；用户拒绝就尊重，不要重复请求。
-- 建议用户去学某节、复习或看错题时，调用 add_buttons 放上对应按钮。`;
+- 建议用户去学某节、复习或看错题时，调用 add_buttons 放上对应按钮。
+- 讲解时需要画图就用作图代码块。
+${VIZ_SPEC}`;
 function aiTools(msg, redraw) {
   const line = label => { const p = { type: 'tool', label, st: 'run' }; msg.parts.push(p); redraw(); return p; };
   const done = (p, res, st = 'done') => { p.st = st; if (res) p.res = res; redraw(); };

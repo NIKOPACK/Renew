@@ -774,3 +774,22 @@ html.native .md,html.native .md *{-webkit-user-select:text;user-select:text}
 .ph .src>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 /* 按钮、菜单、弹层标题等控件不响应长按选字 */
 .sheet-h h2,.menu,.btn,.chip,.rowi,.tabbar,.seg,.ibtn,.round,.nb3,.qa4,.dayband,.rate{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+/* ---------- 内置作图 ---------- */
+.viz{margin:0;padding:10px 6px;border-radius:14px;background:var(--fill-2);overflow-x:auto;text-align:center}
+.viz svg{display:inline-block;color:var(--ink);font-family:var(--ui);overflow:visible}
+.viz text{fill:currentColor}
+.viz .vz-tk{fill:var(--ink-2);font-size:12px}
+.viz .vz-lb{fill:var(--ink-2);font-size:12px;font-weight:600}
+.viz .vz-pl{fill:var(--accent);font-weight:600}
+.viz .vz-el{fill:var(--ink-2)}
+.viz .vz-grid{stroke:var(--sep);stroke-width:.8}
+.viz .vz-ax{stroke:var(--ink-2);stroke-width:1.3;fill:none}
+.viz .vz-ref{stroke:var(--ink-3);stroke-width:1.2;stroke-dasharray:4 4}
+.viz .vz-edge{stroke:var(--ink-2);stroke-width:1.5}
+.viz .vz-edge.dash{stroke-dasharray:5 4}
+.viz .vz-ptr{stroke:var(--accent);stroke-width:1.6}
+.viz .vz-node,.viz .vz-cell{fill:var(--surface);stroke:var(--ink-2);stroke-width:1.4}
+.viz .vz-node.hl,.viz .vz-cell.hl{fill:var(--accent-soft);stroke:var(--accent)}
+.viz .vz-pill{fill:var(--surface);stroke:var(--sep)}
+.viz .vz-leg{fill:var(--surface);opacity:.85}
+.viz .vz-life{stroke:var(--sep);stroke-width:1.4;stroke-dasharray:3 3}

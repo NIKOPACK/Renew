@@ -5,7 +5,7 @@ function askAI(it, p) {
   const turns = askMem.get(it.id) || []; askMem.set(it.id, turns);
   const wrong = p && p.auto === false;
   const picked = p && p.phase === 'back' && q ? (it.t === 'tf' && p.pick != null ? (p.pick ? '对' : '错') : p.picks?.size ? [...p.picks].map(i => String.fromCharCode(65 + i)).join('') : '') : '';
-  const ctx = `你是耐心的「${c.title}」老师，学生正在手机上学习小节「${sec.title}」的这张卡片（格式：::类型 标题；--- 后是详解；A./B. 是选项；"= " 后是答案；">>" 是步骤提示；"??" 后是解答）：\n\n${itemToDSL(it)}\n${picked ? `\n学生选了：${picked}（${wrong ? '答错了' : '答对了'}）\n` : ''}${S().notes?.[it.id] ? `\n学生自己的笔记：${S().notes[it.id]}\n` : ''}\n请针对学生的问题回答：中文，直接讲重点，一般 300 字以内，Markdown，公式用 $...$，适合手机阅读，不要重复卡片原文。`;
+  const ctx = `你是耐心的「${c.title}」老师，学生正在手机上学习小节「${sec.title}」的这张卡片（格式：::类型 标题；--- 后是详解；A./B. 是选项；"= " 后是答案；">>" 是步骤提示；"??" 后是解答）：\n\n${itemToDSL(it)}\n${picked ? `\n学生选了：${picked}（${wrong ? '答错了' : '答对了'}）\n` : ''}${S().notes?.[it.id] ? `\n学生自己的笔记：${S().notes[it.id]}\n` : ''}\n请针对学生的问题回答：中文，直接讲重点，一般 300 字以内，Markdown，公式用 $...$，适合手机阅读，不要重复卡片原文。需要画图时用作图代码块。\n${VIZ_SPEC}`;
   const chips = [
     wrong && ['我错在哪', '我答错了，帮我分析错在哪里，正确的思路是什么。'],
     ['讲透它', '把这张卡片的核心概念讲透，说清楚为什么。'],
