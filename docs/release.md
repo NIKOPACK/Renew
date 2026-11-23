@@ -42,8 +42,8 @@ npm run ios
 
 ## 发布前检查
 
-- [ ] `npm test` 全部通过，真机上走一遍：学习、复习、导入资料、AI 对话、提醒、导出备份
+- [ ] `npm test` 全部通过，真机上走一遍：首页学习流、复习、课程资料导入、AI 对话（含回复里的图）、点开图双指缩放、写笔记、提醒、导出备份
 - [ ] 更新 `package.json` 版本号与更新说明
-- [ ] 图标与启动图已由 `python3 scripts/make_icons.py` 从 `resources/icon-symbol.png` 生成；更换图标时替换源图后重新运行
+- [ ] 图标、启动图和界面内品牌标志已由 `python3 scripts/make_icons.py` 从 `resources/icon-symbol.png` 生成；更换图标时替换源图后重新运行
 - [ ] 应用商店：隐私政策（温新不收集数据；AI 请求直接发往用户选择的服务商）、数据安全问卷
 - [ ] 国内应用商店：ICP 备案、软件著作权等材料

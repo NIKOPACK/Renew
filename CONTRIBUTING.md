@@ -17,7 +17,8 @@
 
 - 源码是不经编译的原生 JavaScript，`src/js/` 下的文件按文件名顺序拼接成一个脚本，新模块按编号插入合适的位置
 - 核心代码不要直接调用 `window.Capacitor`、`window.claude` 或其他平台接口，统一通过 `Platform`（见 `src/platform/common.js` 开头的接口说明）
-- 界面文字使用简体中文，简洁直接，避免不必要的说明文字
+- 界面文字使用简体中文，简洁直接；能用图标、数字、进度、颜色表达的不写说明文字（见 [界面原则](docs/architecture.md#界面原则能用图表达的不写字)）
+- 课程内容和 AI 提示同样「图优先」：结构、过程、状态变化用内置作图画出来（见 [作图](docs/content-format.md#作图)）
 - 动效要尊重系统的「减弱动态效果」设置和设置页里的「界面动效」开关（使用 `Motion.anim` 等封装）
 - 不引入需要打包器的依赖；第三方库放在 `www/vendor/`，由 `scripts/build.mjs` 从 `node_modules` 复制
 
