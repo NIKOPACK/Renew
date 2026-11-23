@@ -119,6 +119,17 @@ const Viz = (() => {
     if (m[7]) n.hl = true;
     nodes.set(id, n); return id;
   }
+  // 按连线符号切分，括号里的文字（如 [p->next]）不切
+  function splitOps(str) {
+    const out = []; let depth = 0, cur = '', i = 0;
+    while (i < str.length) {
+      const c = str[i];
+      if ('[({'.includes(c)) depth++; else if (')]}'.includes(c)) depth = Math.max(0, depth - 1);
+      if (!depth) { const m = str.slice(i).match(/^\s*(<->|-\.->|->|--)\s*/); if (m && (str[i] === ' ' || str[i] === '-' || str[i] === '<')) { out.push(cur.trim(), m[1]); cur = ''; i += m[0].length; continue; } }
+      cur += c; i++;
+    }
+    out.push(cur.trim()); return out;
+  }
   function graph(src) {
     const nodes = new Map(), edges = []; let dir = 'TB', layout = '';
     for (const raw of src.split('\n')) {
@@ -126,9 +137,10 @@ const Viz = (() => {
       let m;
       if ((m = line.match(/^dir(?:ection)?\s*[:：]?\s*(LR|TB|RL|BT)$/i))) { dir = m[1].toUpperCase(); continue; }
       if ((m = line.match(/^layout\s*[:：]?\s*(\w+)$/i))) { layout = m[1].toLowerCase(); continue; }
-      let lab = ''; const lm = line.match(/^(.*?)\s*[:：]\s*([^:：\]\)\}]*)$/);
-      const body = lm && /(-\.?->|<->|--|->)/.test(lm[1]) ? (lab = lm[2].trim(), lm[1]) : line;
-      const parts = body.split(/\s*(<->|-\.->|->|--)\s*/);
+      // 边上的文字：取第一个「左边已经有连线符号」的冒号之后的全部内容（文字里也可以有冒号）
+      let lab = '', body = line;
+      for (const m of line.matchAll(/\s*[:：]\s*/g)) { const left = line.slice(0, m.index); if (/(-\.?->|<->|--|->)/.test(left) && !/[\[\(\{][^\]\)\}]*$/.test(left)) { lab = line.slice(m.index + m[0].length).trim(); body = left; break; } }
+      const parts = splitOps(body);
       if (parts.length === 1) { parseNode(parts[0], nodes); continue; }
       for (let i = 0; i + 2 < parts.length; i += 2) {
         const a = parseNode(parts[i], nodes), op = parts[i + 1], b = parseNode(parts[i + 2], nodes);
@@ -268,6 +280,8 @@ const Viz = (() => {
     const rowW = Math.max(1, ...rows.map(r => (r.cells || []).reduce((s, c) => s + (c.w || 0), 0))), unit = need.length ? Math.min(Math.max(...need, 34), 380 / rowW) : 0;
     const fit = (t, w) => { const n = tw(t); return n > w - 6 ? Math.max(8.5, FS * (w - 6) / n) : 0; };
     const txt = (x, y, t, w) => { const f = fit(t, w); return label(x, y, t, f ? { fs: r1(f) } : {}); };
+    // 所有格子行的格数和宽度都相同、没有右侧注释时，按表格紧贴排列（如页面置换的过程表）
+    const arrs = rows.filter(r => r.k === 'arr'), sig = r => r.cells.map(c => c.w).join(','), gridMode = arrs.length > 1 && arrs.every(r => !r.note && r.cells.every(c => c.w) && sig(r) === sig(arrs[0]));
     rows.forEach((r, ri) => {
       if (r.k === 'text') { g += label(10, y + 9, r.t, { a: 'start', cls: 'vz-tk' }); y += 24; W = Math.max(W, 20 + tw(r.t, 12)); return; }
       if (r.k === 'stack' || r.k === 'col') {
@@ -295,7 +309,7 @@ const Viz = (() => {
       if (r.idx) { r.idx.forEach((s, i) => { if (xs[i] != null && s) g += label(xs[i] + ws[i] / 2, y + 10, s, { cls: 'vz-tk', fs: 11 }); }); y += 18; }
       if (r.ptr.length) { const by = y + 4; r.ptr.forEach(p => { if (xs[p.i] == null) return; const cx = xs[p.i] + ws[p.i] / 2; g += `<line x1="${r1(cx)}" y1="${by + 20}" x2="${r1(cx)}" y2="${by + 2}" class="vz-ptr" marker-end="url(#${id}p)"/>` + label(cx, by + 30, p.s, { cls: 'vz-pl', fs: 12 }); W = Math.max(W, cx + tw(p.s, 12) / 2 + 10); }); y += 42; }
       // 连续的、没有标题注释的格子行紧贴在一起（如 IP 首部），否则留出间距
-      const nx = rows[ri + 1], tight = nx && nx.k === r.k && !r.title && !nx.title && !r.note && !r.idx && !r.ptr.length;
+      const nx = rows[ri + 1], tight = nx && nx.k === r.k && !r.note && !r.idx && !r.ptr.length && ((!r.title && !nx.title) || (r.k === 'arr' && gridMode));
       if (!tight) y += 12;
     });
     const defs = arrowDef(id) + `<defs><marker id="${id}p" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 1L10 5L0 9z" fill="var(--accent)"/></marker></defs>`;
@@ -316,9 +330,9 @@ const Viz = (() => {
       throw new Error('时序图每行写成：甲 -> 乙 : 消息');
     }
     if (!parts.length) throw new Error('没有参与者');
-    const gap = Math.max(110, ...steps.filter(s => s.k === 'msg' && s.a !== s.b).map(s => (tw(s.s, 12) + 30) / Math.abs(s.a - s.b)), ...parts.map(p => tw(p) + 30));
+    const gap = Math.max(96, ...steps.filter(s => s.k === 'msg' && s.a !== s.b).map(s => (tw(s.s, 12) + 30) / Math.abs(s.a - s.b)), ...parts.map(p => tw(p) + 30));
     const cx = i => 12 + Math.max(tw(parts[0]) + 24, 60) / 2 + i * gap, id = 'vz' + (++uid);
-    let y = 44, g = '';
+    let y = 56, g = '', noteR = 0;
     const body = steps.map(st => {
       let out = '';
       if (st.k === 'msg') {
@@ -326,13 +340,13 @@ const Viz = (() => {
         if (st.a === st.b) { out = `<path d="M${r1(x1)} ${y}h30v18h-30" fill="none" class="vz-edge" marker-end="url(#${id})"/>` + label(x1 + 36, y + 9, st.s, { a: 'start', fs: 12 }); y += 34; return out; }
         out = label((x1 + x2) / 2, y - 8, st.s, { fs: 12 }) + `<line x1="${r1(x1)}" y1="${y}" x2="${r1(x2 + (x2 > x1 ? -2 : 2))}" y2="${y}" class="vz-edge${st.dash ? ' dash' : ''}" marker-end="url(#${id})"/>`; y += 34; return out;
       }
-      if (st.k === 'note') { const w = tw(st.s, 12) + 14; out = `<rect x="${r1(cx(st.p) - w / 2)}" y="${y - 12}" width="${r1(w)}" height="22" rx="6" class="vz-pill"/>` + label(cx(st.p), y - 1, st.s, { fs: 12 }); y += 30; return out; }
+      if (st.k === 'note') { const w = tw(st.s, 12) + 14, x0 = Math.max(4, cx(st.p) - w / 2); noteR = Math.max(noteR, x0 + w); out = `<rect x="${r1(x0)}" y="${y - 12}" width="${r1(w)}" height="22" rx="6" class="vz-pill"/>` + label(x0 + w / 2, y - 1, st.s, { fs: 12 }); y += 30; return out; }
       const x0 = cx(0) - 30, x1 = cx(parts.length - 1) + 30;
       out = `<line x1="${r1(x0)}" x2="${r1(x1)}" y1="${y - 4}" y2="${y - 4}" class="vz-ref"/>` + (st.s ? `<rect x="${r1((x0 + x1) / 2 - tw(st.s, 12) / 2 - 8)}" y="${y - 14}" width="${r1(tw(st.s, 12) + 16)}" height="20" rx="10" class="vz-pill"/>` + label((x0 + x1) / 2, y - 4, st.s, { fs: 12, cls: 'vz-el' }) : ''); y += 28; return out;
     }).join('');
     const H = y + 6;
     parts.forEach((p, i) => { const w = Math.max(tw(p) + 24, 60); g += `<line x1="${r1(cx(i))}" x2="${r1(cx(i))}" y1="30" y2="${H - 4}" class="vz-life"/><rect x="${r1(cx(i) - w / 2)}" y="4" width="${r1(w)}" height="26" rx="7" class="vz-node"/>` + label(cx(i), 17.5, p); });
-    const W = cx(parts.length - 1) + Math.max(tw(parts[parts.length - 1]) + 24, 60) / 2 + 12 + Math.max(0, ...steps.filter(s => s.k === 'msg' && s.a === s.b).map(s => tw(s.s, 12) + 40));
+    const W = Math.max(noteR + 8, cx(parts.length - 1) + Math.max(tw(parts[parts.length - 1]) + 24, 60) / 2 + 12 + Math.max(0, ...steps.filter(s => s.k === 'msg' && s.a === s.b).map(s => tw(s.s, 12) + 40)));
     return svg(W, H, arrowDef(id) + g + body, 'vz-seq');
   }
 

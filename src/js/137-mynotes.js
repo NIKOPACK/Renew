@@ -73,7 +73,7 @@ function noteCtx(n) {
   return L.join('\n').slice(0, 7000);
 }
 const cleanAI = t => String(t || '').trim().replace(/^```(?:markdown|md)?\n([\s\S]*?)\n```$/, '$1').trim();
-const NOTE_RULES = '只输出笔记正文，不要开场白和结尾客套。使用 Markdown（可以用小标题、列表、**加粗**），公式用 $…$。原文中形如 ![说明](img:xxx) 的图片标记必须原样保留在合适位置；原文里的作图代码块也原样保留。需要示意图时用作图代码块。\n' + VIZ_SPEC;
+const NOTE_RULES = '只输出笔记正文，不要开场白和结尾客套。使用 Markdown（可以用小标题、列表、**加粗**），公式用 $…$。原文中形如 ![说明](img:xxx) 的图片标记必须原样保留在合适位置；原文里的作图代码块也原样保留。能用图表达的（结构、流程、对比）用作图代码块画出来，少写描述性文字。\n' + VIZ_SPEC;
 
 /* ---- 通用 AI 写作弹层：生成（流式显示）→ 替换 / 插入 ---- */
 function aiWriteSheet({ title, form = '', auto = !form, prompt, actions }) {
