@@ -815,3 +815,32 @@ body.vzv-on{overflow:hidden}
 .viz:not(.vzv-in){padding-bottom:30px}
 .viz .vz-zoom{top:auto;bottom:6px;right:8px;width:22px;height:22px;opacity:.7}
 .viz .vz-zoom .ic{width:13px;height:13px}
+/* ---------- 少字：图标与数字 ---------- */
+.chips.wrapc{flex-wrap:wrap;overflow:visible}
+.lockn{display:flex;align-items:center;justify-content:center;gap:5px;margin:0;font-size:12px;color:var(--ink-3)}
+.lockn .ic{width:13px;height:13px}
+.mchip{align-self:flex-start;display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:13px;background:var(--fill);font-size:12px;color:var(--ink-2)}
+.mchip .ic{width:14px;height:14px}
+.db-k{flex-direction:row!important;justify-content:center;gap:6px!important}
+.db-k .ic{width:20px;height:20px;color:var(--accent)}
+.db-k:nth-child(2) .ic{color:var(--good)}
+.db-k.fire .ic{color:var(--warn)}
+.db-k.fire b{color:var(--warn)}
+.nb3 .n{font-size:20px!important;font-weight:700;color:var(--ink)!important;font-variant-numeric:tabular-nums;margin-top:2px}
+.nb3 button:first-child .n{font-size:11px!important;font-weight:700;color:var(--accent)!important;background:var(--accent-soft);padding:1px 7px;border-radius:8px;margin-top:6px}
+#sst{display:inline-flex;align-items:center;gap:10px}
+#sst .ic{width:14px;height:14px}
+#sst .chev{width:12px!important;height:12px!important}
+.sst-c{font-weight:600;color:var(--ink-2)}
+.sst-c[data-s="done"]{color:var(--good)}.sst-c[data-s="learning"]{color:var(--accent)}.sst-c[data-s="external"]{color:var(--warn)}
+.sst-n{display:inline-flex;align-items:center;gap:3px;color:var(--ink-2)}
+.dueh .lab{display:flex;align-items:center;gap:5px}
+.dueh .lab .ic{width:15px;height:15px}
+.endc .kp3 span{display:inline-flex;align-items:center;gap:4px;justify-content:center}
+.endc .kp3 span .ic{width:13px;height:13px}
+.cmeta{display:flex;align-items:center;gap:12px}
+.cmeta span{display:inline-flex;align-items:center;gap:4px}
+.cmeta .ic{width:15px;height:15px}
+.cmeta .due{color:var(--accent);font-weight:600}
+.cmeta .pc{margin-left:auto;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+#prac .ic,#snotes .ic,#sgen .ic{width:16px;height:16px}

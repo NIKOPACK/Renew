@@ -198,7 +198,7 @@ await run('课程包导出与导入', async () => {
     const c = COURSES.get('learncopy'), it = courseSecs(c)[0].items[0]; setSt(it, schedule(null, 3, Date.now())); saveSrs(c.id); (S().notes ||= {})[it.id] = '我的笔记'; saveState();
     const pack = coursePack(c); pack.course.chapters[0].sections[0].items[0].title = '更新后的标题';
     importPack(pack); await new Promise(r => setTimeout(r, 400));
-    const btn = [...document.querySelectorAll('.sheet .menu button')].find(b => /更新这门课/.test(b.textContent)); btn.click(); await new Promise(r => setTimeout(r, 400));
+    const btn = [...document.querySelectorAll('.sheet .menu button')].find(b => /更新/.test(b.textContent)); btn.click(); await new Promise(r => setTimeout(r, 400));
     const n = ITEMS.get(it.id);
     return { copies: [...COURSES.values()].filter(x => /学习的科学/.test(x.title)).length, title: n?.title, st: !!getSt(n), note: S().notes[it.id] };
   });
@@ -329,7 +329,7 @@ await run('首页学习流、笔记标签页、资料归入课程', async () => 
     await page.waitForTimeout(60);
   }
   await page.evaluate(() => $('#feed .endc')?.scrollIntoView()); await page.waitForTimeout(500); await shot(page, 'home-end');
-  check(await page.evaluate(() => /刷完了/.test($('#feed .endc h3').textContent) && !!$('#feed .endc [data-ck]')), '刷完后：完成卡片 + 打卡');
+  check(await page.evaluate(() => /完成/.test($('#feed .endc h3').textContent) && !!$('#feed .endc [data-ck]')), '刷完后：完成卡片 + 打卡');
   const more = await page.evaluate(() => !!$('#feed .endc [data-more]'));
   if (more) { const q0 = await page.evaluate(() => Feed.queue.length); await page.click('#feed .endc [data-more]'); await page.waitForTimeout(400); check(await page.evaluate(q => Feed.queue.length > q && !!$('#feed .post .rate:not(.on)'), q0), '「再学一些」接着往下刷'); }
   await page.evaluate(() => scrollTo(0, 0)); await page.click('#db-open'); await page.waitForSelector('.sheet .stat3');

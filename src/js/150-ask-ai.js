@@ -48,7 +48,7 @@ function askAI(it, p) {
   draw();
 }
 function noteSheet(it, p) {
-  const body = h(`<div style="display:flex;flex-direction:column;gap:12px"><textarea class="inp" id="nt-t" style="min-height:200px" placeholder="写下自己的理解、易错点或口诀（支持 Markdown 和 $公式$）"></textarea><div class="acts"><button class="btn danger" id="nt-del">删除</button><button class="btn pri" id="nt-ok">保存</button></div></div>`);
+  const body = h(`<div style="display:flex;flex-direction:column;gap:12px"><textarea class="inp" id="nt-t" style="min-height:200px" placeholder="理解、易错点、口诀"></textarea><div class="acts"><button class="btn danger" id="nt-del">删除</button><button class="btn pri" id="nt-ok">保存</button></div></div>`);
   const s = sheet('我的笔记', body), ta = $('#nt-t', body); ta.value = S().notes?.[it.id] || ''; setTimeout(() => ta.focus(), 100);
   $('#nt-ok', body).onclick = () => { const n = S().notes ||= {}; const v = ta.value.trim(); if (v) n[it.id] = v; else delete n[it.id]; saveState(); s.close(); if (p) { p.noteOpen = true; rerender(p); } toast('已保存'); };
   $('#nt-del', body).onclick = () => { delete (S().notes ||= {})[it.id]; saveState(); s.close(); if (p) rerender(p); };

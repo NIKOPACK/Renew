@@ -4,7 +4,7 @@ function typoControls() {
   const pct = v => Math.round(v * 100) + '%';
   return R('fs', '正文字号', 13, 26, 1, v => v + 'px') + R('lh', '行距', 1.3, 2.2, .05, v => (+v).toFixed(2)) + R('math', '公式大小', .7, 1.6, .05, pct) + R('code', '代码大小', .6, 1.2, .02, pct) + R('tbl', '表格大小', .65, 1.15, .01, pct) + R('pgap', '段落间距', .2, 1.4, .05, v => (+v).toFixed(2)) + R('pad', '卡片内边距', 12, 28, 1, v => v + 'px') +
     `<div class="field"><span>正文字体</span><div class="seg" id="t-font">${Object.entries(FONTS).map(([k, f]) => `<button data-f="${k}" aria-pressed="${p.font === k}">${f.label}</button>`).join('')}</div></div>
-     <label class="row small" style="color:var(--ink-2)"><input type="checkbox" id="t-wrap" ${p.wrapCode ? 'checked' : ''} style="accent-color:var(--accent)"> 长代码自动换行（关闭时左右滑动查看）</label>`;
+     <label class="row small" style="color:var(--ink-2)"><input type="checkbox" id="t-wrap" ${p.wrapCode ? 'checked' : ''} style="accent-color:var(--accent)"> 长代码换行</label>`;
 }
 function bindTypo(root) {
   const p = P(), fmt = { fs: v => v + 'px', lh: v => (+v).toFixed(2), pgap: v => (+v).toFixed(2), pad: v => v + 'px' };

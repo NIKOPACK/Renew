@@ -34,14 +34,14 @@ function courseDSL(c) { return [`@course ${c.id} | ${c.title} | ${c.color} | ${c
 function exportSheet(c, sec) {
   const safe = s => s.replace(/[\\/:*?"<>|]/g, '_');
   const items = sec ? [
-    { icon: 'file', label: '本节 Markdown 笔记', sub: '知识点、详解、练习和解答', run: () => Files.save(safe(sec.title) + '.md', sectionMD(sec, '#'), 'text/markdown') },
-    { icon: 'list', label: '本节卡片文本', sub: '可以再导入，或发给其他 AI 修改', run: () => Files.save(safe(sec.title) + '.txt', secItems(sec).map(itemToDSL).join('\n\n'), 'text/plain') }
+    { icon: 'file', label: 'Markdown', run: () => Files.save(safe(sec.title) + '.md', sectionMD(sec, '#'), 'text/markdown') },
+    { icon: 'list', label: '卡片文本', run: () => Files.save(safe(sec.title) + '.txt', secItems(sec).map(itemToDSL).join('\n\n'), 'text/plain') }
   ] : [
-    { icon: 'book', label: '课程包（.json）', sub: '完整课程，可在其他设备或分享给别人导入', run: () => Files.save(safe(c.title) + '.renew.json', JSON.stringify(coursePack(c, false)), 'application/json') },
-    { icon: 'sync', label: '课程包 + 学习进度', sub: '换设备时连同复习记录一起带走', run: () => Files.save(safe(c.title) + '-含进度.renew.json', JSON.stringify(coursePack(c, true)), 'application/json') },
-    { icon: 'file', label: 'Markdown 笔记（.md）', sub: '整门课的讲义，适合打印或在其他软件阅读', run: () => Files.save(safe(c.title) + '.md', courseMD(c), 'text/markdown') },
-    { icon: 'layers', label: 'Anki 卡片（.txt）', sub: '制表符分隔，公式转为 Anki 的 MathJax 格式', run: () => Files.save(safe(c.title) + '-anki.txt', ankiTSV(c), 'text/plain') },
-    { icon: 'list', label: '卡片文本（.txt）', sub: '纯文本格式，可编辑后再导入', run: () => Files.save(safe(c.title) + '.txt', courseDSL(c), 'text/plain') }
+    { icon: 'book', label: '课程包', run: () => Files.save(safe(c.title) + '.renew.json', JSON.stringify(coursePack(c, false)), 'application/json') },
+    { icon: 'sync', label: '课程包（含进度）', run: () => Files.save(safe(c.title) + '-含进度.renew.json', JSON.stringify(coursePack(c, true)), 'application/json') },
+    { icon: 'file', label: 'Markdown', run: () => Files.save(safe(c.title) + '.md', courseMD(c), 'text/markdown') },
+    { icon: 'layers', label: 'Anki', run: () => Files.save(safe(c.title) + '-anki.txt', ankiTSV(c), 'text/plain') },
+    { icon: 'list', label: '卡片文本', run: () => Files.save(safe(c.title) + '.txt', courseDSL(c), 'text/plain') }
   ];
   menuSheet('导出「' + (sec ? sec.title : c.title) + '」', items);
 }

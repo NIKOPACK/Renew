@@ -10,7 +10,7 @@ async function genDetail(p) {
 async function fixItem(p) {
   const it = p.it;
   if (!AI.ok) { if (await confirmBox('隐藏这张卡', '当前无法调用 AI 修正，先隐藏这张卡？之后可以在设置里恢复。', '隐藏')) { removeItem(it); $(`[data-pk="${p.pk}"]`)?.remove(); } return; }
-  const body = h(`<div style="display:flex;flex-direction:column;gap:12px"><label class="field"><span>哪里有问题？</span><textarea class="inp" id="fx-in" placeholder="例如：答案应该是 C；解答没讲清楚为什么；公式显示不对…"></textarea></label><button class="btn pri" id="fx-go">${ico('wand')}让 AI 核对并修正</button><div id="fx-out"></div></div>`);
+  const body = h(`<div style="display:flex;flex-direction:column;gap:12px"><label class="field"><span>哪里有问题？</span><textarea class="inp" id="fx-in" placeholder="哪里有误？"></textarea></label><button class="btn pri" id="fx-go">${ico('wand')}让 AI 核对并修正</button><div id="fx-out"></div></div>`);
   const s = sheet('修正内容', body);
   $('#fx-go', body).onclick = async () => {
     const out = $('#fx-out', body); out.innerHTML = '<div class="prog"><span class="spin"></span>AI 正在核对…</div>';
@@ -26,18 +26,18 @@ async function fixItem(p) {
 }
 function materialPicker(box) {
   const st = { src: MATS.size ? 'lib' : 'text', text: '', images: [], pageImages: [], mat: [...MATS.values()].sort((a, b) => b.createdAt - a.createdAt)[0]?.id, a: 1, b: 5 };
-  box.innerHTML = `<div class="field"><span>教材资料（可选）</span><div class="seg" id="mp-src">${MATS.size ? `<button data-s="lib" aria-pressed="true">资料库</button>` : ''}<button data-s="text" aria-pressed="${!MATS.size}">文字</button><button data-s="file" aria-pressed="false">文件</button><button data-s="img" aria-pressed="false">拍照</button><button data-s="none" aria-pressed="false">不提供</button></div></div><div id="mp-in"></div>`;
+  box.innerHTML = `<div class="field"><span>教材</span><div class="seg" id="mp-src">${MATS.size ? `<button data-s="lib" aria-pressed="true">资料库</button>` : ''}<button data-s="text" aria-pressed="${!MATS.size}">文字</button><button data-s="file" aria-pressed="false">文件</button><button data-s="img" aria-pressed="false">拍照</button><button data-s="none" aria-pressed="false">不提供</button></div></div><div id="mp-in"></div>`;
   const draw = () => {
     const el = $('#mp-in', box);
     if (st.src === 'lib') {
       const m = MATS.get(st.mat);
-      el.innerHTML = `<select class="inp" id="mp-m">${[...MATS.values()].sort((a, b) => b.createdAt - a.createdAt).map(x => `<option value="${x.id}" ${x.id === st.mat ? 'selected' : ''}>${esc(x.name)}（${x.pages} ${x.kind === 'text' ? '段' : '页'}）</option>`).join('')}</select><div class="row" style="margin-top:10px"><label class="field grow"><span>从第几页</span><input class="inp" id="mp-a" inputmode="numeric" value="${st.a}"></label><label class="field grow"><span>到第几页</span><input class="inp" id="mp-b" inputmode="numeric" value="${Math.min(st.b, m?.pages || 1)}"></label></div><div class="small" style="margin-top:6px">${m?.scanned ? '扫描版：会把这几页的图片发给 AI（最多 ' + (AI.limits?.images?.maxCount || 5) + ' 页）。' : '会把这几页提取的文字发给 AI。'}</div>`;
+      el.innerHTML = `<select class="inp" id="mp-m">${[...MATS.values()].sort((a, b) => b.createdAt - a.createdAt).map(x => `<option value="${x.id}" ${x.id === st.mat ? 'selected' : ''}>${esc(x.name)}（${x.pages} ${x.kind === 'text' ? '段' : '页'}）</option>`).join('')}</select><div class="row" style="margin-top:10px"><label class="field grow"><span>从第几页</span><input class="inp" id="mp-a" inputmode="numeric" value="${st.a}"></label><label class="field grow"><span>到第几页</span><input class="inp" id="mp-b" inputmode="numeric" value="${Math.min(st.b, m?.pages || 1)}"></label></div><div class="small" style="margin-top:6px">${m?.scanned ? '扫描版 · 最多 ' + (AI.limits?.images?.maxCount || 5) + ' 页' : ''}</div>`;
       $('#mp-m', el).onchange = e => { st.mat = e.target.value; draw(); }; $('#mp-a', el).onchange = e => st.a = Math.max(1, +e.target.value || 1); $('#mp-b', el).onchange = e => st.b = Math.max(1, +e.target.value || 1);
     }
-    if (st.src === 'text') { el.innerHTML = `<textarea class="inp" id="mp-t" placeholder="粘贴这一节的教材内容（建议 1~5 页）">${esc(st.text)}</textarea>`; $('#mp-t', el).oninput = e => st.text = e.target.value; }
-    if (st.src === 'file') { el.innerHTML = `<input type="file" accept=".pdf,.txt,.md,text/plain,application/pdf" class="inp" id="mp-f"><div id="mp-pdf"></div><div class="small" id="mp-msg">${st.text ? `已读取 ${st.text.length} 字` : 'PDF 在本机提取文字；扫描版可以把页面转成图片发给 AI。'}</div>`; $('#mp-f', el).onchange = e => readFile(e.target.files[0], st, el); }
-    if (st.src === 'img') { const lim = AI.limits?.images; el.innerHTML = lim ? `<input type="file" accept="${lim.mediaTypes.join(',')}" multiple class="inp" id="mp-i"><div class="thumbs" id="mp-th"></div><div class="small">一次最多 ${lim.maxCount} 张，书页尽量拍平拍清楚。</div>` : `<p class="small" style="margin:0">${AI.ok ? '当前模型不支持图片，请改用文字或 PDF，或在设置里换成支持图片的模型。' : esc(AI.need)}</p>`; const fi = $('#mp-i', el); if (fi) fi.onchange = e => { st.images = [...e.target.files].slice(0, lim.maxCount); $('#mp-th', el).innerHTML = st.images.map(f => `<img alt="" src="${URL.createObjectURL(f)}">`).join(''); }; }
-    if (st.src === 'none') el.innerHTML = `<p class="small" style="margin:0">AI 会依据该课程的标准知识体系编写。提供教材原文会更贴合你的书。</p>`;
+    if (st.src === 'text') { el.innerHTML = `<textarea class="inp" id="mp-t" placeholder="粘贴教材内容">${esc(st.text)}</textarea>`; $('#mp-t', el).oninput = e => st.text = e.target.value; }
+    if (st.src === 'file') { el.innerHTML = `<input type="file" accept=".pdf,.txt,.md,text/plain,application/pdf" class="inp" id="mp-f"><div id="mp-pdf"></div><div class="small" id="mp-msg">${st.text ? `已读取 ${st.text.length} 字` : ''}</div>`; $('#mp-f', el).onchange = e => readFile(e.target.files[0], st, el); }
+    if (st.src === 'img') { const lim = AI.limits?.images; el.innerHTML = lim ? `<input type="file" accept="${lim.mediaTypes.join(',')}" multiple class="inp" id="mp-i"><div class="thumbs" id="mp-th"></div><div class="small">最多 ${lim.maxCount} 张</div>` : `<p class="small" style="margin:0">${AI.ok ? '当前模型不支持图片，请改用文字或 PDF，或在设置里换成支持图片的模型。' : esc(AI.need)}</p>`; const fi = $('#mp-i', el); if (fi) fi.onchange = e => { st.images = [...e.target.files].slice(0, lim.maxCount); $('#mp-th', el).innerHTML = st.images.map(f => `<img alt="" src="${URL.createObjectURL(f)}">`).join(''); }; }
+    if (st.src === 'none') el.innerHTML = '';
   };
   $$('#mp-src button', box).forEach(b => b.onclick = () => { st.src = b.dataset.s; $$('#mp-src button', box).forEach(x => x.setAttribute('aria-pressed', x === b)); draw(); });
   draw();
@@ -59,7 +59,7 @@ async function readFile(file, st, el) {
     await ensurePdfJs();
     const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer(), isEvalSupported: false }).promise, n = pdf.numPages;
     $('#mp-pdf', el).innerHTML = `<div class="row" style="margin-top:10px"><label class="field grow"><span>起始页</span><input class="inp" id="pa" inputmode="numeric" value="1"></label><label class="field grow"><span>结束页</span><input class="inp" id="pb" inputmode="numeric" value="${Math.min(n, 5)}"></label></div><div class="acts" style="margin-top:10px"><button class="btn sm" id="ptx">提取文字</button><button class="btn sm" id="pim">转成图片</button></div>`;
-    msg.textContent = `共 ${n} 页，选好页码范围（建议一次一节、5 页以内）。`;
+    msg.textContent = `共 ${n} 页`;
     const range = () => { const a = Math.max(1, +$('#pa', el).value || 1); return [a, Math.min(n, Math.max(a, +$('#pb', el).value || a))]; };
     $('#ptx', el).onclick = async () => { const [a, b] = range(); let t = ''; msg.textContent = '正在提取…'; for (let i = a; i <= b; i++) { const tc = await (await pdf.getPage(i)).getTextContent(); t += tc.items.map(x => x.str + (x.hasEOL ? '\n' : '')).join('') + '\n\n'; } st.text = t.trim(); st.pageImages = []; msg.textContent = st.text.replace(/\s/g, '').length > 50 ? `已提取第 ${a}-${b} 页，共 ${st.text.length} 字` : '几乎没有提取到文字，可能是扫描版，请用「转成图片」。'; };
     $('#pim', el).onclick = async () => {
@@ -77,7 +77,7 @@ function genSheet({ sid, kpN, qN, focus = '', weak = false }) {
     <div class="small" style="margin:0">${esc(c.title)} · ${esc(ch.title)} · <b style="color:var(--ink)">${esc(sec.title)}</b></div>
     <div id="g-mat"></div>
     <div class="row"><label class="field grow"><span>知识点卡</span><select class="inp" id="g-k">${[0, 2, 3, 4, 5, 6, 8, 10].map(n => `<option ${n === kpN ? 'selected' : ''}>${n}</option>`).join('')}</select></label><label class="field grow"><span>练习题</span><select class="inp" id="g-q">${[0, 2, 3, 4, 5, 6, 8, 10].map(n => `<option ${n === qN ? 'selected' : ''}>${n}</option>`).join('')}</select></label></div>
-    <label class="field"><span>侧重（可选）</span><input class="inp" id="g-f" value="${esc(focus)}" placeholder="例如：多出辨析题；侧重某个概念"></label>
+    <label class="field"><span>侧重</span><input class="inp" id="g-f" value="${esc(focus)}" placeholder="如：多出辨析题"></label>
     <div class="acts"><button class="btn pri" id="g-go">${ico('wand')}${AI.ok ? '生成' : '复制提示词'}</button><button class="btn" id="g-stop" hidden>${ico('stop', '', 'fill')}停止</button></div><div id="g-out"></div></div>`);
   const s = sheet(empty ? '生成本节内容' : 'AI 补充内容', body), getMat = materialPicker($('#g-mat', body));
   let ctl = null; s.onclose = () => ctl?.abort(); $('#g-stop', body).onclick = () => ctl?.abort();

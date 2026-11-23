@@ -21,7 +21,7 @@ function planSheet() {
     body.innerHTML = shownCourses().map(c => {
       const cp = coursePlan(c.id), st = courseStats(c), days = cp.target ? Math.max(1, daysBetween(dayKey(), cp.target)) : 0, rec = days ? Math.ceil(st.remain / days) : 0;
       return `<div class="group plan-g">
-        <div class="rowi"><span class="pdot" style="--c:${c.color}"></span><span class="grow"><div class="t">${esc(c.title)}</div><div class="m">${st.remain ? `还剩 ${st.remain} 个内容` : '已全部学完'}</div></span><button class="toggle" role="switch" aria-checked="${cp.on}" data-on="${c.id}" aria-label="学习${esc(c.title)}"></button></div>
+        <div class="rowi"><span class="pdot" style="--c:${c.color}"></span><span class="grow"><div class="t">${esc(c.title)}</div><div class="m">${st.remain ? `剩 ${st.remain}` : '已学完'}</div></span><button class="toggle" role="switch" aria-checked="${cp.on}" data-on="${c.id}" aria-label="学习${esc(c.title)}"></button></div>
         ${cp.on ? `<div class="rowi"><span class="grow t">每天新学</span>${stepper('data-step', c.id, cp.pace, '每天新学')}</div>
         <label class="rowi"><span class="grow t">目标日期</span><input class="pdate ${cp.target ? '' : 'empty'}" type="date" data-target="${c.id}" value="${esc(cp.target)}" min="${dayKey()}">${cp.target ? `<button class="pclr" data-clr="${c.id}" aria-label="清除目标日期">${ico('x')}</button>` : ''}</label>
         ${rec && rec !== cp.pace ? `<div class="rowi prec"><span class="grow m">按目标需要每天 ${rec} 个</span><button class="btn sm soft" data-rec="${c.id}" data-v="${rec}">采用</button></div>` : ''}` : ''}

@@ -10,7 +10,7 @@ const capUse = (name, ms = 11000) => (window.claude && typeof claude.use === 'fu
 const Platform = {
   id: 'claude', aiConfigurable: true, notify: null, byoClaude: false, builtinAI: 'claude.ai 内置 Claude',
   aiNeed: '在 claude.ai 中打开本页，或在「设置 → AI 服务」里填写自己的 API Key', aiNeedShort: '需要设置 AI 服务',
-  cloudLabel: '已同步到 claude.ai', cloudSub: '换设备打开同一链接即可继续',
+  cloudLabel: '已同步到 claude.ai', cloudSub: '',
   get cloudNote() { return window.claude ? '云端存储不可用，进度只保存在这台设备上。' : ''; },
   async init() {}, started() {},
   ...WebDocs,

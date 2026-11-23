@@ -18,7 +18,7 @@ const MAP = {
   list: 'list-bullets', bulb: 'lightbulb', target: 'target', send: 'arrow-up:bold', file: 'file',
   download: 'download-simple', aa: 'text-aa', stop: 'stop', folder: 'folder-simple', search: 'magnifying-glass',
   doc: 'file-text', bookmark: 'bookmark-simple', bookmarks: 'bookmarks-simple', minus: 'minus',
-  image: 'image', notebook: 'notebook', quote: 'quotes', imgadd: 'image-square', link: 'link-simple', eye: 'eye', listck: 'list-checks', textx: 'text-align-left', grow: 'arrows-out-simple', sum: 'list-magnifying-glass',
+  image: 'image', notebook: 'notebook', lock: 'lock-simple', percent: 'percent', quote: 'quotes', imgadd: 'image-square', link: 'link-simple', eye: 'eye', listck: 'list-checks', textx: 'text-align-left', grow: 'arrows-out-simple', sum: 'list-magnifying-glass',
   // 课程封面的学科图标
   tree: 'tree-structure', cpu: 'cpu', terminal: 'terminal-window', network: 'network', globe: 'globe-hemisphere-east',
   brain: 'brain', fn: 'function', sigma: 'sigma', translate: 'translate', atom: 'atom', flask: 'flask', dna: 'dna',

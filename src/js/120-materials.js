@@ -248,7 +248,7 @@ function bindJobButtons(v) {
   $$('[data-jdel]', v).forEach(b => b.onclick = async () => { if (await confirmBox('删除任务', '只删除任务记录，已生成的内容会保留。', '删除', true)) { Store.drop('job/' + b.dataset.jdel); refresh(); } });
 }
 function pasteSheet(course) {
-  const body = h(`<div style="display:flex;flex-direction:column;gap:12px"><label class="field"><span>名称</span><input class="inp" id="ps-n" placeholder="如：第三章课堂笔记"></label><label class="field"><span>内容</span><textarea class="inp" id="ps-t" style="min-height:240px" placeholder="粘贴讲义、网页文章、笔记或卡片文本（:: 格式）"></textarea></label><button class="btn pri" id="ps-ok">保存为资料</button></div>`);
+  const body = h(`<div style="display:flex;flex-direction:column;gap:12px"><label class="field"><span>名称</span><input class="inp" id="ps-n" placeholder="如：第三章课堂笔记"></label><label class="field"><span>内容</span><textarea class="inp" id="ps-t" style="min-height:240px" placeholder="粘贴内容"></textarea></label><button class="btn pri" id="ps-ok">保存为资料</button></div>`);
   const s = sheet('粘贴资料', body);
   $('#ps-ok', body).onclick = async () => {
     const t = $('#ps-t', body).value; if (!t.trim()) return toast('内容是空的');

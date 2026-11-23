@@ -118,7 +118,7 @@ function viewMyNotes({ course, sec }) {
   <header style="padding:4px 2px"><span class="eyebrow" style="color:${c.color}">${esc(c.title)}${s ? ' · ' + esc(CHAPS.get(s.chap).title) : ''}</span><h1 style="margin:6px 0 4px;font-size:26px;font-weight:800">${esc(s ? s.title : '课程笔记')}</h1></header>
   ${noteTabs(c, s, 'mine')}
   <div class="mn-cta"><button class="btn pri" id="mn-new">${ico('edit')}写笔记</button><button class="btn soft" id="mn-ai">${ico('spark')}AI 帮我写感悟</button></div>
-  ${list.length ? `<div class="nlist">${list.map(noteCard).join('')}</div>` : cards.length ? '' : `<div class="empty">${ico('notebook')}<b>还没有自己的笔记</b><span>学完一节后，把收获、疑问和联想记下来；也可以让 AI 根据你的学习记录起个草稿</span></div>`}
+  ${list.length ? `<div class="nlist">${list.map(noteCard).join('')}</div>` : cards.length ? '' : `<div class="empty">${ico('notebook')}<b>还没有笔记</b></div>`}
   ${cards.length ? `<div class="gh"><b>卡片笔记</b><span>${cards.length}</span></div><div class="group">${cards.map(it => `<button class="rowi" data-cnote="${it.id}"><span class="grow"><div class="t">${esc(plain(it.title || it.q).slice(0, 40))}</div><div class="m">${esc(plain(S().notes[it.id]).slice(0, 60))}</div></span>${ico('chev', 'chev')}</button>`).join('')}</div>` : ''}
   </div></div>`;
   $('[data-back]', v).onclick = back; bindNoteTabs(v);
@@ -127,7 +127,7 @@ function viewMyNotes({ course, sec }) {
   $$('[data-note]', v).forEach(b => b.onclick = () => go('note', { id: b.dataset.note }));
   $$('[data-cnote]', v).forEach(b => b.onclick = () => { const x = noteSheet(ITEMS.get(b.dataset.cnote)); if (x) x.onclose = () => setTimeout(refresh, 300); });
   $('#mn-more').onclick = () => menuSheet('我的笔记', [
-    { icon: 'download', label: '导出全部笔记', sub: 'Markdown 文件', run: () => Files.save(`${s ? s.title : c.title}-我的笔记.md`, myNotesMD(c, s), 'text/markdown') }
+    { icon: 'download', label: '导出全部笔记', run: () => Files.save(`${s ? s.title : c.title}-我的笔记.md`, myNotesMD(c, s), 'text/markdown') }
   ]);
   hydrateImgs(v, { imgs: Object.assign({}, ...list.map(n => n.imgs || {})) });
 }
@@ -150,7 +150,7 @@ function viewNote({ id }) {
   v.innerHTML = appbar('', `<button class="ibtn" id="ne-mode" aria-label="${mode === 'edit' ? '预览' : '编辑'}">${ico(mode === 'edit' ? 'eye' : 'edit')}</button><button class="ibtn" id="ne-more" aria-label="更多">${ico('more')}</button>`) + `<div class="wrap"><div class="stack ned" style="padding-top:6px">
   ${link}
   ${mode === 'edit' ? `<input class="ntitle" id="ne-title" placeholder="标题" maxlength="80" value="${esc(n.title)}">
-  <textarea class="nbody" id="ne-body" placeholder="写下这节课的收获、疑问、和以前知识的联系……&#10;&#10;支持 Markdown 和 $公式$。没想好怎么写，可以点下面的「帮我写」。"></textarea>
+  <textarea class="nbody" id="ne-body" placeholder="收获、疑问、联想…"></textarea>
   ${Object.keys(n.imgs).length ? `<div class="nimgs">${Object.keys(n.imgs).map(k => `<span class="nth" data-k="${esc(k)}"><img data-nimg="${esc(k)}" alt="配图"><button class="rm" data-rm="${esc(k)}" aria-label="删除图片">${ico('x')}</button></span>`).join('')}</div>` : ''}
   <div class="ntools" role="toolbar" aria-label="AI 工具">${tools.map(([k, i, l]) => `<button class="chip" data-tool="${k}">${ico(i)}${l}</button>`).join('')}</div>
   <div class="small nsaved" id="ne-saved">${n.body || n.title ? '已自动保存' : '内容会自动保存'}</div>`
@@ -164,7 +164,7 @@ function viewNote({ id }) {
   const setMode = m => { if (mode === 'edit') save(); top.params = { ...top.params, mode: m, fresh: 0 }; render(false); };
   $('#ne-mode').onclick = () => setMode(mode === 'edit' ? 'read' : 'edit');
   $('#ne-edit')?.addEventListener('click', () => setMode('edit'));
-  $('#ne-sec').onclick = () => { if (!c) return; menuSheet('关联小节', [{ icon: 'x', label: '不关联小节', sub: 'AI 会参考最近学过的小节', run: () => { n.sec = null; save(); refresh(); } },
+  $('#ne-sec').onclick = () => { if (!c) return; menuSheet('关联小节', [{ icon: 'x', label: '不关联小节', run: () => { n.sec = null; save(); refresh(); } },
     ...courseSecs(c).map(x => ({ icon: x.id === n.sec ? 'check' : 'doc', label: x.title, sub: CHAPS.get(x.chap)?.title, run: () => { n.sec = x.id; save(); refresh(); } }))]); };
   $('#ne-more').onclick = () => menuSheet('笔记', [
     { icon: 'download', label: '导出为 Markdown', run: () => Files.save((n.title.trim() || '笔记') + '.md', noteMD(n), 'text/markdown') },
@@ -213,8 +213,8 @@ function noteDraftSheet(n, done) {
   const KINDS = { feel: ['感悟', '这节最有收获的地方、想通的点、和以前知识的联系、接下来打算怎么做'], sum: ['学习总结', '用自己的话梳理这节的核心内容和知识结构，标出容易混淆的地方'], ask: ['疑问与反思', '还没想明白的问题、做错题的原因、需要回头再看的地方'] };
   let kind = 'feel';
   const form = `<div class="seg" id="nd-k">${Object.entries(KINDS).map(([k, [l]]) => `<button data-k="${k}" aria-pressed="${k === kind}">${l}</button>`).join('')}</div>
-    <label class="field"><span>我的想法（可选）</span><textarea class="inp" id="nd-t" style="min-height:84px" placeholder="几个关键词或一两句话，比如：终于明白了为什么要用头结点；KMP 的 next 数组还是有点乱"></textarea></label>
-    <p class="small" style="margin:0">参考：${secs.length ? secs.map(s => '「' + esc(s.title) + '」').join('、') : '这门课'}的知识点、你的错题、卡片笔记和学习记录</p>`;
+    <label class="field"><textarea class="inp" id="nd-t" style="min-height:84px" placeholder="几个关键词（可选）"></textarea></label>
+`;
   const s = aiWriteSheet({ title: 'AI 帮我写', form, prompt: b => `你在帮一位学生写自己的学习笔记。请以学生本人的口吻（第一人称，真诚、朴素、像自己写给自己看的），写一篇「${KINDS[kind][0]}」，侧重：${KINDS[kind][1]}。300~600 字。
 要求：围绕学生自己的想法展开；只根据下面给出的课程内容和学习记录来写，不要编造学生没提到的个人经历或感受；需要学生补充的地方用【……】留空。${NOTE_RULES}
 ${n.body.trim() ? `\n笔记里已经写了（接着写，不要重复）：\n${n.body.slice(-1500)}\n` : ''}
@@ -228,13 +228,13 @@ function noteArtSheet(n, cfg, insert) {
   const STY = { flat: ['扁平插画', '简洁扁平插画风格，柔和配色'], hand: ['手绘涂鸦', '手绘涂鸦风格，像笔记本上的钢笔线稿加淡彩'], water: ['水彩', '清新水彩画风格'], diag: ['概念示意', '清晰的概念示意图风格，白色背景，图形化表达'] };
   let sty = 'flat', size = cfg.size || '1024x1024', res = null, busy = null;
   const body = h(`<div style="display:flex;flex-direction:column;gap:12px">
-    <label class="field"><span>画什么</span><textarea class="inp" id="na-p" style="min-height:90px" placeholder="例如：一列火车车厢用钩子连在一起，表示单链表的结点和指针"></textarea></label>
+    <label class="field"><span>画什么</span><textarea class="inp" id="na-p" style="min-height:90px" placeholder="画面内容"></textarea></label>
     ${AI.ok ? `<button class="btn sm soft" id="na-ai" style="align-self:flex-start">${ico('spark')}根据笔记写画面描述</button>` : ''}
     <div class="field"><span>风格</span><div class="chips" id="na-s">${Object.entries(STY).map(([k, [l]]) => `<button class="chip" data-s="${k}" aria-pressed="${k === sty}">${l}</button>`).join('')}</div></div>
     <div class="field"><span>尺寸</span><div class="seg" id="na-z">${IMG_SIZES.map(([v, l]) => `<button data-v="${v}" aria-pressed="${v === size}">${l}</button>`).join('')}</div></div>
     <div id="na-prev" class="nprev" hidden></div><div id="na-msg" class="small" style="min-height:1.2em"></div>
     <div class="acts" id="na-acts"></div>
-    <p class="small" style="margin:0">使用「设置 → AI 服务 → 图片模型」：${esc((IMG_PRESETS[cfg.provider]?.label || cfg.provider) + ' · ' + cfg.model)}，按服务商价格计费。</p></div>`);
+    <span class="mchip">${ico('image')}${esc(cfg.model)}</span></div>`);
   const s = sheet('AI 配图', body), pt = $('#na-p', body), msg = t => $('#na-msg', body).innerHTML = t;
   const acts = () => { $('#na-acts', body).innerHTML = busy ? `<button class="btn" data-a="stop">${ico('stop')}停止</button>` : res ? `<button class="btn" data-a="gen">${ico('sync')}重新生成</button><button class="btn pri" data-a="ins">插入笔记</button>` : `<button class="btn pri" data-a="gen">${ico('image')}生成图片</button>`; };
   $$('#na-s [data-s]', body).forEach(b => b.onclick = () => { sty = b.dataset.s; $$('#na-s [data-s]', body).forEach(x => x.setAttribute('aria-pressed', x === b)); });
@@ -284,13 +284,13 @@ function viewNotebook() {
   const bmN = cs.reduce((s, c) => s + bookmarks(c.id).filter(b => ITEMS.has(b.it)).length, 0), starN = starItems().length;
   v.innerHTML = `<div class="wrap"><header class="lt"><div class="t"><h1>笔记</h1></div><button class="round acc" id="nb-new" aria-label="写笔记">${ico('edit', '', 'duo')}</button></header>
   <div class="stack">
-  <div class="nb3"><button id="nb-ai"><span class="ib" style="--c:var(--accent)">${ico('spark', '', 'duo')}</span><b>写今天的感悟</b><span>AI 根据学习记录起草</span></button>
-    <button id="nb-star"><span class="ib" style="--c:#df8a0b">${ico('star', '', 'duo')}</span><b>收藏</b><span>${starN} 张卡片</span></button>
-    <button id="nb-bm"><span class="ib" style="--c:#2f9e63">${ico('bookmarks', '', 'duo')}</span><b>书签</b><span>${bmN} 处</span></button></div>
+  <div class="nb3"><button id="nb-ai"><span class="ib" style="--c:var(--accent)">${ico('spark', '', 'duo')}</span><b>写感悟</b><span class="n">AI</span></button>
+    <button id="nb-star"><span class="ib" style="--c:#df8a0b">${ico('star', '', 'duo')}</span><b>收藏</b><span class="n">${starN}</span></button>
+    <button id="nb-bm"><span class="ib" style="--c:#2f9e63">${ico('bookmarks', '', 'duo')}</span><b>书签</b><span class="n">${bmN}</span></button></div>
   ${withN.length > 1 ? `<div class="chips">${[['', '全部'], ...withN.map(c => [c.id, c.title])].map(([id, l]) => `<button class="chip" data-nbc="${id}" aria-pressed="${nbCourse === id}">${esc(l)}</button>`).join('')}</div>` : ''}
   ${list.length ? `<div class="nlist">${list.map(n => noteCard(n, !nbCourse)).join('')}</div>` : ''}
   ${cards.length ? `<div class="gh"><b>卡片笔记</b><span>${cards.length}</span></div><div class="group">${cards.map(it => `<button class="rowi" data-cnote="${it.id}"><span class="grow"><div class="t">${esc(plain(it.title || it.q).slice(0, 40))}</div><div class="m">${esc(COURSES.get(it.course).title)} · ${esc(plain(S().notes[it.id]).slice(0, 50))}</div></span>${ico('chev', 'chev')}</button>`).join('')}</div>` : ''}
-  ${!list.length && !cards.length ? `<div class="empty">${ico('notebook')}<b>还没有笔记</b><span>学完一节后，把收获、疑问和联想记下来。学习时卡片右上角「…」也可以给单张卡片写笔记。</span></div>` : ''}
+  ${!list.length && !cards.length ? `<div class="empty">${ico('notebook')}<b>还没有笔记</b></div>` : ''}
   </div></div>`;
   $('#nb-new').onclick = () => nbCourse ? newNote({ course: nbCourse }) : pickCourse('选择科目', c => newNote({ course: c.id }));
   $('#nb-ai').onclick = reflectToday;

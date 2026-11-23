@@ -6,8 +6,8 @@ function importPack(pack, name) {
   const src = pack.course; if (!src?.chapters) return toast('课程包内容不完整');
   const old = src.id && COURSES.get(src.id);
   if (old && !old.builtin && !pack._copy) return menuSheet(`已经有「${old.title}」`, [
-    { icon: 'sync', label: '更新这门课', sub: '换成课程包里的内容，学习进度、笔记和书签都保留', run: () => updateFromPack(old, src) },
-    { icon: 'plus', label: '另存为新课程', run: () => importPack({ ...pack, _copy: 1 }, name) }
+    { icon: 'sync', label: '更新（保留进度）', run: () => updateFromPack(old, src) },
+    { icon: 'plus', label: '另存一份', run: () => importPack({ ...pack, _copy: 1 }, name) }
   ]);
   const exists = COURSES.has(src.id), cid = exists || !src.id ? newId('u') : src.id, idMap = {};
   const course = { id: cid, title: src.title + (exists ? '（导入）' : ''), cat: src.cat || '我的课程', desc: src.desc || '', color: src.color || PALETTE[COURSES.size % PALETTE.length], chapters: [] };

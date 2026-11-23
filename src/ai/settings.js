@@ -4,8 +4,8 @@ const usesBuiltin = c => Platform.builtinAI && !(c?.key && c.provider !== 'built
 function aiSettingsGroup() {
   const c = AI_CFG, pr = c && AI_PRESETS[c.provider], ic = IMG_CFG, ip = ic && IMG_PRESETS[ic.provider], builtin = usesBuiltin(c);
   return `<div class="gh"><b>AI 服务</b></div><div class="group icons">
-    <button class="rowi" id="s-ai"><span class="tico" style="--c:${AI.ok ? 'var(--accent)' : 'var(--warn)'}">${ico('spark', '', 'duo')}</span><span class="grow"><div class="t">对话模型</div><div class="m">${builtin ? esc(Platform.builtinAI) : c?.key ? esc((pr?.label || c.provider) + ' · ' + (c.model || '未选择模型')) : '未设置 · 出题、讲解、问答、写笔记都要用到'}</div></span>${ico('chev', 'chev')}</button>
-    <button class="rowi" id="s-img"><span class="tico" style="--c:${ImageClient.ok(ic) ? '#ff2d55' : 'var(--ink-3)'}">${ico('image', '', 'duo')}</span><span class="grow"><div class="t">图片模型</div><div class="m">${ImageClient.ok(ic) ? esc((ip?.label || ic.provider) + ' · ' + ic.model) : '未设置 · 用于给笔记配图（可选）'}</div></span>${ico('chev', 'chev')}</button>
+    <button class="rowi" id="s-ai"><span class="tico" style="--c:${AI.ok ? 'var(--accent)' : 'var(--warn)'}">${ico('spark', '', 'duo')}</span><span class="grow"><div class="t">对话模型</div><div class="m">${builtin ? esc(Platform.builtinAI) : c?.key ? esc((pr?.label || c.provider) + ' · ' + (c.model || '未选择模型')) : '未设置'}</div></span>${ico('chev', 'chev')}</button>
+    <button class="rowi" id="s-img"><span class="tico" style="--c:${ImageClient.ok(ic) ? '#ff2d55' : 'var(--ink-3)'}">${ico('image', '', 'duo')}</span><span class="grow"><div class="t">图片模型</div><div class="m">${ImageClient.ok(ic) ? esc((ip?.label || ic.provider) + ' · ' + ic.model) : '未设置'}</div></span>${ico('chev', 'chev')}</button>
   </div>`;
 }
 function bindAiSettingsGroup(v) { $('#s-ai', v)?.addEventListener('click', () => aiConfigSheet()); $('#s-img', v)?.addEventListener('click', () => imgConfigSheet()); }
@@ -16,11 +16,11 @@ async function aiConfigSheet() {
   const groups = [Platform.builtinAI && ['默认', ['builtin']], ['国内', ['deepseek', 'qwen', 'kimi', 'glm']], ['海外', Platform.byoClaude ? ['claude', 'openai'] : ['openai']], ['其他', ['custom']]].filter(Boolean);
   const label = id => id === 'builtin' ? 'claude.ai 内置' : AI_PRESETS[id].label;
   const body = h(`<div style="display:flex;flex-direction:column;gap:14px">
-    ${groups.map(([g, ids]) => `<div class="field"><span>${g}</span><div class="chips aip">${ids.map(id => `<button class="chip" data-p="${id}" aria-pressed="${st.provider === id}">${label(id)}</button>`).join('')}</div></div>`).join('')}
+    <div class="chips aip wrapc">${groups.flatMap(([, ids]) => ids).map(id => `<button class="chip" data-p="${id}" aria-pressed="${st.provider === id}">${id === 'builtin' ? ico('spark') : ''}${label(id)}</button>`).join('')}</div>
     <div id="ai-f" style="display:flex;flex-direction:column;gap:12px"></div>
     <div id="ai-msg" class="small" style="min-height:1.2em"></div>
-    <div class="acts"><button class="btn" id="ai-test">测试连接</button><button class="btn pri" id="ai-save">保存</button></div>
-    <p class="small" style="margin:0">API Key 只保存在这台设备上，直接发给你选择的服务商，费用由该服务商按你的账户计费。${Platform.builtinAI ? '在 claude.ai 页面里，浏览器安全策略可能拦截对外部服务的连接，连不上时请改用内置 Claude 或 App。' : ''}</p>
+    <div class="acts"><button class="btn" id="ai-test">${ico('sync')}测试</button><button class="btn pri" id="ai-save">${ico('check')}保存</button></div>
+    <p class="lockn">${ico('lock')}仅存本机</p>
   </div>`);
   const s = sheet('AI 服务', body), msg = t => $('#ai-msg', body).innerHTML = t;
   const draw = () => {
@@ -33,7 +33,7 @@ async function aiConfigSheet() {
       <label class="field"><span>API Key${p.site ? `<small style="font-weight:400;color:var(--ink-2)"> · 在 ${p.site} 获取</small>` : ''}</span><input class="inp" id="ai-key" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${p.kind === 'anthropic' ? 'sk-ant-…' : 'sk-…'}" value="${esc(st.key)}"></label>
       ${custom || st.provider === 'openai' || st.base ? `<label class="field"><span>接口地址</span><input class="inp" id="ai-base" inputmode="url" autocapitalize="off" spellcheck="false" placeholder="https://…/v1" value="${esc(st.base || p.base)}"></label>` : ''}
       <label class="field"><span>模型</span><div class="row"><input class="inp grow" id="ai-model" list="ai-ml" autocapitalize="off" spellcheck="false" placeholder="模型名称" value="${esc(st.model)}"><button class="btn sm soft" id="ai-list">获取列表</button></div><datalist id="ai-ml">${st.models.map(m => `<option value="${esc(m)}">`).join('')}</datalist></label>
-      <div class="rowi" style="padding:0"><span class="grow"><div class="t">模型能识别图片</div><div class="m">开启后可以拍照识别书页、把扫描版 PDF 发给 AI</div></span><button class="toggle" role="switch" id="ai-vis" aria-checked="${!!st.vision}" aria-label="模型能识别图片"></button></div>`;
+      <div class="rowi" style="padding:0"><span class="tico" style="--c:#2f9e63">${ico('camera', '', 'duo')}</span><span class="grow"><div class="t">识别图片</div></span><button class="toggle" role="switch" id="ai-vis" aria-checked="${!!st.vision}" aria-label="模型能识别图片"></button></div>`;
     $('#ai-key', body).oninput = e => st.key = e.target.value.trim();
     $('#ai-base', body)?.addEventListener('input', e => st.base = e.target.value.trim());
     $('#ai-model', body).oninput = e => st.model = e.target.value.trim();
@@ -70,12 +70,12 @@ async function imgConfigSheet(after) {
   const saved = IMG_CFG || await Platform.imgConfig.get() || {};
   const st = { provider: saved.provider || 'glm', key: saved.key || '', model: saved.model || '', base: saved.base || '', size: saved.size || '', models: [] };
   const body = h(`<div style="display:flex;flex-direction:column;gap:14px">
-    <div class="field"><span>服务商</span><div class="chips imp">${Object.entries(IMG_PRESETS).map(([id, p]) => `<button class="chip" data-p="${id}" aria-pressed="${st.provider === id}">${p.label}</button>`).join('')}</div></div>
+    <div class="chips imp wrapc">${Object.entries(IMG_PRESETS).map(([id, p]) => `<button class="chip" data-p="${id}" aria-pressed="${st.provider === id}">${p.label}</button>`).join('')}</div>
     <div id="im-f" style="display:flex;flex-direction:column;gap:12px"></div>
     <div id="im-prev" hidden></div>
     <div id="im-msg" class="small" style="min-height:1.2em"></div>
-    <div class="acts">${saved.key ? '<button class="btn ghost danger" id="im-off">停用</button>' : ''}<button class="btn" id="im-test">生成测试图</button><button class="btn pri" id="im-save">保存</button></div>
-    <p class="small" style="margin:0">支持 OpenAI 兼容的图片生成接口（/images/generations），转发服务选「OpenAI 兼容」并填写接口地址。测试会真实生成一张图，按服务商价格计费。API Key 只保存在这台设备上。</p>
+    <div class="acts">${saved.key ? '<button class="btn ghost danger" id="im-off">停用</button>' : ''}<button class="btn" id="im-test">${ico('image')}试画</button><button class="btn pri" id="im-save">保存</button></div>
+    <p class="lockn">${ico('lock')}仅存本机</p>
   </div>`);
   const s = sheet('图片模型', body), msg = t => $('#im-msg', body).innerHTML = t, preset = () => IMG_PRESETS[st.provider];
   const cfgOf = () => { const p = preset(); return { provider: st.provider, key: st.key, model: st.model, base: st.base || p.base, size: st.size || p.size }; };

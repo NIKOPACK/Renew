@@ -27,9 +27,9 @@ function dayBandHTML() {
   const nGoal = M.courses.reduce((s, x) => s + (x.sec ? Math.max(x.pace, x.done) : x.done), 0), rGoal = M.t.r + M.due;
   const all = nGoal + rGoal, done = M.t.n + M.t.r, canCheck = !ck && (M.finished || M.doneN >= 20) && M.doneN > 0;
   return `<div class="dayband"><button class="db-main" id="db-open" aria-label="今日任务与统计">
-      <span class="db-k"><b class="num">${M.t.n}<small>/${nGoal}</small></b><span>新学</span></span>
-      <span class="db-k"><b class="num">${M.t.r}<small>/${rGoal}</small></b><span>复习</span></span>
-      <span class="db-k"><b class="num" style="color:var(--warn)">${sk}<small> 天</small></b><span>连续</span></span>
+      <span class="db-k" title="新学">${ico('layers', '', 'duo')}<b class="num">${M.t.n}<small>/${nGoal}</small></b></span>
+      <span class="db-k" title="复习">${ico('review', '', 'duo')}<b class="num">${M.t.r}<small>/${rGoal}</small></b></span>
+      <span class="db-k fire" title="连续打卡">${ico('flame', '', 'fill')}<b class="num">${sk}</b></span>
       ${ico('chev', 'chev')}<span class="db-bar"><i style="width:${all ? Math.min(100, done / all * 100) : done ? 100 : 0}%"></i></span></button>
     ${ck ? `<span class="db-ck on">${ico('check')}已打卡</span>` : canCheck ? `<button class="db-ck" id="db-ck">${ico('calendar')}打卡</button>` : ''}</div>`;
 }
@@ -69,9 +69,10 @@ function startCard() {
 function dailyEndCard() {
   const M = todayModel(), ck = S().checkins[dayKey()], el = h(`<article class="post"><div class="endc"></div></article>`), box = $('.endc', el);
   const empty = M.courses.find(x => x.sec && secStatus(x.sec) === 'empty'), more = M.courses.some(x => freshItems(x.c, 1).length);
-  box.innerHTML = `<div class="badge">${ico('check')}</div><h3>${Feed.queue.length ? '今天的内容刷完了' : '今天没有要学的内容'}</h3><p>新学 ${M.t.n} 个，复习 ${M.t.r} 个${M.t.ok + M.t.bad ? `，正确率 ${Math.round(M.t.ok / (M.t.ok + M.t.bad) * 100)}%` : ''}</p>
-    ${empty ? `<div class="group menu" style="margin-bottom:14px"><button data-gen="${empty.sec.id}">${ico('wand')}<span class="grow">${esc(empty.c.title)}：${esc(empty.sec.title)}<small>这一节还没有内容，让 AI 生成</small></span></button></div>` : ''}
-    <div class="acts">${!ck && M.doneN ? '<button class="btn pri" data-ck>打卡</button>' : ''}${more ? `<button class="btn ${!ck && M.doneN ? '' : 'pri'}" data-more>${ico('plus')}再学一些</button>` : ''}${M.wrong ? `<button class="btn" data-wrong>巩固错题 ${M.wrong}</button>` : ''}<button class="btn ghost" data-reflect-day>写今天的感悟</button></div>`;
+  box.innerHTML = `<div class="badge">${ico('check')}</div><h3>${Feed.queue.length ? '完成' : '今天没有内容'}</h3>
+    <div class="kp3"><div><b>${M.t.n}</b><span>${ico('layers')}新学</span></div><div><b>${M.t.r}</b><span>${ico('review')}复习</span></div><div><b>${M.t.ok + M.t.bad ? Math.round(M.t.ok / (M.t.ok + M.t.bad) * 100) + '%' : '—'}</b><span>${ico('check')}正确率</span></div></div>
+    ${empty ? `<div class="group menu" style="margin-bottom:14px"><button data-gen="${empty.sec.id}">${ico('wand')}<span class="grow">${esc(empty.c.title)}：${esc(empty.sec.title)}<small>${ico('wand')}生成内容</small></span></button></div>` : ''}
+    <div class="acts">${!ck && M.doneN ? `<button class="btn pri" data-ck>${ico('calendar')}打卡</button>` : ''}${more ? `<button class="btn ${!ck && M.doneN ? '' : 'pri'}" data-more>${ico('plus')}再学一些</button>` : ''}${M.wrong ? `<button class="btn" data-wrong>${ico('alert')}错题 ${M.wrong}</button>` : ''}<button class="btn ghost" data-reflect-day>${ico('edit')}写感悟</button></div>`;
   box.onclick = e => {
     const b = e.target.closest('button'); if (!b) return;
     if (b.hasAttribute('data-ck')) checkIn();
@@ -90,9 +91,9 @@ function todaySheet() {
   const M = todayModel(), ck = S().checkins[dayKey()], sk = streak(), canCheck = !ck && (M.finished || M.doneN >= 20) && M.doneN > 0;
   const nGoal = M.courses.reduce((s, x) => s + (x.sec ? Math.max(x.pace, x.done) : x.done), 0), rGoal = M.t.r + M.due;
   const task = (done, title, sub, attrs, right = '') => `<button class="rowi ${done ? 'done' : ''}" ${attrs}><span class="chk ${done ? 'on' : ''}">${ico('check')}</span><span class="grow"><div class="t">${title}</div>${sub ? `<div class="m">${sub}</div>` : ''}</span>${right}${ico('chev', 'chev')}</button>`;
-  const rows = [task(M.due === 0, '复习', M.due ? `${M.due} 个今天到期` : M.t.r ? `已复习 ${M.t.r} 个` : '今天没有到期内容', 'data-rv="review"', M.due ? `<span class="r num">${M.due}</span>` : '')];
-  for (const x of M.courses) rows.push(x.sec ? task(x.done >= x.pace, esc(x.c.title), esc(x.sec.title), `data-sec="${x.sec.id}"`, `<span class="r num">${x.done}/${x.pace}</span>`) : task(true, esc(x.c.title), '计划内的小节都学完了', `data-course="${x.c.id}"`));
-  if (M.wrong) rows.push(task(false, '巩固错题', `${M.wrong} 个答错或忘记的内容`, 'data-rv="wrong"', `<span class="r num">${M.wrong}</span>`));
+  const rows = [task(M.due === 0, '复习', '', 'data-rv="review"', M.due ? `<span class="r num">${M.due}</span>` : '')];
+  for (const x of M.courses) rows.push(x.sec ? task(x.done >= x.pace, esc(x.c.title), esc(x.sec.title), `data-sec="${x.sec.id}"`, `<span class="r num">${x.done}/${x.pace}</span>`) : task(true, esc(x.c.title), '', `data-course="${x.c.id}"`));
+  if (M.wrong) rows.push(task(false, '错题', '', 'data-rv="wrong"', `<span class="r num">${M.wrong}</span>`));
   const days = [], today = dayKey(); let k0 = today; while ((keyToDate(k0).getDay() + 6) % 7 !== 0) k0 = addDays(k0, -1);
   for (let i = 0; i < 7; i++) { const k = addDays(k0, i), s = S().stats[k], n = s ? s.n + s.r : 0; days.push({ k, n, l: !n ? 0 : n < 15 ? 1 : n < 40 ? 2 : 3, ck: !!S().checkins[k], future: k > today }); }
   const s = sheet('今日', `<div class="stat3">

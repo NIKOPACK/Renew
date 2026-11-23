@@ -16,13 +16,13 @@ const PALETTE = ['#8a4fb8', '#c0483f', '#2f7f9e', '#6f8a1e', '#b0681f', '#46609c
 function newCourseSheet() {
   const cats = [...new Set(shownCourses().map(c => c.cat))];
   const body = h(`<div style="display:flex;flex-direction:column;gap:14px">
-    <label class="field"><span>课程名称</span><input class="inp" id="nc-t" placeholder="如：线性代数、英语一核心词汇、法考民法"></label>
-    <label class="field"><span>分类</span><input class="inp" id="nc-c" list="nc-cats" placeholder="如：考研数学、英语、职业考试"><datalist id="nc-cats">${cats.map(c => `<option value="${esc(c)}">`).join('')}</datalist></label>
-    <label class="field"><span>学习目标（可选）</span><input class="inp" id="nc-g" placeholder="如：备考 2027 考研，重在记忆概念和公式"></label>
+    <label class="field"><span>课程名称</span><input class="inp" id="nc-t" placeholder="如：线性代数"></label>
+    <label class="field"><span>分类</span><input class="inp" id="nc-c" list="nc-cats" placeholder="如：考研数学"><datalist id="nc-cats">${cats.map(c => `<option value="${esc(c)}">`).join('')}</datalist></label>
+    <label class="field"><span>学习目标</span><input class="inp" id="nc-g" placeholder="可选"></label>
     <div id="nc-mat"></div>
     <div class="acts"><button class="btn pri" id="nc-ai">${ico('wand')}AI 规划目录</button><button class="btn" id="nc-man">${ico('edit')}手动填写</button></div><div id="nc-out"></div></div>`);
   const s = sheet('新建课程', body), getMat = materialPicker($('#nc-mat', body));
-  $('.field>span', $('#nc-mat', body)).textContent = '目录或教材资料（目录页文字、照片或 PDF）';
+  $('.field>span', $('#nc-mat', body)).textContent = '目录 / 教材';
   const step2 = (o) => {
     body.innerHTML = `<p class="small" style="margin:0"><code># 章</code>　<code>## 节</code>　<code>- 知识点</code></p>
       <label class="field"><span>课程名称</span><input class="inp" id="o-t" value="${esc(o.title || '')}"></label>

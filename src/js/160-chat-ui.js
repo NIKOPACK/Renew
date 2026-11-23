@@ -16,7 +16,7 @@ function viewAI() {
   const hello = hr < 5 ? '夜深了' : hr < 11 ? '早上好' : hr < 14 ? '中午好' : hr < 18 ? '下午好' : '晚上好';
   const empty = !c || !c.msgs.length;
   v.innerHTML = `<div class="appbar aibar"><div class="wrap"><button class="ibtn" id="ch-back" aria-label="返回">${ico('back')}</button><button class="tbtn" id="ch-hist"><span>${c ? esc(c.title) : '温新 AI'}</span>${ico('down')}</button><button class="ibtn" id="ch-new" aria-label="新对话">${ico('edit')}</button></div></div>
-  <div class="wrap"><div class="cm ${empty ? 'blank' : ''}" id="cm">${empty ? `<div class="hello2"><img class="hi hl" src="__BRAND_MARK__" alt=""><img class="hi hd" src="__BRAND_MARK_DARK__" alt="温新"><h2>${hello}</h2>${AI.ready && !AI.ok && Platform.aiConfigurable ? `<button class="btn pri" id="ch-setup">${ico('spark')}设置 AI 服务</button><p class="small" style="margin:0;text-align:center">填写你自己的 API Key 后即可使用</p>` : ''}</div>` : ''}</div></div>
+  <div class="wrap"><div class="cm ${empty ? 'blank' : ''}" id="cm">${empty ? `<div class="hello2"><img class="hi hl" src="__BRAND_MARK__" alt=""><img class="hi hd" src="__BRAND_MARK_DARK__" alt="温新"><h2>${hello}</h2>${AI.ready && !AI.ok && Platform.aiConfigurable ? `<button class="btn pri" id="ch-setup">${ico('spark')}设置 AI 服务</button>` : ''}</div>` : ''}</div></div>
   <button class="tobottom" id="ch-down" hidden aria-label="回到底部">${ico('down')}</button>
   <div class="composer3" id="cmp"><div class="wrap">
     ${empty ? `<div class="chips sgs">${SUGGEST.map(([t], i) => `<button class="chip" data-sg="${i}">${t}</button>`).join('')}</div>` : ''}
