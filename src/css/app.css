@@ -903,3 +903,17 @@ body.dtl-on{overflow:hidden}
 .aichat{display:flex;flex-direction:column;gap:12px}
 .aichat>.cbox{position:sticky;bottom:0;z-index:2;margin-top:2px}
 .cbox .send:disabled{opacity:1}
+
+/* 选择模型（参考 Claude App） */
+.cmod em{font-style:normal;color:var(--ink-3);font-weight:400;margin-left:2px;flex:none}
+.mlist{--sepl:18px}
+.mrow{padding:13px 18px;min-height:64px}
+.mrow .t{font-size:17px;font-weight:500;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.mrow .m{font-size:14px;margin-top:3px}
+.mrow .mck{width:22px;height:22px;color:var(--accent);flex:none}
+.mbadge{font-size:12px;font-weight:600;color:var(--ink-2);background:var(--fill);padding:2px 8px;border-radius:8px}
+.mmore{display:flex;align-items:center;gap:4px;margin:14px 4px 8px;font-size:14px;font-weight:600;color:var(--ink-2)}
+.mmore .ic{width:14px;height:14px}
+.mmore .ic.up{transform:rotate(180deg)}
+.mload{text-align:center;padding:14px 0 0}
+.msel #ms-opt .rowi .t{font-size:17px}

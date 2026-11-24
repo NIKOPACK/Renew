@@ -345,6 +345,20 @@ await run('模型配置（对话 + 图片）与我的笔记', async () => {
   const ar = reqs.filter(x => x.url.includes('anthropic') && x.body?.messages).flatMap(x => x.body.messages).filter(m => Array.isArray(m.content) && m.content.some(c => c.type === 'image')).at(-1)?.content || [];
   check(Array.isArray(ar) && ar.some(c => c.type === 'image' && c.source?.media_type) && ar.some(c => c.type === 'text' && /这张图讲的是什么/.test(c.text)), 'AI 页：图片和问题一起发给模型');
   check(await page.evaluate(() => !!$('#cm .ug .uatt img') && !!Chat.get().msgs[0].att?.[0]?.thumb), 'AI 页：消息显示图片缩略图，并保存在对话记录里');
+  // 选择模型（参考 Claude App）：列表 + 说明 + 思考强度
+  await page.click('#cmp .cmod'); await page.waitForSelector('.msel .mrow'); await page.waitForTimeout(500); await shot(page, 'model-picker');
+  let ms = await page.evaluate(() => ({ rows: $$('.msel #ms-l .mrow').map(r => r.querySelector('.t').textContent), cur: $('.msel .mrow .mck')?.closest('.mrow').querySelector('.t').textContent, desc: $('.msel .mrow .m')?.textContent, eff: $('#ms-eff .r')?.textContent }));
+  check(ms.rows.join() === 'Opus 5.5,Sonnet 5.5,Fable 5.2费用更高,Haiku 5.5' && ms.cur === 'Opus 5.5' && /复杂工作/.test(ms.desc), '选择模型：常用模型、说明和当前选中');
+  check(ms.eff === '中', '选择模型：Opus 5.5 默认思考强度为「中」');
+  await page.locator('.msel .mrow', { hasText: 'Sonnet 5.5' }).click(); await page.waitForTimeout(600);
+  check(await page.evaluate(async () => (await Platform.aiConfig.get()).model === 'claude-sonnet-5-5' && /Sonnet 5\.5/.test($('#cmp .cmod').textContent) && $('#cmp .cmod em').textContent === '高'), '选择模型：切换后保存并更新输入框（Sonnet 5.5 · 高）');
+  await page.click('#cmp .cmod'); await page.waitForSelector('#ms-eff'); await page.click('#ms-eff'); await page.waitForSelector('[data-e="xhigh"]'); await shot(page, 'model-effort');
+  await page.click('[data-e="xhigh"]'); await page.waitForTimeout(600);
+  check(await page.evaluate(() => $('#cmp .cmod em').textContent === '超高' && $('#ms-eff .r').textContent === '超高'), '思考强度：选择后输入框和列表同步');
+  await page.evaluate(() => $$('.sheet [data-close]').forEach(b => b.click())); await page.waitForTimeout(400);
+  await page.fill('#ch-in', '再讲一遍'); await page.waitForTimeout(100); await page.click('#ch-send'); await page.waitForFunction(() => !Chat.busy, null, { timeout: 10000 });
+  const lastA = reqs.filter(x => x.url.includes('anthropic') && x.body?.messages).at(-1)?.body;
+  check(lastA?.model === 'claude-sonnet-5-5' && lastA?.output_config?.effort === 'xhigh', '请求使用所选模型和思考强度（output_config.effort）');
   check(!errors.length, '没有脚本错误' + (errors.length ? '：' + errors.join(' | ') : ''));
   await ctx.close();
 });

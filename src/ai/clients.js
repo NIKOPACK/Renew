@@ -78,7 +78,8 @@ async function anthropicRun(cfg, input, opts = {}) {
   const tools = opts.tools || [], defs = tools.map(t => ({ name: t.name, description: t.description, input_schema: t.inputSchema, eager_input_streaming: true }));
   let text = '', parseRetries = 0;
   for (let turn = 0; turn < 16; turn++) {
-    const params = { model: cfg.model, max_tokens: 64000, messages: msgs, ...(defs.length ? { tools: defs } : {}) };
+    // 思考强度（effort）：只发给支持它的 Claude 模型
+    const params = { model: cfg.model, max_tokens: 64000, messages: msgs, ...(defs.length ? { tools: defs } : {}), ...(cfg.effort && /^claude-(opus-5|sonnet-5|fable-5|mythos-5|haiku-5|opus-4-[78])/.test(cfg.model) ? { output_config: { effort: cfg.effort } } : {}) };
     const stream = CLAUDE_FALLBACK.has(cfg.model)
       ? client.beta.messages.stream({ ...params, betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' }, { signal })
       : client.messages.stream(params, { signal });
