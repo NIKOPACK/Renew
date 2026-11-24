@@ -844,3 +844,20 @@ body.vzv-on{overflow:hidden}
 .cmeta .due{color:var(--accent);font-weight:600}
 .cmeta .pc{margin-left:auto;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
 #prac .ic,#snotes .ic,#sgen .ic{width:16px;height:16px}
+
+/* 详解页：从右侧滑入的独立页面 */
+.drow{margin-top:14px;display:flex;align-items:center;gap:8px;width:100%;padding:12px 14px;border-radius:14px;background:var(--fill-2);font-weight:600;font-size:15px;color:var(--ink);text-align:left}
+.drow .ic{width:18px;height:18px;color:var(--accent);flex:none}
+.drow .pl{flex:none}
+.drow .pv{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:400;color:var(--ink-3);font-size:14px}
+.drow .chev{margin-left:auto;width:16px;height:16px;color:var(--ink-3);flex:none}
+.drow:active{background:var(--fill)}
+body.dtl-on{overflow:hidden}
+.dtl{position:fixed;inset:0;z-index:50;background:var(--bg);display:flex;flex-direction:column;box-shadow:-12px 0 32px rgba(0,0,0,.18);will-change:transform;touch-action:pan-y}
+.dtl-bar{display:flex;align-items:center;gap:4px;padding:calc(env(safe-area-inset-top,0px) + 4px) 6px 4px;background:var(--bar);backdrop-filter:saturate(1.8) blur(20px);-webkit-backdrop-filter:saturate(1.8) blur(20px);border-bottom:.5px solid var(--sep)}
+.dtl-t{flex:1;text-align:center;font-weight:700;font-size:16px}
+.dtl-sc{flex:1;overflow-y:auto;overscroll-behavior:contain;outline:none}
+.dtl-in{max-width:760px;margin:0 auto;padding:16px var(--pad) calc(40px + env(safe-area-inset-bottom,0px))}
+.dtl-k{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--ink-3)}
+.dtl .pt{margin-top:8px}
+.dtl-md{font-size:calc(var(--fs) * 1.06)}

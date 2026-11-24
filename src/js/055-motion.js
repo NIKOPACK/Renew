@@ -100,7 +100,7 @@ function navType(fx, prevImm, newImm) {
   let sx = 0, sy = 0, dx = 0, st = null, t0 = 0;
   const backBtn = () => $('#view [data-back]') || $('#view [data-close-s]') || $('#ch-back');
   addEventListener('touchstart', e => {
-    st = null; if (e.touches.length !== 1 || !Motion.ok() || $('.sheet-wrap')) return;
+    st = null; if (e.touches.length !== 1 || !Motion.ok() || $('.sheet-wrap') || Detail.cur) return;
     const t = e.touches[0]; if (t.clientX > 28 || !backBtn()) return;
     sx = t.clientX; sy = t.clientY; dx = 0; st = 'maybe'; t0 = Date.now(); addEventListener('touchmove', move, { passive: false });
   }, { passive: true });

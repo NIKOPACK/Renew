@@ -106,8 +106,23 @@ await run('学习主流程', async () => {
   await page.click('.tabbar [data-tab="library"]'); await page.waitForTimeout(500); await page.click('[data-course="learn"]'); await page.waitForTimeout(600);
   await page.evaluate(() => go('section', { id: 'learn1s1' })); await page.waitForTimeout(600);
   await page.click('#start'); await page.waitForSelector('.post'); await page.waitForTimeout(500); await shot(page, 'learn');
-  await page.locator('.post [data-act="tog"]').first().click(); await page.waitForTimeout(500);
-  check(await page.locator('.post .panel.open .pb').count() > 0, '展开详解');
+  await page.locator('.post [data-act="detail"]').first().click(); await page.waitForTimeout(500);
+  check(await page.locator('.dtl .dtl-md').count() === 1, '点「详解」打开详解页');
+  const wr = await page.evaluate(() => $('.dtl .dtl-md').getBoundingClientRect().width / innerWidth); check(wr > .85, `详解页正文占满屏宽（${Math.round(wr * 100)}%）`);
+  await shot(page, 'detail');
+  // 向右滑关闭
+  const cdp = await ctx.newCDPSession(page), swipe = async (x0, x1, y) => {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: x0, y }] });
+    for (let i = 1; i <= 8; i++) { await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x0 + (x1 - x0) * i / 8, y }] }); await page.waitForTimeout(16); }
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await page.waitForTimeout(500);
+  };
+  const W = await page.evaluate(() => innerWidth);
+  await swipe(W * .3, W * .9, 400); check(await page.locator('.dtl').count() === 0, '详解页向右滑关闭');
+  // 在卡片上向左滑打开
+  const pr = await page.locator('.post').first().boundingBox();
+  await swipe(W * .85, W * .2, pr.y + 120); check(await page.locator('.dtl').count() === 1, '卡片向左滑打开详解页');
+  await page.keyboard.press('Escape'); await page.waitForTimeout(400); check(await page.locator('.dtl').count() === 0, 'Esc 关闭详解页');
+  await swipe(W * .6, W * .45, pr.y + 120); check(await page.locator('.dtl').count() === 0, '轻微左滑不打开');
   for (let i = 0; i < 8; i++) { const b = page.locator('.post .rate[data-g="3"]:not(.on)').first(); if (!(await b.count())) break; await b.scrollIntoViewIfNeeded(); await b.click(); await page.waitForTimeout(200); }
   const n = await page.evaluate(() => todayStats().n); check(n > 0, `评分后计入今日新学（${n}）`);
   await page.evaluate(() => document.querySelector('[data-step="practice"]').click()); await page.waitForSelector('.post .opt, .post .tf'); await page.waitForTimeout(400);

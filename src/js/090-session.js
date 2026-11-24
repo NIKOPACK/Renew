@@ -107,6 +107,7 @@ function onFeedClick(e) {
   const el = t.closest('[data-pk]'); if (!el) return; const p = Feed.posts.get(el.dataset.pk); if (!p) return; const it = p.it;
   if (act === 'more') return itemMenu(p);
   if (act === 'tog') return togPanel(p, t.dataset.k);
+  if (act === 'detail') return Detail.open(p, t.dataset.k);
   if (act === 'gen-d') return genDetail(p);
   if (act === 'reveal') { p.phase = 'back'; if (it.t === 'cloze') p.rev = new Set([...Array(60).keys()]); rerender(p, 'reveal'); return; }
   if (act === 'step') { p.step++; rerender(p, 'step'); return; }

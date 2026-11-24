@@ -77,7 +77,7 @@ function currentPost() {
   return null;
 }
 addEventListener('keydown', e => {
-  if (Nav.stack[Nav.stack.length - 1]?.view !== 'session' || $('.sheet-wrap') || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (Nav.stack[Nav.stack.length - 1]?.view !== 'session' || $('.sheet-wrap') || Detail.cur || e.metaKey || e.ctrlKey || e.altKey) return;
   if (/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName)) return;
   const el = currentPost(); if (!el) return; const p = Feed.posts.get(el.dataset.pk); if (!p) return;
   const k = e.key.toLowerCase(), click = sel => { const b = $(sel, el); if (b && !b.disabled) { b.click(); return true; } return false; };
@@ -86,4 +86,5 @@ addEventListener('keydown', e => {
   else if (/^[a-f]$/.test(k)) { if (click(`[data-act="opt"][data-i="${k.charCodeAt(0) - 97}"]`)) e.preventDefault(); else if (k === 'a' && p.it.t === 'tf') click('[data-act="tf"][data-v="true"]'); else if (k === 'b' && p.it.t === 'tf') click('[data-act="tf"][data-v="false"]'); }
   else if (k === 'i') { e.preventDefault(); askAI(p.it, p); }
   else if (k === 'h') { e.preventDefault(); click('[data-act="step"]'); }
+  else if (k === 'arrowright' || k === 'l') { if (click('[data-act="detail"]')) e.preventDefault(); }
 });

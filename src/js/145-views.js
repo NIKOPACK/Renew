@@ -130,11 +130,11 @@ function postHTML(p) {
   const it = p.it, c = COURSES.get(it.course), sec = SECS.get(it.sec), showSrc = Feed.params?.kind !== 'section';
   const head = `<div class="ph"><span class="ptype ${isQ(it) ? 'q' : ''}">${TYPE_LABEL[it.t]}</span>${it.imp >= 2 ? '<span class="hot">高频</span>' : ''}<span class="src">${showSrc ? `<i class="cdot" style="--c:${c.color}" title="${esc(c.title)}"></i><span>${esc(sec.title)}</span>` : ''}</span><button class="more" data-act="more" aria-label="更多：问 AI、笔记、收藏">${ico('more')}</button></div>`;
   let body = '', foot = '';
-  const sol = () => it.x ? panel('sol', '详细解答', 'bulb', it.x, p.sol) : '';
+  const sol = () => detailRow(p, 'x');
   const note = S().notes?.[it.id] ? panel('noteOpen', '我的笔记', 'edit', S().notes[it.id], p.noteOpen) : '';
   if (it.t === 'kp') {
     body = `<h3 class="pt">${esc(it.title || '知识点')}</h3>`;
-    { body += `<div class="keypts md">${md(it.q)}</div>` + (it.d ? panel('open', '详解', 'bulb', it.d, p.open) : (AI.ok ? `<button class="btn soft sm" style="margin-top:14px" data-act="gen-d">${ico('wand')}AI 生成详解</button>` : '')); foot = rateBar(p, p.review ? 4 : 3); }
+    { body += `<div class="keypts md">${md(it.q)}</div>` + (it.d ? detailRow(p, 'd') : (AI.ok ? `<button class="btn soft sm" style="margin-top:14px" data-act="gen-d">${ico('wand')}AI 生成详解</button>` : '')); foot = rateBar(p, p.review ? 4 : 3); }
   } else if (it.t === 'choice' || it.t === 'multi') {
     const done = p.phase === 'back', ans = [].concat(it.a);
     body = (it.title ? `<h3 class="pt">${esc(it.title)}</h3>` : '') + `<div class="md" style="margin-top:6px">${md(it.q)}</div><div class="opts">` + it.o.map((o, i) => {

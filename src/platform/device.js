@@ -55,6 +55,7 @@ const Platform = {
     app?.addListener('backButton', () => {
       if (VizView.cur) return VizView.cur();
       const sh = $$('.sheet-wrap').filter(x => x.style.pointerEvents !== 'none').pop(); if (sh) return $('[data-close]', sh).click();
+      if (Detail.cur) return Detail.cur();
       const b = $('#view [data-back]') || $('#view [data-close-s]') || $('#ch-back'); if (b) return b.click();
       if (Nav.tab !== 'today') return go('today', {}, { tab: true });
       (app.minimizeApp || app.exitApp).call(app);
