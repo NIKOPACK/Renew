@@ -5,6 +5,11 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt
 const h = html => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const clone = o => o == null ? o : JSON.parse(JSON.stringify(o));
+const HEX_COLOR_RE = /^#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
+const SAFE_ID_RE = /^[a-zA-Z0-9_-]{1,64}$/;
+const safeColor = (c, fb = '#2f5bea') => typeof c === 'string' && HEX_COLOR_RE.test(c.trim()) ? c.trim() : fb;
+const safeId = s => typeof s === 'string' && SAFE_ID_RE.test(s) ? s : '';
+const isPlainObj = v => !!v && typeof v === 'object' && !Array.isArray(v);
 const DAY = 864e5, CUT = 4 * 3600e3;
 const pad2 = n => String(n).padStart(2, '0');
 function dayKey(ts = Date.now()) { const d = new Date(ts - CUT); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }

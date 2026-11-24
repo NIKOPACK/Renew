@@ -495,6 +495,107 @@ await run('深色模式', async () => {
   await ctx.close();
 });
 
+await run('安全校验、双端 DSL 哈希、IndexedDB 迁移与完整备份恢复', async () => {
+  const { page, ctx, errors } = await newPage();
+  // 1) 恶意课程包 color / id 清洗
+  const sec = await page.evaluate(() => {
+    window.__xss = 0;
+    importPack({
+      format: 'renew-course', v: 1,
+      course: {
+        id: 'bad"><img src=x onerror=window.__xss=1>',
+        title: '测试安全', cat: '安全',
+        color: 'red;background:url(javascript:alert(1))',
+        chapters: [{ id: 'c1', title: '第1章', sections: [{ id: 's1', title: '1.1', items: [{ id: 'x"><svg onload=window.__xss=2>', t: 'kp', title: '要点', q: '内容' }] }] }]
+      }
+    });
+    const c = [...COURSES.values()].find(x => x.title === '测试安全');
+    const it = c && courseSecs(c)[0].items[0];
+    return { okId: c && SAFE_ID_RE.test(c.id), okColor: c && HEX_COLOR_RE.test(c.color), okItem: it && SAFE_ID_RE.test(it.id), xss: window.__xss };
+  });
+  check(sec.okId && sec.okColor && sec.okItem && !sec.xss, '外部课程包：恶意 id 与 color 自动清洗，无注入');
+
+  // 2) 双端 h36 一致性 & .txt 插入新卡后更新保留进度
+  const dsl = await page.evaluate(async () => {
+    // 校验 JS h36 与 Python build_content.py 编译的内置课程卡片 id 完全一致
+    const builtinSec = courseSecs(COURSES.get('learn'))[0];
+    const used = new Set();
+    const matchBuiltin = builtinSec.items.every(it => stableCardId(builtinSec.id, it, used) === it.id);
+    const txt1 = '@course dsltest | DSL测试 | #2f7f9e | 测试\n@chapter c1 | 第1章\n@section 1.1\n::kp 核心概念\n- 要点A\n---\n详解A\n::tf\n1+1=2\n= true\n?? 显然成立';
+    importCardText(txt1);
+    const c = COURSES.get('dsltest'), kp = courseSecs(c)[0].items.find(x => x.title === '核心概念');
+    const oldId = kp.id;
+    setSt(kp, schedule(null, 3, Date.now())); saveSrs(c.id);
+    // 在原有卡片前面插入一张新卡，重新导入并选择「更新（保留进度）」
+    const txt2 = '@course dsltest | DSL测试 | #2f7f9e | 测试\n@chapter c1 | 第1章\n@section 1.1\n::kp 前置概念\n- 新要点\n::kp 核心概念\n- 要点A（已修订）\n---\n详解A2\n::tf\n1+1=2\n= true\n?? 显然成立';
+    importCardText(txt2);
+    await new Promise(r => setTimeout(r, 400));
+    const btn = [...document.querySelectorAll('.sheet .menu button')].find(b => /更新/.test(b.textContent));
+    btn.click();
+    await new Promise(r => setTimeout(r, 400));
+    const updated = ITEMS.get(oldId);
+    return { matchBuiltin, sameId: !!updated, updatedBody: /已修订/.test(updated?.q || ''), keptProg: !!getSt(updated), count: courseSecs(COURSES.get('dsltest'))[0].items.length };
+  });
+  check(dsl.matchBuiltin, 'JS stableCardId 与 Python build_content.py 哈希完全一致');
+  check(dsl.sameId && dsl.updatedBody && dsl.keptProg && dsl.count === 3, '.txt 课程前插新卡后更新：原卡 id 不变且保留复习进度');
+
+  // 3) 完整备份导出与恢复（含笔记配图 + 清理多余旧文档 + 拒绝非法备份）
+  const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+  const bkStr = await page.evaluate(async b64 => {
+    const n = Notes.create({ course: 'learn', sec: 'learn1s1', title: '带图笔记', body: '正文' });
+    const k = await addNoteImage(n, { blob: b64ToBlob(b64, 'image/png') });
+    n.body = `正文\n\n![配图](img:${k})`; Notes.save(n);
+    let saved = '';
+    const orig = Files.save; Files.save = async (_, data) => { saved = data; return true; };
+    await exportData();
+    Files.save = orig;
+    // 导出后再建一条多余笔记，用来验证恢复时会清理旧数据
+    Notes.create({ course: 'learn', title: '多余笔记', body: '应该被清除' });
+    await Store.flushAll();
+    return saved;
+  }, PNG);
+  const bkObj = JSON.parse(bkStr);
+  check(bkObj.app === 'renew' && bkObj.blobs && Object.keys(bkObj.blobs).length === 1, '完整备份：打包学习文档与本机笔记配图');
+  // 校验拒绝无效备份，随后导入有效备份并重载验证
+  await page.evaluate(() => importData()); await page.waitForSelector('#ip-t');
+  await page.fill('#ip-t', '{"app":"renew","docs":{"app/state":"bad"}}');
+  await page.click('#ip-go'); await page.waitForTimeout(200);
+  check(await page.evaluate(() => $('.toast')?.textContent.includes('没有找到学习数据')), '非法结构备份被安全拒绝');
+  await page.fill('#ip-t', bkStr);
+  await page.click('#ip-go'); await page.waitForSelector('.sheet [data-v="1"]');
+  await Promise.all([page.waitForNavigation({ waitUntil: 'load' }), page.click('.sheet [data-v="1"]')]);
+  await page.waitForSelector('.dayband', { timeout: 20000 });
+  const restored = await page.evaluate(async () => {
+    const notes = Notes.all();
+    const n = notes.find(x => x.title === '带图笔记');
+    const extra = notes.find(x => x.title === '多余笔记');
+    const ref = n && Object.values(n.imgs || {})[0];
+    const blob = ref && await Files.get(ref);
+    return { hasN: !!n, noExtra: !extra, imgSize: blob?.size || 0, idb: WebDocs.idb };
+  });
+  check(restored.hasN && restored.noExtra && restored.imgSize > 0, '导入备份：纯净恢复（清除多余旧笔记）并还原笔记配图');
+  check(restored.idb, '网页端文档默认持久化到 IndexedDB');
+  check(!errors.length, '没有脚本错误' + (errors.length ? '：' + errors.join(' | ') : ''));
+  await ctx.close();
+
+  // 4) 旧 localStorage 文档自动迁移至 IndexedDB
+  const ctx2 = await browser.newContext({ ...devices['Pixel 7'] });
+  const p2 = await ctx2.newPage();
+  await p2.addInitScript(() => {
+    if (!sessionStorage.getItem('seeded')) {
+      sessionStorage.setItem('seeded', '1');
+      localStorage.setItem('xl:keys', JSON.stringify(['note/mig1']));
+      localStorage.setItem('xl:d:note/mig1', JSON.stringify({ id: 'mig1', course: 'learn', title: '旧版笔记', body: '来自 localStorage', imgs: {}, created: 1, updated: 1, _t: 1 }));
+    }
+  });
+  await p2.goto(URL0); await p2.waitForSelector('.dayband', { timeout: 20000 });
+  const mig1 = await p2.evaluate(() => ({ title: Notes.get('mig1')?.title, lsGone: localStorage.getItem('xl:d:note/mig1') === null && localStorage.getItem('xl:keys') === null, idb: WebDocs.idb }));
+  await p2.reload(); await p2.waitForSelector('.dayband', { timeout: 20000 });
+  const mig2 = await p2.evaluate(() => Notes.get('mig1')?.title);
+  check(mig1.title === '旧版笔记' && mig1.lsGone && mig1.idb && mig2 === '旧版笔记', '旧 localStorage 文档自动迁移至 IndexedDB 并释放 localStorage');
+  await ctx2.close();
+});
+
 await browser.close(); server.close();
 console.log(failed ? `\n${failed} 项失败` : '\n全部通过');
 process.exit(failed ? 1 : 0);

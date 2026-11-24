@@ -4,23 +4,30 @@ const isCoursePack = d => ['renew-course', 'xueliu-course'].includes(d?.format) 
 const isBackup = d => ['renew', 'xueliu'].includes(d?.app) && !!d.docs;
 function importPack(pack, name) {
   const src = pack.course; if (!src?.chapters) return toast('课程包内容不完整');
-  const old = src.id && COURSES.get(src.id);
+  const srcId = safeId(src.id);
+  const old = srcId && COURSES.get(srcId);
   if (old && !old.builtin && !pack._copy) return menuSheet(`已经有「${old.title}」`, [
     { icon: 'sync', label: '更新（保留进度）', run: () => updateFromPack(old, src) },
     { icon: 'plus', label: '另存一份', run: () => importPack({ ...pack, _copy: 1 }, name) }
   ]);
-  const exists = COURSES.has(src.id), cid = exists || !src.id ? newId('u') : src.id, idMap = {};
-  const course = { id: cid, title: src.title + (exists ? '（导入）' : ''), cat: src.cat || '我的课程', desc: src.desc || '', color: src.color || PALETTE[COURSES.size % PALETTE.length], chapters: [] };
+  const exists = !!(srcId && COURSES.has(srcId)), cid = exists || !srcId ? newId('u') : srcId, idMap = {}, used = new Set(ITEMS.keys());
+  const title = String(src.title || name || '导入的课程');
+  const course = { id: cid, title: title + (exists ? '（导入）' : ''), cat: String(src.cat || '我的课程'), desc: String(src.desc || ''), color: safeColor(src.color, PALETTE[COURSES.size % PALETTE.length]), chapters: [] };
   src.chapters.forEach((ch, ci) => {
-    const chId = `${cid}c${ci + 1}`, chap = { id: chId, title: ch.title, sections: [] };
-    (ch.sections || []).forEach((s, si) => { const sid = `${chId}s${si + 1}`; chap.sections.push({ id: sid, title: s.title, points: s.points || [] });
-      const items = (s.items || []).map((it, k) => { const nid = exists || !it.id || ITEMS.has(it.id) ? `${sid}-p${k.toString(36)}` : it.id; idMap[it.id] = nid; return { ...stripItem(it), id: nid }; });
+    const chId = `${cid}c${ci + 1}`, chap = { id: chId, title: String(ch.title || `第${ci + 1}章`), sections: [] };
+    (ch.sections || []).forEach((s, si) => { const sid = `${chId}s${si + 1}`; chap.sections.push({ id: sid, title: String(s.title || `第${si + 1}节`), points: Array.isArray(s.points) ? s.points.map(String) : [] });
+      const items = (s.items || []).map(it => {
+        const rawId = safeId(it.id);
+        const nid = !exists && rawId && !used.has(rawId) ? (used.add(rawId), rawId) : stableCardId(sid, it, used);
+        if (it.id) idMap[it.id] = nid;
+        return { ...stripItem(it), id: nid };
+      });
       if (items.length) Store.put('sec/' + sid, { items }); });
     course.chapters.push(chap);
   });
   Store.put('course/' + cid, course); addCourse(course, false);
   for (const ch of course.chapters) for (const s of ch.sections) for (const it of Store.get('sec/' + s.id)?.items || []) addItem(it, SECS.get(s.id), false);
-  if (pack.progress) { const d = srsDoc(cid); for (const [oid, st] of Object.entries(pack.progress)) if (idMap[oid]) d.c[idMap[oid]] = st; saveSrs(cid); }
+  if (isPlainObj(pack.progress)) { const d = srsDoc(cid); for (const [oid, st] of Object.entries(pack.progress)) if (idMap[oid] && isPlainObj(st)) d.c[idMap[oid]] = st; saveSrs(cid); }
   coursePlan(cid); logEvent('导入课程 ' + course.title); saveState();
   toast(`已导入「${course.title}」`); Nav.tab = 'library'; Nav.stack = [{ view: 'library' }, { view: 'course', params: { id: cid } }]; render(true);
 }
@@ -29,11 +36,16 @@ function updateFromPack(old, src) {
   const cid = old.id, keep = new Set();
   for (const sec of courseSecs(old)) { for (const it of sec.items) ITEMS.delete(it.id); SECS.delete(sec.id); }
   old.chapters.forEach(ch => CHAPS.delete(ch.id)); COURSES.delete(cid);
-  const course = { ...(Store.get('course/' + cid) || {}), id: cid, title: src.title || old.title, cat: src.cat || old.cat, desc: src.desc || old.desc, color: old.color, chapters: [] };
+  const used = new Set(ITEMS.keys());
+  const course = { ...(Store.get('course/' + cid) || {}), id: cid, title: String(src.title || old.title), cat: String(src.cat || old.cat), desc: String(src.desc ?? old.desc), color: safeColor(old.color), chapters: [] };
   src.chapters.forEach((ch, ci) => {
-    const chId = `${cid}c${ci + 1}`, chap = { id: chId, title: ch.title, sections: [] };
-    (ch.sections || []).forEach((s, si) => { const sid = `${chId}s${si + 1}`; chap.sections.push({ id: sid, title: s.title, points: s.points || [] }); keep.add('sec/' + sid);
-      const items = (s.items || []).map((it, k) => ({ ...stripItem(it), id: it.id && !ITEMS.has(it.id) ? it.id : `${sid}-p${k.toString(36)}` }));
+    const chId = `${cid}c${ci + 1}`, chap = { id: chId, title: String(ch.title || `第${ci + 1}章`), sections: [] };
+    (ch.sections || []).forEach((s, si) => { const sid = `${chId}s${si + 1}`; chap.sections.push({ id: sid, title: String(s.title || `第${si + 1}节`), points: Array.isArray(s.points) ? s.points.map(String) : [] }); keep.add('sec/' + sid);
+      const items = (s.items || []).map(it => {
+        const rawId = safeId(it.id);
+        const nid = rawId && !used.has(rawId) ? (used.add(rawId), rawId) : stableCardId(sid, it, used);
+        return { ...stripItem(it), id: nid };
+      });
       if (items.length) Store.put('sec/' + sid, { items }); else Store.drop('sec/' + sid); });
     course.chapters.push(chap);
   });
@@ -48,7 +60,7 @@ function parseCourseDSL(text) {
   const flush = () => { if (sec && buf.length) { sec.items.push(...parseDSL(buf.join('\n'), 'tmp').items); } buf = []; };
   for (const raw of String(text).replace(/\r/g, '').split('\n')) {
     const l = raw.replace(/\s+$/, '');
-    if (l.startsWith('@course')) { const p = l.slice(7).split('|').map(x => x.trim()); course.id = p[0]; course.title = p[1] || p[0]; course.color = p[2]; course.cat = p[3] || course.cat; course.desc = p[4] || ''; continue; }
+    if (l.startsWith('@course')) { const p = l.slice(7).split('|').map(x => x.trim()); course.id = safeId(p[0]); course.title = p[1] || p[0]; course.color = safeColor(p[2], ''); course.cat = p[3] || course.cat; course.desc = p[4] || ''; continue; }
     if (l.startsWith('@chapter')) { flush(); const p = l.slice(8).split('|').map(x => x.trim()); ch = { title: p[1] || p[0], sections: [] }; course.chapters.push(ch); sec = null; continue; }
     if (l.startsWith('@section')) { flush(); if (!ch) { ch = { title: '第1章', sections: [] }; course.chapters.push(ch); } sec = { title: l.slice(8).trim(), items: [] }; ch.sections.push(sec); continue; }
     if (!sec && /^::/.test(l)) { if (!ch) { ch = { title: '第1章', sections: [] }; course.chapters.push(ch); } sec = { title: ch.title, items: [] }; ch.sections.push(sec); }
@@ -59,8 +71,8 @@ function parseCourseDSL(text) {
 function importCardText(text, name) {
   if (/^@course|^@chapter/m.test(text)) {
     const c = parseCourseDSL(text); if (!c.title) c.title = name || '导入的课程';
-    c.chapters.forEach(ch => ch.sections.forEach(s => s.items.forEach((it, k) => delete it.id)));
-    return importPack({ course: { ...c, id: COURSES.has(c.id) ? null : c.id } });
+    c.chapters.forEach(ch => ch.sections.forEach(s => s.items.forEach(it => delete it.id)));
+    return importPack({ course: c }, name);
   }
   pickSection('导入到哪一节？', sid => { const s = sheet('导入到「' + SECS.get(sid).title + '」', `<div id="ic-out"></div>`); showGenerated($('#ic-out', s.body), parseDSL(text, sid, 'i'), SECS.get(sid), false, s); });
 }

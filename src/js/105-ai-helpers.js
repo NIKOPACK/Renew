@@ -1,5 +1,4 @@
-/* ============ AI 页 ============ */
-const chat = { turns: lsGet('chat') || [] };
+/* ============ AI 辅助（选节、薄弱点、无工具调用时的降级同步） ============ */
 function progressText() {
   const p = plan(), t = todayStats(), out = [`今天 ${dayKey()}；每天复习上限 ${p.maxReview}；今日已新学 ${t.n}、复习 ${t.r}；连续打卡 ${streak()} 天。`];
   const last = Object.keys(S().stats).sort().slice(-7).map(k => `${k.slice(5)}:${S().stats[k].n}+${S().stats[k].r}`).join(' ');

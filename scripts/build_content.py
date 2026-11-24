@@ -77,8 +77,10 @@ def finish(card, ids, where):
             out['a'] = idx[0]
         if any(i >= len(opts) for i in idx): raise ValueError(f'{where}: 答案越界 {q[:30]}')
     elif t == 'tf':
-        if ans not in ('对', '错'): raise ValueError(f'{where}: 判断题答案应为 对/错: {q[:30]}')
-        out['a'] = ans == '对'
+        ans_l = (ans or '').lower()
+        if ans_l not in ('对', '错', '正确', '错误', 'true', 'false'):
+            raise ValueError(f'{where}: 判断题答案应为 对/错: {q[:30]}')
+        out['a'] = ans_l in ('对', '正确', 'true')
     elif t == 'qa':
         out['a'] = '\n'.join(second).strip()
         if not out['a']: raise ValueError(f'{where}: 问答缺答案: {q[:30]}')
@@ -134,6 +136,7 @@ def parse(path):
             close()
             head = ln[2:].strip()
             t, _, title = head.partition(' ')
+            if t == 'note': t = 'kp'
             if t not in TYPES: raise ValueError('未知题型 ' + t)
             imp = title.count('★'); title = title.replace('★', '').strip()
             card = {'t': t, 'title': title, 'imp': imp, '_lines': []}

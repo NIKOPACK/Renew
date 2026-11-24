@@ -1,10 +1,4 @@
 /* ============ 文件存储：可选云端（Platform.cloudFiles），否则存本机（Platform.blobs） ============ */
-const IDB = { // 网页环境的本机文件库（App 环境改用 Platform 提供的文件系统）
-  db: null,
-  open() { return this.db ||= new Promise((res, rej) => { try { const r = indexedDB.open('xueliu', 1) /* 早期版本的库名，保留以兼容已有数据 */; r.onupgradeneeded = () => r.result.createObjectStore('f'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); } catch (e) { rej(e); } }); },
-  async tx(mode, fn) { const db = await this.open(); return new Promise((res, rej) => { const t = db.transaction('f', mode), req = fn(t.objectStore('f')); t.oncomplete = () => res(req?.result); t.onerror = () => rej(t.error); }); },
-  put(k, v) { return this.tx('readwrite', s => s.put(v, k)); }, get(k) { return this.tx('readonly', s => s.get(k)); }, del(k) { return this.tx('readwrite', s => s.delete(k)); }
-};
 const Files = {
   assets: null, mem: new Map(),
   async init() { try { this.assets = await Platform.cloudFiles(); } catch { this.assets = null; } },

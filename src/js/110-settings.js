@@ -18,8 +18,13 @@ function typoSheet() {
   sheet('阅读排版', body); bindTypo(body);
 }
 async function exportData() {
-  const text = JSON.stringify({ app: 'renew', v: 2, at: new Date().toISOString(), docs: Store.docs }), name = `温新备份-${dayKey()}.json`;
-  await Files.save(name, text, 'application/json');
+  const blobs = {};
+  for (const n of Notes.all()) for (const ref of Object.values(n.imgs || {})) {
+    if (!ref?.l || blobs[ref.l]) continue;
+    try { const b = await Platform.blobs.get(ref.l); if (b && b.size <= 4e6) blobs[ref.l] = { type: b.type || 'image/jpeg', data: await blobToB64(b) }; } catch {}
+  }
+  const payload = { app: 'renew', v: 2, at: new Date().toISOString(), docs: Store.docs, ...(Object.keys(blobs).length ? { blobs } : {}) };
+  await Files.save(`温新备份-${dayKey()}.json`, JSON.stringify(payload), 'application/json');
 }
 function importData(pre) {
   const body = h(`<div style="display:flex;flex-direction:column;gap:12px"><input type="file" accept=".json,application/json" class="inp" id="ip-f"><textarea class="inp" id="ip-t" placeholder="或者粘贴备份内容"></textarea><button class="btn pri" id="ip-go">导入并覆盖当前数据</button></div>`);
@@ -28,9 +33,20 @@ function importData(pre) {
   $('#ip-f', body).onchange = async e => { $('#ip-t', body).value = await e.target.files[0].text(); };
   $('#ip-go', body).onclick = async () => {
     let data; try { data = JSON.parse($('#ip-t', body).value); } catch { return toast('内容不是有效的备份'); }
-    if (!data?.docs?.['app/state']) return toast('没有找到学习数据');
-    if (!await confirmBox('导入备份', '会用备份覆盖当前的进度和设置。', '导入', true)) return;
-    for (const [k, val] of Object.entries(data.docs)) if (DOC_RE.test(k)) Store.put(k, val);
-    Store.flushAll(); s.close(); toast('已导入，正在重新载入'); setTimeout(() => location.reload(), 900);
+    if (!isPlainObj(data?.docs) || !isPlainObj(data.docs['app/state'])) return toast('没有找到学习数据');
+    const valid = Object.entries(data.docs).filter(([k, v]) => DOC_RE.test(k) && isPlainObj(v));
+    if (!valid.length) return toast('没有找到学习数据');
+    if (!await confirmBox('导入备份', '会用备份覆盖当前的进度、笔记和自建课程。', '导入', true)) return;
+    const keep = new Set(valid.map(([k]) => k));
+    for (const k of Object.keys(Store.docs)) if (DOC_RE.test(k) && !keep.has(k)) Store.drop(k);
+    for (const [k, val] of valid) Store.put(k, val);
+    if (isPlainObj(data.blobs)) {
+      for (const [k, b] of Object.entries(data.blobs)) {
+        if (!safeId(k) || !isPlainObj(b) || typeof b.data !== 'string') continue;
+        const type = typeof b.type === 'string' && /^image\/(jpeg|png|webp|gif)$/i.test(b.type) ? b.type : 'image/jpeg';
+        try { await Platform.blobs.put(k, b64ToBlob(b.data, type)); } catch {}
+      }
+    }
+    await Store.flushAll(); s.close(); toast('已导入，正在重新载入'); setTimeout(() => location.reload(), 900);
   };
 }

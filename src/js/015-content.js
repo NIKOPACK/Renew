@@ -1,7 +1,7 @@
 /* ============ 内容 ============ */
 const COURSES = new Map(), CHAPS = new Map(), SECS = new Map(), ITEMS = new Map();
 function addCourse(c, builtin) {
-  const course = { id: c.id, title: c.title, color: c.color || '#2f5bea', cat: c.cat || '我的课程', desc: c.desc || '', builtin, chapters: [] };
+  const course = { id: c.id, title: c.title, color: safeColor(c.color), cat: c.cat || '我的课程', desc: c.desc || '', builtin, chapters: [] };
   COURSES.set(course.id, course);
   for (const ch of c.chapters || []) {
     const chap = { id: ch.id, title: ch.title, course: course.id, sections: [] };

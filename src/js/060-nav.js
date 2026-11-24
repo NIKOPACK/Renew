@@ -22,6 +22,7 @@ function go(view, params = {}, opt = {}) {
   render(true, keep);
 }
 function back() { if (Nav.stack.length > 1) { Nav.stack.pop(); Nav.fx = 'pop'; render(true, true); } else go(Nav.tab, {}, { tab: true }); }
+function openReview(kind, opt = {}) { go('session', { kind, ...opt }); }
 function render(anim, restore) {
   const top = Nav.stack[Nav.stack.length - 1], v = $('#view');
   Feed.obs?.disconnect();

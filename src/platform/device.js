@@ -10,7 +10,7 @@ const VENDOR = { pdf: 'vendor/pdf.min.js', pdfWorker: 'vendor/pdf.worker.min.js'
 const NativeFS = {
   D: 'DATA',
   docPath: p => 'docs/' + encodeURIComponent(p) + '.json',
-  pending: new Map(), timer: 0,
+  pending: new Map(), drops: new Set(), timer: 0,
   async loadDocs() {
     const fs = Plug('Filesystem'), out = {};
     let files = [];
@@ -23,16 +23,19 @@ const NativeFS = {
     if (!Object.keys(out).length) Object.assign(out, await WebDocs.loadDocs()); // 首次启动：迁移浏览器里已有的数据
     return out;
   },
-  writeDoc(p, o) { this.pending.set(p, JSON.stringify(o)); clearTimeout(this.timer); this.timer = setTimeout(() => this.flush(), 400); },
-  dropDoc(p) { this.pending.delete(p); Plug('Filesystem').deleteFile({ path: this.docPath(p), directory: this.D }).catch(() => {}); },
+  writeDoc(p, o) { this.drops.delete(p); this.pending.set(p, JSON.stringify(o)); clearTimeout(this.timer); this.timer = setTimeout(() => this.flush(), 400); },
+  dropDoc(p) { this.pending.delete(p); this.drops.add(p); clearTimeout(this.timer); this.timer = setTimeout(() => this.flush(), 400); },
   saveKeys() {},
   async flush() {
-    clearTimeout(this.timer); const fs = Plug('Filesystem'), jobs = [...this.pending]; this.pending.clear();
-    await Promise.all(jobs.map(async ([p, data]) => {
-      const to = this.docPath(p), tmp = to + '.tmp';
-      try { await fs.writeFile({ path: tmp, data, directory: this.D, encoding: 'utf8', recursive: true }); await fs.rename({ from: tmp, to, directory: this.D, toDirectory: this.D }); }
-      catch { try { await fs.writeFile({ path: to, data, directory: this.D, encoding: 'utf8', recursive: true }); } catch {} }
-    }));
+    clearTimeout(this.timer); const fs = Plug('Filesystem'), jobs = [...this.pending], dels = [...this.drops]; this.pending.clear(); this.drops.clear();
+    await Promise.all([
+      ...dels.map(p => fs.deleteFile({ path: this.docPath(p), directory: this.D }).catch(() => {})),
+      ...jobs.map(async ([p, data]) => {
+        const to = this.docPath(p), tmp = to + '.tmp';
+        try { await fs.writeFile({ path: tmp, data, directory: this.D, encoding: 'utf8', recursive: true }); await fs.rename({ from: tmp, to, directory: this.D, toDirectory: this.D }); }
+        catch { try { await fs.writeFile({ path: to, data, directory: this.D, encoding: 'utf8', recursive: true }); } catch {} }
+      })
+    ]);
   },
   blobs: {
     async put(k, blob) { await Plug('Filesystem').writeFile({ path: 'blobs/' + k, data: await blobToB64(blob), directory: 'DATA', recursive: true }); lsSet('bt:' + k, blob.type || ''); },

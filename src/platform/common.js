@@ -24,11 +24,66 @@ const LocalConf = (pref, ls) => ({
   }
 });
 const AIConfig = LocalConf('ai', 'aicfg'), ImgConfig = LocalConf('aiimg', 'imgcfg');
+const IDB = { // 网页环境的本机库：f 存二进制文件，d 存学习文档（保留早期库名 xueliu 以兼容已有数据）
+  db: null,
+  open() {
+    return this.db ||= new Promise((res, rej) => {
+      try {
+        const r = indexedDB.open('xueliu', 2);
+        r.onupgradeneeded = () => {
+          const db = r.result;
+          if (!db.objectStoreNames.contains('f')) db.createObjectStore('f');
+          if (!db.objectStoreNames.contains('d')) db.createObjectStore('d');
+        };
+        r.onsuccess = () => res(r.result);
+        r.onerror = () => { this.db = null; rej(r.error); };
+      } catch (e) { this.db = null; rej(e); }
+    });
+  },
+  async tx(mode, fn, st = 'f') {
+    const db = await this.open();
+    return new Promise((res, rej) => { const t = db.transaction(st, mode), req = fn(t.objectStore(st)); t.oncomplete = () => res(req?.result); t.onerror = () => rej(t.error); });
+  },
+  put(k, v, st = 'f') { return this.tx('readwrite', s => s.put(v, k), st); },
+  get(k, st = 'f') { return this.tx('readonly', s => s.get(k), st); },
+  del(k, st = 'f') { return this.tx('readwrite', s => s.delete(k), st); },
+  async all(st = 'd') {
+    const db = await this.open();
+    return new Promise((res, rej) => {
+      const out = {}, t = db.transaction(st, 'readonly'), req = t.objectStore(st).openCursor();
+      req.onsuccess = () => { const c = req.result; if (c) { out[c.key] = c.value; c.continue(); } else res(out); };
+      req.onerror = () => rej(req.error);
+    });
+  }
+};
 const WebDocs = {
-  async loadDocs() { const out = {}; for (const k of (lsGet('keys') || [])) { const v = lsGet('d:' + k); if (v) out[k] = v; } return out; },
-  writeDoc(p, o) { lsSet('d:' + p, o); },
-  dropDoc(p) { lsDel('d:' + p); },
-  saveKeys(keys) { lsSet('keys', keys); }
+  idb: false, inflight: new Set(),
+  _track(p) { WebDocs.inflight.add(p); p.finally(() => WebDocs.inflight.delete(p)); return p; },
+  async loadDocs() {
+    const lsDocs = {};
+    for (const k of (lsGet('keys') || [])) { const v = lsGet('d:' + k); if (v) lsDocs[k] = v; }
+    try {
+      const out = await IDB.all('d');
+      WebDocs.idb = true;
+      const mig = [];
+      for (const [k, v] of Object.entries(lsDocs)) {
+        if (!out[k] || (v._t || 0) > (out[k]._t || 0)) { out[k] = v; mig.push(IDB.put(k, v, 'd')); }
+      }
+      if (mig.length) await Promise.all(mig);
+      if (Object.keys(lsDocs).length) { for (const k of Object.keys(lsDocs)) lsDel('d:' + k); lsDel('keys'); }
+      return out;
+    } catch { WebDocs.idb = false; return lsDocs; }
+  },
+  writeDoc(p, o) {
+    if (WebDocs.idb) WebDocs._track(IDB.put(p, o, 'd').catch(() => lsSet('d:' + p, o)));
+    else lsSet('d:' + p, o);
+  },
+  dropDoc(p) {
+    if (WebDocs.idb) WebDocs._track(IDB.del(p, 'd').catch(() => {}));
+    lsDel('d:' + p);
+  },
+  saveKeys(keys) { if (!WebDocs.idb) lsSet('keys', keys); },
+  async flush() { await Promise.all([...WebDocs.inflight]); }
 };
 const IdbBlobs = { put: (k, b) => IDB.put(k, b), get: k => IDB.get(k), del: k => IDB.del(k) };
 const webHaptic = k => { if (navigator.vibrate) navigator.vibrate(k === 'bad' ? [16, 60, 16] : k === 'ok' ? 14 : 8); };

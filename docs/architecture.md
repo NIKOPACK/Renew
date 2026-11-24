@@ -69,7 +69,7 @@ android/  ios/        Capacitor 原生工程
 
 | 接口 | App（Capacitor） | 普通浏览器 | claude.ai |
 |---|---|---|---|
-| `loadDocs` / `writeDoc` / `dropDoc` | Filesystem：`docs/<路径>.json`，先写临时文件再改名 | localStorage | localStorage 缓存 + 云端 db |
+| `loadDocs` / `writeDoc` / `dropDoc` | Filesystem：`docs/<路径>.json`，先写临时文件再改名 | IndexedDB（自动迁移旧 localStorage 数据，不支持时回退 localStorage） | IndexedDB 缓存 + 云端 db |
 | `cloudDb` / `cloudFiles` | — | — | claude.ai 的 db / assets |
 | `blobs` | Filesystem：`blobs/` | IndexedDB | IndexedDB |
 | `ai()` | 自带 Key 的客户端 | 自带 Key 的客户端 | claude.ai 的 Claude，或自带 Key 的客户端 |
@@ -96,7 +96,7 @@ Capacitor 插件通过运行时注入的 `window.Capacitor.Plugins` 访问，因
 | `job/<任务id>` | AI 整理资料的任务进度 |
 | `note/<笔记id>` | 我的笔记（标题、Markdown 正文、配图引用、所属课程和小节） |
 
-AI 对话记录和少量界面状态存在 localStorage；对话模型和图片模型的配置在 App 中存于 Capacitor Preferences，不进入备份。笔记配图存在文件区（`blobs`），文档里只保存引用。
+AI 对话记录和少量界面状态存在 localStorage；对话模型和图片模型的配置在 App 中存于 Capacitor Preferences，不进入备份。笔记配图存在文件区（`blobs`），文档里保存引用，导出完整备份时会一并打包本机笔记配图。
 
 ## 界面原则：能用图表达的不写字
 

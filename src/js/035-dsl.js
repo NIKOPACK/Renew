@@ -1,6 +1,20 @@
 /* ============ 卡片文本格式解析 ============ */
 const TYPES = ['kp', 'choice', 'multi', 'tf', 'qa', 'cloze', 'think'];
 const TYPE_LABEL = { kp: '知识点', choice: '单选题', multi: '多选题', tf: '判断题', qa: '问答题', cloze: '填空题', think: '思考题' };
+/* 与 scripts/build_content.py 一致的 UTF-8 DJB2 哈希，保证同一卡片双端生成相同稳定 id */
+function h36(s) {
+  let h = 5381;
+  for (const b of new TextEncoder().encode(String(s))) h = (Math.imul(h, 33) ^ b) >>> 0;
+  return h.toString(36);
+}
+function stableCardId(sid, it, used) {
+  const key = sid + it.t + (it.title || String(it.q || '').split('\n')[0]);
+  const base = `${sid}-${h36(key)}`;
+  let id = base, n = 2;
+  while (used.has(id)) id = base + n++;
+  used.add(id);
+  return id;
+}
 function parseDSL(text, sid, tag = 'g') {
   let src = String(text).replace(/\r/g, '').replace(/^\s*```[a-z]*\n/i, '').replace(/\n```\s*$/, '');
   const items = [], errors = []; let cur = null, prMode = false, sawPr = false; const stamp = Date.now().toString(36);

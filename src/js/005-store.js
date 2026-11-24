@@ -49,6 +49,6 @@ const Store = {
       else if (['invalid_argument', 'revoked', 'not_granted'].includes(c)) { this.db = null; this.mode = 'local'; toast('没有写入权限，进度只保存在这台设备上。'); }
     } finally { this.busy[p] = false; if (this.again[p]) { this.again[p] = false; this.flush(p); } }
   },
-  flushAll() { for (const p of Object.keys(this.timers)) { clearTimeout(this.timers[p]); this.flush(p); } this.timers = {}; Platform.flush?.(); }
+  flushAll() { const jobs = []; for (const p of Object.keys(this.timers)) { clearTimeout(this.timers[p]); jobs.push(this.flush(p)); } this.timers = {}; if (Platform.flush) jobs.push(Platform.flush()); return Promise.all(jobs); }
 };
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') Store.flushAll(); });

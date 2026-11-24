@@ -19,6 +19,7 @@ const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
 /* ---- 今日 ---- */
 
 /* ---- 课程书架 ---- */
+let libCat = '全部';
 function viewLibrary() {
   const v = $('#view'), all = shownCourses(), cats = ['全部', ...new Set(all.map(c => c.cat))];
   if (!cats.includes(libCat)) libCat = '全部';
