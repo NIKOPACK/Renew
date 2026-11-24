@@ -117,7 +117,7 @@ function viewMyNotes({ course, sec }) {
   v.innerHTML = appbar(s ? s.title : c.title + ' · 笔记', `<button class="ibtn" id="mn-more" aria-label="更多">${ico('more')}</button>`) + `<div class="wrap"><div class="stack" style="padding-top:6px">
   <header style="padding:4px 2px"><span class="eyebrow" style="color:${c.color}">${esc(c.title)}${s ? ' · ' + esc(CHAPS.get(s.chap).title) : ''}</span><h1 style="margin:6px 0 4px;font-size:26px;font-weight:800">${esc(s ? s.title : '课程笔记')}</h1></header>
   ${noteTabs(c, s, 'mine')}
-  <div class="mn-cta"><button class="btn pri" id="mn-new">${ico('edit')}写笔记</button><button class="btn soft" id="mn-ai">${ico('spark')}AI 帮我写感悟</button></div>
+  <div class="mn-cta"><button class="btn pri" id="mn-new">${ico('edit')}写笔记</button><button class="btn soft" id="mn-ai">${ico('spark')}AI 帮我写</button></div>
   ${list.length ? `<div class="nlist">${list.map(noteCard).join('')}</div>` : cards.length ? '' : `<div class="empty">${ico('notebook')}<b>还没有笔记</b></div>`}
   ${cards.length ? `<div class="gh"><b>卡片笔记</b><span>${cards.length}</span></div><div class="group">${cards.map(it => `<button class="rowi" data-cnote="${it.id}"><span class="grow"><div class="t">${esc(plain(it.title || it.q).slice(0, 40))}</div><div class="m">${esc(plain(S().notes[it.id]).slice(0, 60))}</div></span>${ico('chev', 'chev')}</button>`).join('')}</div>` : ''}
   </div></div>`;
@@ -188,7 +188,7 @@ function viewNote({ id }) {
   const cursor = () => ta.selectionEnd ?? n.body.length;
   const putImage = async res => { const k = await addNoteImage(n, res); insertAt(cursor(), `![配图](img:${k})`); refresh(); toast('已插入图片'); };
   const T = {
-    draft: () => noteDraftSheet(n, append),
+    draft: () => noteDraftSheet(n, async (t, imgs) => { for (const b of imgs) { const k = await addNoteImage(n, { blob: b }); t += `\n\n![配图](img:${k})`; } append(t); refresh(); }),
     polish: () => { const p = pick(), src = p ? p.text : n.body; if (!src.trim()) return toast('先写点内容再润色');
       aiWriteSheet({ title: p ? '润色选中内容' : '润色', prompt: () => `你在帮一位学生润色自己写的学习笔记（课程「${c?.title || ''}」）。修正错别字和不通顺的句子，让表达更清楚、有条理；保持第一人称、原有观点和语气，不要增加新观点，不要删掉内容。${NOTE_RULES}\n\n笔记原文：\n${src}`,
         actions: [{ label: '替换原文', pri: true, run: t => p ? setBody(n.body.slice(0, p.a) + t + n.body.slice(p.b)) : setBody(t) }] }); },
@@ -207,21 +207,19 @@ function viewNote({ id }) {
   $$('.nth[data-k]', v).forEach(x => x.onclick = () => { if (!new RegExp(`\\(img:${x.dataset.k}\\)`).test(n.body)) { insertAt(cursor(), `![配图](img:${x.dataset.k})`); toast('已插入到正文'); } else toast('这张图已在正文中，可以点右上角预览'); });
   if (top.params.ai) { top.params = { ...top.params, ai: 0 }; setTimeout(() => T.draft(), 380); }
 }
-/* 帮我写：根据学习记录、错题和自己的几句话起草感悟 */
+/* 帮我写：像普通对话一样说要求、加图片 / 视频 / 文件 / 链接，AI 结合学习记录写笔记，可以接着让它改 */
 function noteDraftSheet(n, done) {
   const c = COURSES.get(n.course), secs = n.sec && SECS.has(n.sec) ? [SECS.get(n.sec)] : c ? recentSecs(c) : [];
-  const KINDS = { feel: ['感悟', '这节最有收获的地方、想通的点、和以前知识的联系、接下来打算怎么做'], sum: ['学习总结', '用自己的话梳理这节的核心内容和知识结构，标出容易混淆的地方'], ask: ['疑问与反思', '还没想明白的问题、做错题的原因、需要回头再看的地方'] };
-  let kind = 'feel';
-  const form = `<div class="seg" id="nd-k">${Object.entries(KINDS).map(([k, [l]]) => `<button data-k="${k}" aria-pressed="${k === kind}">${l}</button>`).join('')}</div>
-    <label class="field"><textarea class="inp" id="nd-t" style="min-height:84px" placeholder="几个关键词（可选）"></textarea></label>
-`;
-  const s = aiWriteSheet({ title: 'AI 帮我写', form, prompt: b => `你在帮一位学生写自己的学习笔记。请以学生本人的口吻（第一人称，真诚、朴素、像自己写给自己看的），写一篇「${KINDS[kind][0]}」，侧重：${KINDS[kind][1]}。300~600 字。
-要求：围绕学生自己的想法展开；只根据下面给出的课程内容和学习记录来写，不要编造学生没提到的个人经历或感受；需要学生补充的地方用【……】留空。${NOTE_RULES}
+  const sys = () => `你在帮一位学生写自己的学习笔记${c ? `（课程「${c.title}」）` : ''}。按学生在对话里的要求来写或修改；没有具体要求时，以学生本人的口吻（第一人称，真诚、朴素，像写给自己看的）写一篇 300~600 字的学习笔记：最有收获的地方、想通的点、和已有知识的联系、还没弄懂的地方。
+只根据下面的课程内容、学习记录和学生给的附件（图片、视频画面、文件、网页）来写，不要编造学生没提到的个人经历或感受；需要学生补充的地方用【……】留空。用到附件时，把其中和学习相关的要点整理进笔记；用到网页时在末尾列出来源链接。学生要求修改时，输出修改后的完整笔记。${NOTE_RULES}
 ${n.body.trim() ? `\n笔记里已经写了（接着写，不要重复）：\n${n.body.slice(-1500)}\n` : ''}
-学生的想法：${$('#nd-t', b).value.trim() || '（没写，请根据学习记录挑最值得记的点）'}
-
-${noteCtx(n)}`, actions: [{ label: n.body.trim() ? '接在笔记后面' : '放进笔记', pri: true, run: t => { if (!n.title.trim()) { const m = t.match(/^#{1,3}\s+(.+)$/m); n.title = m ? m[1].trim().slice(0, 40) : `${secs[0]?.title || c?.title || ''} ${KINDS[kind][0]}`.trim(); t = m && t.indexOf(m[0]) < 4 ? t.replace(m[0], '').trim() : t; } done(t); refresh(); } }] });
-  $$('#nd-k [data-k]', s.body).forEach(b => b.onclick = () => { kind = b.dataset.k; $$('#nd-k [data-k]', s.body).forEach(x => x.setAttribute('aria-pressed', x === b)); });
+${noteCtx(n)}`;
+  return aiChatSheet({ title: 'AI 帮我写', ids: ['nd-t', 'nd-go'], placeholder: '想写什么？可以加图片、视频、文件或链接', sys, chipsOnce: true,
+    chips: [['直接帮我写', '根据我的学习记录，挑最值得记的点帮我写一篇学习笔记。']],
+    actions: [{ icon: 'notebook', label: n.body.trim() ? '接在笔记后面' : '放进笔记', close: true, run: (t, x) => {
+      if (!n.title.trim()) { const m = t.match(/^#{1,3}\s+(.+)$/m); n.title = m ? m[1].trim().slice(0, 40) : `${secs[0]?.title || c?.title || ''} 笔记`.trim(); t = m && t.indexOf(m[0]) < 4 ? t.replace(m[0], '').trim() : t; }
+      done(t, x.turns.flatMap(u => u.blobs || []));
+    } }] });
 }
 /* AI 配图：画面描述（可让 AI 根据笔记写）→ 图片模型生成 → 插入 */
 function noteArtSheet(n, cfg, insert) {
@@ -284,7 +282,7 @@ function viewNotebook() {
   const bmN = cs.reduce((s, c) => s + bookmarks(c.id).filter(b => ITEMS.has(b.it)).length, 0), starN = starItems().length;
   v.innerHTML = `<div class="wrap"><header class="lt"><div class="t"><h1>笔记</h1></div><button class="round acc" id="nb-new" aria-label="写笔记">${ico('edit', '', 'duo')}</button></header>
   <div class="stack">
-  <div class="nb3"><button id="nb-ai"><span class="ib" style="--c:var(--accent)">${ico('spark', '', 'duo')}</span><b>写感悟</b><span class="n">AI</span></button>
+  <div class="nb3"><button id="nb-ai"><span class="ib" style="--c:var(--accent)">${ico('spark', '', 'duo')}</span><b>AI 帮我写</b></button>
     <button id="nb-star"><span class="ib" style="--c:#df8a0b">${ico('star', '', 'duo')}</span><b>收藏</b><span class="n">${starN}</span></button>
     <button id="nb-bm"><span class="ib" style="--c:#2f9e63">${ico('bookmarks', '', 'duo')}</span><b>书签</b><span class="n">${bmN}</span></button></div>
   ${withN.length > 1 ? `<div class="chips">${[['', '全部'], ...withN.map(c => [c.id, c.title])].map(([id, l]) => `<button class="chip" data-nbc="${id}" aria-pressed="${nbCourse === id}">${esc(l)}</button>`).join('')}</div>` : ''}

@@ -286,15 +286,26 @@ await run('模型配置（对话 + 图片）与我的笔记', async () => {
 
   // 从小节菜单写感悟：AI 帮我写
   await page.evaluate(() => go('section', { id: 'learn1s1' })); await page.waitForTimeout(500);
-  await page.click('#smore'); await page.waitForTimeout(300); await page.locator('.sheet .menu button', { hasText: '写本节感悟' }).click();
+  await page.click('#smore'); await page.waitForTimeout(300); await page.locator('.sheet .menu button', { hasText: '写本节笔记' }).click();
   await page.waitForSelector('#nd-t', { timeout: 5000 }); await page.waitForTimeout(300);
-  await page.fill('#nd-t', '间隔重复比我想的有用'); await page.click('.aiacts [data-a="go"]');
-  await page.waitForSelector('.aiacts [data-a="0"]', { timeout: 10000 }); await shot(page, 'note-draft');
+  check(await page.evaluate(() => !$('.sheet .seg') && !!$('.sheet .cbox [data-c="plus"]') && !!$('.sheet .cbox .cmod')), '帮我写：像对话框一样（不分类，有附件和模型按钮）');
+  // 附件：图片 + 链接
+  await page.click('.sheet .cbox [data-c="plus"]'); await page.waitForSelector('.attg [data-a="img"]');
+  const [fc] = await Promise.all([page.waitForEvent('filechooser'), page.click('.attg [data-a="img"]')]);
+  await fc.setFiles({ name: 'board.png', mimeType: 'image/png', buffer: PNG }); await page.waitForSelector('.sheet .catt .at.img img', { timeout: 5000 });
+  await page.waitForTimeout(400); await page.click('.sheet .cbox [data-c="plus"]'); await page.waitForSelector('.sheet .menu [data-a="link"]'); await page.click('.sheet .menu [data-a="link"]');
+  await page.waitForSelector('#lk'); await page.fill('#lk', new URL('index.html', URL0).href); await page.click('#lk-ok');
+  await page.waitForFunction(() => $('.sheet .catt .at.doc') && !$('.sheet .catt .spin'), null, { timeout: 8000 }); await shot(page, 'note-draft-att');
+  await page.fill('#nd-t', '间隔重复比我想的有用'); await page.click('#nd-go');
+  await page.waitForSelector('.sheet .am [data-a="0"]', { timeout: 10000 }); await shot(page, 'note-draft');
   const pr = reqs.filter(x => x.body?.messages).at(-1)?.body.messages.at(-1).content || '';
   check(/间隔重复比我想的有用/.test(pr) && /小节：/.test(pr) && /第一人称/.test(pr), 'AI 帮我写：提示里带上自己的想法和小节内容');
-  await page.click('.aiacts [data-a="0"]'); await page.waitForTimeout(500);
-  let n = await page.evaluate(() => { const n = Notes.get(Nav.stack.at(-1).params.id); return n && { body: n.body, title: n.title, sec: n.sec, ta: $('#ne-body').value }; });
+  check(/\[图片\] board\.png/.test(pr) && /\[链接\]/.test(pr) && /网页正文/.test(pr), '帮我写：图片和链接（网页正文）一起交给 AI');
+  check(await page.evaluate(() => $$('.sheet .ug .uatt .at').length === 2), '帮我写：消息里显示附件');
+  await page.click('.sheet .am [data-a="0"]'); await page.waitForTimeout(800);
+  let n = await page.evaluate(() => { const n = Notes.get(Nav.stack.at(-1).params.id); return n && { body: n.body, title: n.title, sec: n.sec, ta: $('#ne-body').value, imgs: Object.keys(n.imgs || {}).length }; });
   check(n && /共 2 章/.test(n.body) && n.ta === n.body && n.title && n.sec === 'learn1s1', 'AI 草稿放进笔记，自动起标题并关联小节');
+  check(n.imgs === 1 && /!\[配图\]\(img:/.test(n.body), '帮我写：附带的图片一起放进笔记');
   await page.click('#ne-body'); await page.keyboard.press('End'); await page.keyboard.type('\n自己补一句。'); await page.waitForTimeout(900);
   check(await page.evaluate(() => /自己补一句/.test(Store.get('note/' + Nav.stack.at(-1).params.id).body)), '输入后自动保存');
   // 润色
@@ -306,8 +317,8 @@ await run('模型配置（对话 + 图片）与我的笔记', async () => {
   await page.click('#na-acts [data-a="gen"]'); await page.waitForSelector('#na-acts [data-a="ins"]', { timeout: 10000 }); await shot(page, 'note-art');
   check(/卡片在时间轴上/.test(imgReqs.at(-1).body.prompt) && /不要出现任何文字/.test(imgReqs.at(-1).body.prompt), '配图：画面描述 + 风格要求');
   await page.click('#na-acts [data-a="ins"]'); await page.waitForTimeout(900);
-  n = await page.evaluate(async () => { const n = Notes.get(Nav.stack.at(-1).params.id), k = Object.keys(n.imgs)[0]; const b = k && await Files.get(n.imgs[k]); return { k, marker: new RegExp('\\(img:' + k + '\\)').test(n.body), size: b?.size || 0, thumbs: $$('.nimgs .nth').length }; });
-  check(n.k && n.marker && n.size > 0 && n.thumbs === 1, '配图：图片存入本机文件区并插入正文');
+  n = await page.evaluate(async () => { const n = Notes.get(Nav.stack.at(-1).params.id), k = Object.keys(n.imgs).at(-1); const b = k && await Files.get(n.imgs[k]); return { k, marker: new RegExp('\\(img:' + k + '\\)').test(n.body), size: b?.size || 0, thumbs: $$('.nimgs .nth').length }; });
+  check(n.k && n.marker && n.size > 0 && n.thumbs === 2, '配图：图片存入本机文件区并插入正文');
   await page.click('#ne-mode'); await page.waitForTimeout(700); await shot(page, 'note-read');
   check(await page.evaluate(() => !!$('.nread .nfig img')?.src.startsWith('blob:') && /这门课共 2 章/.test($('.nread .md').textContent)), '预览：渲染正文和配图');
   // 我的笔记列表
@@ -321,6 +332,19 @@ await run('模型配置（对话 + 图片）与我的笔记', async () => {
   await page.evaluate(() => newNote({ course: 'learn' })); await page.waitForTimeout(500); await page.click('[data-back]'); await page.waitForTimeout(400);
   check(await page.evaluate(() => Notes.all().length) === before, '空笔记返回后自动删除');
   check(await page.evaluate(() => DOC_RE.test('note/x')), '笔记随备份导入导出（note/ 文档）');
+  // AI 页：输入框带附件，图片发给支持看图的模型
+  await page.evaluate(async () => { await Platform.aiConfig.set({ provider: 'claude', kind: 'anthropic', key: 'sk-ant-test', model: 'claude-opus-5-5', vision: true }); await AI.reload(); go('ai', {}, { tab: true }); });
+  await page.waitForSelector('#ch-in'); await page.waitForTimeout(400);
+  check(await page.evaluate(() => /Opus 5\.5/.test($('#cmp .cmod').textContent)), 'AI 页：输入框显示当前模型');
+  await page.click('#cmp [data-c="plus"]'); await page.waitForSelector('.attg');
+  check(await page.evaluate(() => /新建课程/.test($('.sheet .menu').textContent)), 'AI 页：「+」里同时有附件和工具');
+  const [fc2] = await Promise.all([page.waitForEvent('filechooser'), page.click('.attg [data-a="cam"]')]);
+  await fc2.setFiles({ name: 'photo.png', mimeType: 'image/png', buffer: PNG }); await page.waitForSelector('#cmp .catt .at.img img', { timeout: 5000 });
+  await page.fill('#ch-in', '这张图讲的是什么'); await page.waitForTimeout(100); await page.click('#ch-send');
+  await page.waitForFunction(() => !Chat.busy, null, { timeout: 10000 }); await page.waitForTimeout(300); await shot(page, 'ai-attach');
+  const ar = reqs.filter(x => x.url.includes('anthropic') && x.body?.messages).flatMap(x => x.body.messages).filter(m => Array.isArray(m.content) && m.content.some(c => c.type === 'image')).at(-1)?.content || [];
+  check(Array.isArray(ar) && ar.some(c => c.type === 'image' && c.source?.media_type) && ar.some(c => c.type === 'text' && /这张图讲的是什么/.test(c.text)), 'AI 页：图片和问题一起发给模型');
+  check(await page.evaluate(() => !!$('#cm .ug .uatt img') && !!Chat.get().msgs[0].att?.[0]?.thumb), 'AI 页：消息显示图片缩略图，并保存在对话记录里');
   check(!errors.length, '没有脚本错误' + (errors.length ? '：' + errors.join(' | ') : ''));
   await ctx.close();
 });

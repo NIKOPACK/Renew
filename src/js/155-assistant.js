@@ -96,27 +96,29 @@ function historySheet() {
   };
   const s = sheet('对话', body); draw();
 }
-async function aiSend(text) {
-  if (Chat.busy) return;
+async function aiSend(text, att = []) {
+  if (Chat.busy || (!text.trim() && !att.length)) return;
   if (!AI.ok) { if (Platform.aiConfigurable) { AI.require(); return; } copyText(`${AI_RULES}\n\n${overviewText()}\n\n用户：${text}`, AI.need + '。已复制问题，可以粘贴到任意 AI'); return; }
   let c = Chat.get();
   const isNew = !c || !c.msgs.length;
-  if (!c) { c = { id: newId('c'), title: text.slice(0, 18), t: Date.now(), msgs: [], ctx: chatCtx() }; Chat.list.unshift(c); Chat.cur = c.id; }
+  if (!c) { c = { id: newId('c'), title: (text || att[0]?.title || att[0]?.name || '附件').slice(0, 18), t: Date.now(), msgs: [], ctx: chatCtx() }; Chat.list.unshift(c); Chat.cur = c.id; }
   c.t = Date.now();
-  const history = c.msgs.filter(m => m.text).slice(-12).map(m => ({ role: m.role, content: m.role === 'user' ? m.text : m.text + ((m.parts || []).filter(p => p.type === 'perm').map(p => `\n[${p.label}：${p.st === 'allowed' ? '已执行' : '用户拒绝'}]`).join('')) }));
-  c.msgs.push({ role: 'user', text });
+  const history = c.msgs.filter(m => m.text || m.att).slice(-12).map(m => ({ role: m.role, content: m.role === 'user' ? (m.text || '请看附件') + (m.ctx || '') : m.text + ((m.parts || []).filter(p => p.type === 'perm').map(p => `\n[${p.label}：${p.st === 'allowed' ? '已执行' : '用户拒绝'}]`).join('')) }));
+  const pay = attPayload(att), um = { role: 'user', text, ...(att.length ? { att: attMeta(att), ctx: pay.text.slice(0, 4000) } : {}) };
+  Object.defineProperty(um, '_att', { value: att, enumerable: false }); // 原图只留在内存里，重新生成时再用
+  c.msgs.push(um);
   const msg = { role: 'assistant', parts: [], text: '', streaming: true }; c.msgs.push(msg);
   Chat.busy = true; Chat.ctl = new AbortController();
   const v = $('#view'); if (Nav.stack[Nav.stack.length - 1]?.view !== 'ai') go('ai', {}, { tab: true }); else if (isNew) render(false); else { drawMsgs(true); v._sync?.(); }
   let raf = 0; const redraw = () => { if (raf) return; raf = requestAnimationFrame(() => { raf = 0; drawMsgs(); }); };
   const cc = COURSES.get(c.ctx), ctxTxt = cc ? `\n\n用户选择聚焦课程「${cc.title}」（${cc.id}），目录：\n` + cc.chapters.map(ch => ch.title + '\n' + ch.sections.map(x => { const q = secProg(x); return `${x.id} ${x.title} | ${SEC_LABEL[secStatus(x)]} | ${q.kpd + q.qd}/${q.kp + q.q}`; }).join('\n')).join('\n') : '';
-  const input = [{ role: 'user', content: `${AI_RULES}\n\n当前学习概况：\n${overviewText()}${ctxTxt}` }, ...history, { role: 'user', content: text }];
+  const input = [{ role: 'user', content: `${AI_RULES}\n\n当前学习概况：\n${overviewText()}${ctxTxt}` }, ...history, { role: 'user', content: (text || '请看附件') + pay.text }], imgs = pay.images.length ? { images: pay.images } : {};
   try {
     if (AI.limits?.tools) {
-      const { text: out } = await AI.fn(input, { signal: Chat.ctl.signal, tools: aiTools(msg, redraw), onText: ({ text }) => { msg.text = text; redraw(); } });
+      const { text: out } = await AI.fn(input, { signal: Chat.ctl.signal, ...imgs, tools: aiTools(msg, redraw), onText: ({ text }) => { msg.text = text; redraw(); } });
       msg.text = out;
     } else {
-      const r = await AI.fn.json([{ role: 'user', content: SYNC_RULES + '\n\n学习数据：\n' + progressText() }, ...history, { role: 'user', content: text }], { signal: Chat.ctl.signal, cache: false });
+      const r = await AI.fn.json([{ role: 'user', content: SYNC_RULES + '\n\n学习数据：\n' + progressText() }, ...history, { role: 'user', content: (text || '请看附件') + pay.text }], { signal: Chat.ctl.signal, ...imgs, cache: false });
       msg.text = String(r?.reply || '好的。');
       for (const a of (Array.isArray(r?.actions) ? r.actions : [])) {
         if (a?.op === 'generate' && SECS.has(a.section)) { (msg.buttons ||= []).push({ type: 'generate', sid: a.section, label: '生成内容' }); continue; }

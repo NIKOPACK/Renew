@@ -1,6 +1,6 @@
 /* ============ AI 对话界面（v7：全屏，参考 ChatGPT / Claude App） ============ */
 function msgHTML(m, i, last) {
-  if (m.role === 'user') return `<div class="um">${esc(m.text)}</div>`;
+  if (m.role === 'user') return userBubble({ content: m.text, att: m.att });
   const tools = (m.parts || []).filter(p => p.type === 'tool'), perms = (m.parts || []).filter(p => p.type === 'perm'), running = tools.find(p => p.st === 'run');
   const tg = tools.length ? `<details class="tg" ${running ? 'open' : ''}><summary>${running ? '<span class="spin"></span>' : ico('check')}<span class="grow">${running ? esc(running.label) : `已查看 ${tools.length} 项`}</span>${ico('down', 'chev')}</summary><div class="tgl">${tools.map(p => `<div class="tl ${p.st}"><span class="d"></span><span class="grow">${esc(p.label)}${p.res ? `<span class="res"> · ${esc(p.res)}</span>` : ''}</span></div>`).join('')}</div></details>` : '';
   const pm = perms.map(p => `<div class="perm ${p.st}"><div class="pt">${p.st === 'allowed' ? ico('check') : p.st === 'pending' ? ico('alert') : ico('x')}${esc(p.label)}</div><div class="pd">${esc(p.detail)}</div>${p.st === 'pending' ? `<div class="pa"><button class="btn sm" data-deny="${p.id}">拒绝</button><button class="btn sm pri" data-allow="${p.id}">允许</button></div>` : `<div class="ps">${p.st === 'allowed' ? '已执行' + (p.res ? ' · ' + esc(p.res) : '') : p.st === 'expired' ? '已过期' : '已拒绝'}</div>`}</div>`).join('');
@@ -20,26 +20,25 @@ function viewAI() {
   <button class="tobottom" id="ch-down" hidden aria-label="回到底部">${ico('down')}</button>
   <div class="composer3" id="cmp"><div class="wrap">
     ${empty ? `<div class="chips sgs">${SUGGEST.map(([t], i) => `<button class="chip" data-sg="${i}">${t}</button>`).join('')}</div>` : ''}
-    <div class="cbox"><textarea id="ch-in" rows="1" placeholder="${AI.ok ? '和 AI 聊聊学习' : AI.ready ? esc(Platform.aiNeedShort) : '正在连接…'}"></textarea>
-      <div class="crow"><button class="cb" id="ch-plus" aria-label="工具">${ico('plus')}</button><button class="cctx" id="ch-ctx">${ico('book')}<span>${ctx ? esc(ctx.title) : '全部课程'}</span></button><span class="grow"></span><button class="send" id="ch-send" aria-label="发送">${ico('send')}</button></div></div>
+    <div id="cmp-box"></div>
   </div></div>`;
-  const inp = $('#ch-in'), send = $('#ch-send');
-  const sync = () => { send.innerHTML = Chat.busy ? ico('stop', '', 'fill') : ico('send'); send.classList.toggle('stop', Chat.busy); send.disabled = !Chat.busy && !inp.value.trim(); };
-  inp.oninput = () => { inp.style.height = 'auto'; inp.style.height = Math.min(160, inp.scrollHeight) + 'px'; sync(); };
-  inp.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && matchMedia('(pointer:fine)').matches) { e.preventDefault(); send.click(); } };
-  send.onclick = () => { if (Chat.busy) { Chat.ctl?.abort(); return; } const t = inp.value.trim(); if (!t) return; inp.value = ''; inp.style.height = ''; aiSend(t); };
+  const cmp = Composer({ ids: ['ch-in', 'ch-send'], placeholder: AI.ok ? '和 AI 聊聊学习' : AI.ready ? Platform.aiNeedShort : '正在连接…',
+    chips: `<button class="cctx" id="ch-ctx" aria-label="对话范围">${ico('book')}<span>${ctx ? esc(ctx.title) : '全部课程'}</span></button>`,
+    extra: [
+      { icon: 'plus', label: '新建课程', run: newCourseSheet },
+      { icon: 'wand', label: '为小节生成内容', run: () => pickSection('选择小节', sid => genSheet({ sid })) },
+      { icon: 'target', label: '薄弱点补强', run: weakSheet },
+      { icon: 'folder', label: '导入资料到课程', run: () => go('materials') }
+    ],
+    busy: () => Chat.busy, onStop: () => Chat.ctl?.abort(), onSend: ({ text, att }) => aiSend(text, att) });
+  $('#cmp-box').replaceWith(cmp.el);
+  const inp = cmp.ta, sync = cmp.sync;
   $('#ch-back').onclick = () => go(Nav.prevTab && Nav.prevTab !== 'ai' ? Nav.prevTab : 'today', {}, { tab: true });
   $('#ch-setup')?.addEventListener('click', () => aiConfigSheet());
   $('#ch-new').onclick = () => { Chat.ctl?.abort(); Chat.cur = null; refresh(); setTimeout(() => $('#ch-in')?.focus(), 50); };
   $('#ch-hist').onclick = historySheet;
   $('#ch-ctx').onclick = () => menuSheet('对话范围', [{ icon: 'layers', label: '全部课程', cls: !ctx ? 'cur' : '', run: () => setCtx(null) }, ...shownCourses().map(x => ({ icon: 'book', label: x.title, cls: ctx?.id === x.id ? 'cur' : '', run: () => setCtx(x.id) }))]);
-  $('#ch-plus').onclick = () => menuSheet('工具', [
-    { icon: 'plus', label: '新建课程', run: newCourseSheet },
-    { icon: 'wand', label: '为小节生成内容', run: () => pickSection('选择小节', sid => genSheet({ sid })) },
-    { icon: 'target', label: '薄弱点补强', run: weakSheet },
-    { icon: 'folder', label: '导入资料', run: () => go('materials') }
-  ]);
-  $$('[data-sg]', v).forEach(b => b.onclick = () => { const q = SUGGEST[+b.dataset.sg][1]; if (b.dataset.sg === '0') { inp.value = '我在书上已经学到了'; inp.focus(); inp.oninput(); } else aiSend(q); });
+  $$('[data-sg]', v).forEach(b => b.onclick = () => { const q = SUGGEST[+b.dataset.sg][1]; if (b.dataset.sg === '0') cmp.set('我在书上已经学到了'); else aiSend(q); });
   $('#ch-down').onclick = () => scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
   drawMsgs(true); sync(); kbFix();
   v._sync = sync;
@@ -52,12 +51,12 @@ function drawMsgs(toBottom) {
   const was = box.classList.contains('blank') ? 0 : +box.dataset.n || 0;
   box.classList.remove('blank');
   box.innerHTML = c.msgs.map((m, i) => msgHTML(m, i, i === c.msgs.length - 1)).join('');
-  if (c.msgs.length > was && (was || Chat.busy)) { const ms = [...box.children].slice(was); ms.forEach((m, i) => Motion.anim(m, m.classList.contains('um') ? [{ opacity: 0, transform: 'translateY(14px) scale(.96)' }, { opacity: 1, transform: 'none' }] : [{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }], { duration: 380, delay: i * 90, easing: Motion.OUT, fill: 'backwards' })); }
+  if (c.msgs.length > was && (was || Chat.busy)) { const ms = [...box.children].slice(was); ms.forEach((m, i) => Motion.anim(m, m.classList.contains('ug') ? [{ opacity: 0, transform: 'translateY(14px) scale(.96)' }, { opacity: 1, transform: 'none' }] : [{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }], { duration: 380, delay: i * 90, easing: Motion.OUT, fill: 'backwards' })); }
   box.dataset.n = c.msgs.length;
   $$('[data-allow]', box).forEach(b => b.onclick = () => Chat.resolvers.get(b.dataset.allow)?.(true));
   $$('[data-deny]', box).forEach(b => b.onclick = () => Chat.resolvers.get(b.dataset.deny)?.(false));
   $$('[data-copy]', box).forEach(b => b.onclick = () => copyText(c.msgs[+b.dataset.copy].text, '已复制'));
-  $('[data-regen]', box)?.addEventListener('click', () => { const lastU = [...c.msgs].reverse().find(m => m.role === 'user'); if (!lastU || Chat.busy) return; c.msgs.splice(c.msgs.lastIndexOf(lastU)); aiSend(lastU.text); });
+  $('[data-regen]', box)?.addEventListener('click', () => { const lastU = [...c.msgs].reverse().find(m => m.role === 'user'); if (!lastU || Chat.busy) return; c.msgs.splice(c.msgs.lastIndexOf(lastU)); aiSend(lastU.text, lastU._att || []); });
   $$('[data-mb]', box).forEach(b => b.onclick = () => { const [i, k] = b.dataset.mb.split(':').map(Number), bt = c.msgs[i].buttons[k];
     if (bt.type === 'open_section') go('section', { id: bt.sid }); else if (bt.type === 'generate') genSheet({ sid: bt.sid }); else if (bt.type === 'wrong_book') openReview('wrong'); else openReview('review', bt.cid ? { course: bt.cid } : {}); });
   if (toBottom || near) requestAnimationFrame(() => scrollTo(0, document.documentElement.scrollHeight));

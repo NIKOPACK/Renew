@@ -14,39 +14,47 @@ function askAI(it, p) {
     ['记忆方法', '给我一个好记的口诀或记忆方法。'],
     ['出道类似题', '出一道类似的题考我，题目在前，答案和解析放在最后，以"答案："开头。']
   ].filter(Boolean);
-  const body = h(`<div style="display:flex;flex-direction:column;gap:12px">
-    <div class="askctx"><span class="ptype ${q ? 'q' : ''}">${TYPE_LABEL[it.t]}</span><span class="grow">${esc(plain(it.title || it.q).slice(0, 40))}</span></div>
-    <div class="chat" id="ak-chat"></div>
-    <div class="chips" id="ak-chips">${chips.map(([l], i) => `<button class="chip" data-c="${i}">${esc(l)}</button>`).join('')}</div>
-    <div class="cbox"><textarea id="ak-in" rows="1" placeholder="继续问…"></textarea><div class="crow"><span class="grow"></span><button class="send" id="ak-go" aria-label="发送">${ico('send')}</button></div></div></div>`);
-  const s = sheet('问 AI', body), box = $('#ak-chat', body), inp = $('#ak-in', body);
-  let ctl = null, busy = false; s.onclose = () => ctl?.abort();
-  const draw = () => {
-    box.innerHTML = '';
-    turns.forEach((t, i) => {
-      if (t.role === 'user') return box.append(h(`<div class="um">${esc(t.label || t.content)}</div>`));
-      const m = h(`<div class="am"><div class="md">${md(t.content)}</div><div class="acts2"><button data-save="${i}">${ico('edit')}存为笔记</button><button data-copy="${i}">${ico('file')}复制</button></div></div>`); box.append(m);
-    });
-    $$('[data-save]', box).forEach(b => b.onclick = () => { const t = turns[+b.dataset.save].content.trim(); const n = S().notes ||= {}; n[it.id] = n[it.id] ? n[it.id] + '\n\n' + t : t; saveState(); if (p) rerender(p); b.innerHTML = ico('check') + '已存入笔记'; b.disabled = true; });
-    $$('[data-copy]', box).forEach(b => b.onclick = () => copyText(turns[+b.dataset.copy].content, '已复制'));
-  };
-  const send = async (content, label) => {
-    if (busy || !content.trim()) return;
-    if (!AI.ok) { if (Platform.aiConfigurable) { AI.require(); return; } copyText(ctx + '\n\n学生问：' + content, AI.need + '。已复制问题，可以粘贴到任意 AI'); return; }
-    busy = true; turns.push({ role: 'user', content, label }); draw();
-    const bubble = h(`<div class="am"><div class="md"><div class="typing"><i></i><i></i><i></i></div></div></div>`); box.append(bubble); bubble.scrollIntoView({ block: 'end', behavior: 'smooth' });
-    ctl = new AbortController(); let last = 0;
-    try {
-      const { text } = await AI.fn([{ role: 'user', content: ctx }, ...turns.map(t => ({ role: t.role, content: t.content }))], { signal: ctl.signal, cache: false, onText: ({ text }) => { const n = Date.now(); if (n - last > 200) { last = n; $('.md', bubble).innerHTML = md(text); } } });
-      turns.push({ role: 'assistant', content: text });
-    } catch (e) { if (e?.text) turns.push({ role: 'assistant', content: e.text }); else { turns.pop(); toast(AI.err(e)); } }
-    busy = false; draw(); box.lastElementChild?.scrollIntoView({ block: 'start', behavior: 'smooth' });
-  };
-  $$('[data-c]', body).forEach(b => b.onclick = () => { const [l, t] = chips[+b.dataset.c]; send(t, l); });
-  $('#ak-go', body).onclick = () => { const v = inp.value; inp.value = ''; send(v); };
-  inp.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); $('#ak-go', body).click(); } };
-  draw();
+  aiChatSheet({ title: '问 AI', ids: ['ak-in', 'ak-go'], placeholder: '继续问…', turns, chips, sys: () => ctx,
+    head: `<div class="askctx"><span class="ptype ${q ? 'q' : ''}">${TYPE_LABEL[it.t]}</span><span class="grow">${esc(plain(it.title || it.q).slice(0, 40))}</span></div>`,
+    actions: [{ icon: 'edit', label: '存为笔记', run: (t, x) => { const n = S().notes ||= {}; n[it.id] = n[it.id] ? n[it.id] + '\n\n' + t.trim() : t.trim(); saveState(); if (p) rerender(p); x.btn.innerHTML = ico('check') + '已存入笔记'; x.btn.disabled = true; } }] });
 }
+/* 弹层里的 AI 对话（问 AI、帮我写共用）：消息 + 快捷问题 + 输入框（可带图片、视频、文件、链接）
+   sys() 是放在最前面的背景说明；actions 显示在每条回复下面：{ icon, label, close?, run(text, { btn, turns }) } */
+function aiChatSheet({ title, head = '', sys, chips = [], chipsOnce = false, placeholder, ids, turns = [], actions = [] }) {
+  const body = h(`<div class="aichat">${head}<div class="chat"></div><div class="chips qk">${chips.map(([l], i) => `<button class="chip" data-q="${i}">${esc(l)}</button>`).join('')}</div></div>`);
+  const box = $('.chat', body), qk = $('.qk', body);
+  let ctl = null;
+  const cmp = Composer({ placeholder, ids, busy: () => !!ctl, onStop: () => ctl?.abort(), onSend: ({ text, att }) => send(text, att) });
+  body.append(cmp.el);
+  const s = sheet(title, body); s.onclose = () => ctl?.abort();
+  const draw = () => {
+    box.innerHTML = turns.map((t, i) => t.role === 'user' ? userBubble(t) : `<div class="am"><div class="md">${md(t.content)}</div><div class="acts2">${actions.map((a, k) => `<button data-a="${k}" data-i="${i}">${ico(a.icon)}${esc(a.label)}</button>`).join('')}<button data-copy="${i}">${ico('file')}复制</button></div></div>`).join('');
+    qk.style.display = !chips.length || (chipsOnce && turns.length > 0) ? 'none' : '';
+  };
+  box.onclick = e => {
+    const b = e.target.closest('[data-a],[data-copy]'); if (!b) return;
+    if (b.dataset.copy) return copyText(turns[+b.dataset.copy].content, '已复制');
+    const a = actions[+b.dataset.a]; if (a.close) s.close(); a.run(turns[+b.dataset.i].content, { btn: b, turns });
+  };
+  const send = async (text, att = [], label) => {
+    if (ctl || (!text.trim() && !att.length)) return;
+    if (!AI.ok) { if (Platform.aiConfigurable) { AI.require(); return; } copyText(sys() + '\n\n' + text, AI.need + '。已复制问题，可以粘贴到任意 AI'); return; }
+    const pay = attPayload(att);
+    turns.push({ role: 'user', content: text.trim() || '请看附件', label, att: attMeta(att), ctx: pay.text, blobs: att.filter(a => a.k === 'img').map(a => a.blob) }); draw();
+    const bubble = h(`<div class="am"><div class="md"><div class="typing"><i></i><i></i><i></i></div></div></div>`); box.append(bubble); bubble.scrollIntoView({ block: 'end', behavior: 'smooth' });
+    ctl = new AbortController(); cmp.sync(); let last = 0;
+    try {
+      const { text: out } = await AI.fn([{ role: 'user', content: sys() }, ...turns.map(t => ({ role: t.role, content: t.role === 'user' ? t.content + (t.ctx || '') : t.content }))],
+        { signal: ctl.signal, cache: false, ...(pay.images.length ? { images: pay.images } : {}), onText: ({ text }) => { const n = Date.now(); if (n - last > 200) { last = n; $('.md', bubble).innerHTML = md(cleanAI(text)); } } });
+      turns.push({ role: 'assistant', content: cleanAI(out) });
+    } catch (e) { if (e?.text) turns.push({ role: 'assistant', content: cleanAI(e.text) }); else if (e?.code !== 'cancelled') { turns.pop(); toast(AI.err(e)); } else turns.pop(); }
+    ctl = null; cmp.sync(); draw(); box.lastElementChild?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  };
+  qk.onclick = e => { const b = e.target.closest('[data-q]'); if (!b) return; const [l, t] = chips[+b.dataset.q]; send(t, [], l); };
+  draw();
+  return { sheet: s, composer: cmp, send };
+}
+const userBubble = t => `<div class="ug">${t.att?.length ? `<div class="uatt">${attHTML(t.att)}</div>` : ''}${t.label || t.content ? `<div class="um">${esc(t.label || t.content)}</div>` : ''}</div>`;
 function noteSheet(it, p) {
   const body = h(`<div style="display:flex;flex-direction:column;gap:12px"><textarea class="inp" id="nt-t" style="min-height:200px" placeholder="理解、易错点、口诀"></textarea><div class="acts"><button class="btn danger" id="nt-del">删除</button><button class="btn pri" id="nt-ok">保存</button></div></div>`);
   const s = sheet('我的笔记', body), ta = $('#nt-t', body); ta.value = S().notes?.[it.id] || ''; setTimeout(() => ta.focus(), 100);

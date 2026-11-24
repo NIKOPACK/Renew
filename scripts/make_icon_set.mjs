@@ -23,7 +23,9 @@ const MAP = {
   tree: 'tree-structure', cpu: 'cpu', terminal: 'terminal-window', network: 'network', globe: 'globe-hemisphere-east',
   brain: 'brain', fn: 'function', sigma: 'sigma', translate: 'translate', atom: 'atom', flask: 'flask', dna: 'dna',
   scroll: 'scroll', scales: 'scales', chart: 'chart-line-up', code: 'code', music: 'music-notes', palette: 'palette',
-  nib: 'pen-nib', bookopen: 'book-open-text', student: 'student'
+  nib: 'pen-nib', bookopen: 'book-open-text', student: 'student',
+  // 对话输入框的附件
+  mic: 'microphone', video: 'video', clip: 'paperclip', images: 'images', web: 'globe-simple'
 };
 const inner = f => fs.readFileSync(f, 'utf8').replace(/^[\s\S]*?<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '').trim();
 const out = {};

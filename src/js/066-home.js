@@ -72,7 +72,7 @@ function dailyEndCard() {
   box.innerHTML = `<div class="badge">${ico('check')}</div><h3>${Feed.queue.length ? '完成' : '今天没有内容'}</h3>
     <div class="kp3"><div><b>${M.t.n}</b><span>${ico('layers')}新学</span></div><div><b>${M.t.r}</b><span>${ico('review')}复习</span></div><div><b>${M.t.ok + M.t.bad ? Math.round(M.t.ok / (M.t.ok + M.t.bad) * 100) + '%' : '—'}</b><span>${ico('check')}正确率</span></div></div>
     ${empty ? `<div class="group menu" style="margin-bottom:14px"><button data-gen="${empty.sec.id}">${ico('wand')}<span class="grow">${esc(empty.c.title)}：${esc(empty.sec.title)}<small>${ico('wand')}生成内容</small></span></button></div>` : ''}
-    <div class="acts">${!ck && M.doneN ? `<button class="btn pri" data-ck>${ico('calendar')}打卡</button>` : ''}${more ? `<button class="btn ${!ck && M.doneN ? '' : 'pri'}" data-more>${ico('plus')}再学一些</button>` : ''}${M.wrong ? `<button class="btn" data-wrong>${ico('alert')}错题 ${M.wrong}</button>` : ''}<button class="btn ghost" data-reflect-day>${ico('edit')}写感悟</button></div>`;
+    <div class="acts">${!ck && M.doneN ? `<button class="btn pri" data-ck>${ico('calendar')}打卡</button>` : ''}${more ? `<button class="btn ${!ck && M.doneN ? '' : 'pri'}" data-more>${ico('plus')}再学一些</button>` : ''}${M.wrong ? `<button class="btn" data-wrong>${ico('alert')}错题 ${M.wrong}</button>` : ''}<button class="btn ghost" data-reflect-day>${ico('edit')}写笔记</button></div>`;
   box.onclick = e => {
     const b = e.target.closest('button'); if (!b) return;
     if (b.hasAttribute('data-ck')) checkIn();
