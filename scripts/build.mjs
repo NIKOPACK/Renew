@@ -27,6 +27,12 @@ function buildContent() {
 
 const coreFiles = fs.readdirSync(path.join(ROOT, 'src/js')).filter(f => f.endsWith('.js')).sort();
 const css = r('src/css/app.css'), body = r('src/body.html').trim();
+// KaTeX 样式：只保留 woff2 字体（所有现代浏览器都支持）；inline 为 true 时把字体转成 data URI
+const KX = path.join(ROOT, 'node_modules/katex/dist');
+function katexCSS(inline) {
+  return fs.readFileSync(path.join(KX, 'katex.min.css'), 'utf8').replace(/src:url\(fonts\/([\w-]+)\.woff2\) format\("woff2"\)(,url\([^)]*\) format\("[\w]+"\))*/g, (_, f) =>
+    `src:url(${inline ? 'data:font/woff2;base64,' + fs.readFileSync(path.join(KX, 'fonts', f + '.woff2')).toString('base64') : 'fonts/' + f + '.woff2'}) format("woff2")`);
+}
 // 平台文件在核心之前；late 文件（依赖核心定义的界面函数）插在启动模块之前
 function script(platformFiles, lateFiles = []) {
   const parts = ['"use strict";', ...platformFiles.map(r)];
@@ -43,6 +49,7 @@ function buildArtifact() {
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap">
 <style>
+${katexCSS(true)}
 ${css}</style>
 
 ${body}
@@ -74,6 +81,7 @@ async function buildApp() {
 <title>温新</title>
 <link rel="icon" type="image/png" href="favicon-64.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="stylesheet" href="vendor/katex/katex.min.css">
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
@@ -85,6 +93,8 @@ ${body}
 `);
   const NM = path.join(ROOT, 'node_modules');
   cp(path.join(NM, 'katex/dist/katex.min.js'), path.join(WWW, 'vendor/katex.min.js'));
+  w(path.join(WWW, 'vendor/katex/katex.min.css'), katexCSS(false));
+  for (const f of fs.readdirSync(path.join(KX, 'fonts')).filter(f => f.endsWith('.woff2'))) cp(path.join(KX, 'fonts', f), path.join(WWW, 'vendor/katex/fonts', f));
   cp(path.join(NM, 'pdfjs-dist/build/pdf.min.js'), path.join(WWW, 'vendor/pdf.min.js'));
   cp(path.join(NM, 'pdfjs-dist/build/pdf.worker.min.js'), path.join(WWW, 'vendor/pdf.worker.min.js'));
   cp(path.join(NM, 'mammoth/mammoth.browser.min.js'), path.join(WWW, 'vendor/mammoth.browser.min.js'));

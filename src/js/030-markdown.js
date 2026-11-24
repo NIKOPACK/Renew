@@ -1,6 +1,6 @@
 /* ============ Markdown + 公式 ============ */
 function tex(src, display) {
-  if (window.katex) { try { return katex.renderToString(src, { output: 'mathml', displayMode: display, throwOnError: false, strict: false }); } catch {} }
+  if (window.katex) { try { return katex.renderToString(src, { output: 'htmlAndMathml', displayMode: display, throwOnError: false, strict: false }); } catch {} }
   return `<code class="tex">${esc(src)}</code>`;
 }
 const CALLOUT = { analogy: ['打个比方', 'spark'], key: ['重点', 'star'], example: ['例题', 'pen'], warn: ['易错', 'alert'], exam: ['怎么考', 'target'], tip: ['记忆', 'bulb'], why: ['为什么', 'chat'], note: ['补充', 'list'] };

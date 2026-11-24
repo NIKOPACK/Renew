@@ -297,9 +297,10 @@ textarea.inp{min-height:120px;line-height:1.6;resize:vertical}
 .tbl th,.tbl td{padding:9px 11px;text-align:left;vertical-align:top}
 .tbl th{font-weight:700;white-space:nowrap;border-bottom:.5px solid var(--sep)}
 .tbl tr+tr td{border-top:.5px solid var(--sep)}
-.md math{font-size:calc(var(--math) * 1.05em)}
-.mblock{overflow-x:auto;overflow-y:hidden;padding-block:2px;text-align:center}
-.mblock math{display:block}
+.md .katex{font-size:calc(var(--math) * 1.1em);text-rendering:auto}
+.mblock{overflow-x:auto;overflow-y:hidden;padding:6px 2px;text-align:center}
+.mblock .katex-display{margin:0}
+.mblock .katex-display>.katex{text-align:center}
 .tex{font-family:var(--mono);font-size:.85em;color:var(--ink-2)}
 .cz{border-bottom:2px solid var(--accent);padding:0 .25em;cursor:pointer;border-radius:4px;background:var(--accent-soft)}
 .cz>.cza{visibility:hidden}
@@ -536,7 +537,6 @@ textarea.inp{min-height:120px;line-height:1.6;resize:vertical}
 .md ul.sub{margin:4px 0 2px;padding-left:1.1em}
 .md ul.sub>li{margin:2px 0}
 .md ul.sub>li::marker{content:'◦  ';color:var(--ink-3)}
-.md math:not([display=block]){display:inline-block;max-width:100%;overflow-x:auto;overflow-y:hidden;vertical-align:middle}
 .um{align-self:flex-end;max-width:84%;background:var(--surface);box-shadow:inset 0 0 0 1px var(--sep);padding:10px 15px;border-radius:20px 20px 6px 20px;font-size:16px;line-height:1.5;white-space:pre-wrap;word-break:break-word}
 .am .md{font-size:16.5px;line-height:1.72}
 .am .md>*+*{margin-top:.75em}

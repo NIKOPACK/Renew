@@ -32,6 +32,8 @@ android/  ios/        Capacitor 原生工程
 | `app` | `www/` | `platform/device.js` + `ai/*` | Capacitor App 和普通浏览器；第三方库复制到 `www/vendor/`，完全离线可用 |
 | `artifact` | `dist/artifact/` | `platform/claude.js` + `ai/*` | 单个 HTML 文件，可发布为 [claude.ai](https://claude.ai) Artifact，使用其提供的云端存储；AI 默认用内置的 Claude，也可以填自己的 Key |
 
+公式由 KaTeX 用 HTML 加自带的数学字体排版（另附隐藏的 MathML 供读屏软件使用），不依赖各浏览器对 MathML 的支持，所以 iOS、Android、桌面显示一致。KaTeX 的样式和 woff2 字体在 App 中打包到 `www/vendor/katex/`，在 claude.ai 单文件版中直接内嵌进页面。
+
 拼接顺序：`platform/common.js` → `ai/clients.js`、`ai/image.js` 与平台文件 → `src/js/*.js`（启动模块 `165-boot.js` 之前插入 `ai/settings.js`）。所有文件在同一个脚本作用域里，函数声明全局可见。
 
 ## 核心模块（`src/js/`）
