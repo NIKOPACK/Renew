@@ -39,7 +39,7 @@ function render(anim, restore) {
   if (anim) { navPlay(fx, ghost); Motion.count(v); if (fx === 'tab') Motion.pop($('.tabbar [aria-current] .ic'), 1.18); }
 }
 const refresh = () => render(false, true);
-function appbar(title, right = '') {
-  return `<div class="appbar"><div class="wrap"><button class="ibtn" data-back aria-label="返回">${ico('back')}</button><div class="ttl">${esc(title)}</div>${right || '<span style="width:40px"></span>'}</div></div>`;
+/* 页面顶部不再有导航栏：左上角悬浮返回按钮，右上角悬浮操作按钮（参考 Claude App）；有标题时作为正文大标题 */
+function appbar(title, right = '', back = '<button class="fbtn" data-back aria-label="返回">' + ico('back') + '</button>') {
+  return `<div class="fbar"><div class="wrap">${back}<span class="grow"></span>${right ? `<div class="fpill">${right}</div>` : ''}</div></div><div class="fsp"></div>${title ? `<div class="wrap"><h1 class="ptitle">${esc(title)}</h1></div>` : ''}`;
 }
-addEventListener('scroll', () => { const a = $('.appbar'); if (a) a.classList.toggle('scrolled', scrollY > 4); }, { passive: true });

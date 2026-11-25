@@ -114,7 +114,7 @@ function viewMyNotes({ course, sec }) {
   const v = $('#view'), c = COURSES.get(course), s = sec && SECS.get(sec); if (!c) return back();
   Notes.all().filter(x => Notes.empty(x) && Date.now() - x.created > 3000).forEach(x => Notes.del(x)); // 清理新建后没写内容的笔记
   const list = Notes.of(c.id, s?.id), cards = cardNotes(c, s);
-  v.innerHTML = appbar(s ? s.title : c.title + ' · 笔记', `<button class="ibtn" id="mn-more" aria-label="更多">${ico('more')}</button>`) + `<div class="wrap"><div class="stack" style="padding-top:6px">
+  v.innerHTML = appbar('', `<button class="ibtn" id="mn-more" aria-label="更多">${ico('more')}</button>`) + `<div class="wrap"><div class="stack" style="padding-top:6px">
   <header style="padding:4px 2px"><span class="eyebrow" style="color:${c.color}">${esc(c.title)}${s ? ' · ' + esc(CHAPS.get(s.chap).title) : ''}</span><h1 style="margin:6px 0 4px;font-size:26px;font-weight:800">${esc(s ? s.title : '课程笔记')}</h1></header>
   ${noteTabs(c, s, 'mine')}
   <div class="mn-cta"><button class="btn pri" id="mn-new">${ico('edit')}写笔记</button><button class="btn soft" id="mn-ai">${ico('spark')}AI 帮我写</button></div>

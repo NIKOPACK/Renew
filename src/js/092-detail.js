@@ -6,7 +6,7 @@ const Detail = {
   html(p, k) {
     const it = p.it, sec = SECS.get(it.sec), c = COURSES.get(it.course);
     return `<div class="dtl" role="dialog" aria-label="${k === 'd' ? '详解' : '详细解答'}">
-      <div class="dtl-bar"><button class="ibtn" data-d="back" aria-label="返回">${ico('back')}</button><span class="dtl-t">${k === 'd' ? '详解' : '详细解答'}</span><button class="ibtn" data-d="ask" aria-label="问 AI">${ico('spark')}</button></div>
+      <div class="dtl-bar"><button class="fbtn" data-d="back" aria-label="返回">${ico('back')}</button><span class="grow"></span><button class="fbtn" data-d="ask" aria-label="问 AI">${ico('spark')}</button></div>
       <div class="dtl-sc" tabindex="-1"><div class="dtl-in">
         <div class="dtl-k"><i class="cdot" style="--c:${c.color}"></i><span>${esc(sec.title)}</span></div>
         <h2 class="pt">${esc(it.title || plain(it.q).slice(0, 40) || TYPE_LABEL[it.t])}</h2>
