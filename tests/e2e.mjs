@@ -119,10 +119,12 @@ await run('学习主流程', async () => {
   const W = await page.evaluate(() => innerWidth);
   await swipe(W * .3, W * .9, 400); check(await page.locator('.dtl').count() === 0, '详解页向右滑关闭');
   // 在卡片上向左滑打开
-  const pr = await page.locator('.post').first().boundingBox();
-  await swipe(W * .85, W * .2, pr.y + 120); check(await page.locator('.dtl').count() === 1, '卡片向左滑打开详解页');
+  // 在带「详解」入口的那张卡片上滑（先等滚动停稳，再取位置）
+  const row = page.locator('.post [data-act="detail"]').first(); await row.scrollIntoViewIfNeeded(); await page.waitForTimeout(500);
+  const pr = await row.boundingBox();
+  await swipe(W * .85, W * .2, pr.y + pr.height / 2); check(await page.locator('.dtl').count() === 1, '卡片向左滑打开详解页');
   await page.keyboard.press('Escape'); await page.waitForTimeout(400); check(await page.locator('.dtl').count() === 0, 'Esc 关闭详解页');
-  await swipe(W * .6, W * .45, pr.y + 120); check(await page.locator('.dtl').count() === 0, '轻微左滑不打开');
+  await swipe(W * .6, W * .45, pr.y + pr.height / 2); check(await page.locator('.dtl').count() === 0, '轻微左滑不打开');
   for (let i = 0; i < 8; i++) { const b = page.locator('.post .rate[data-g="3"]:not(.on)').first(); if (!(await b.count())) break; await b.scrollIntoViewIfNeeded(); await b.click(); await page.waitForTimeout(200); }
   const n = await page.evaluate(() => todayStats().n); check(n > 0, `评分后计入今日新学（${n}）`);
   await page.evaluate(() => document.querySelector('[data-step="practice"]').click()); await page.waitForSelector('.post .opt, .post .tf'); await page.waitForTimeout(400);
