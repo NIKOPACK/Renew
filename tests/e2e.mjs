@@ -254,6 +254,13 @@ await run('笔记：阅读进度与书签；课程资料页；复习间隔显示
 
 await run('学习记录：按天查看与学习历史', async () => {
   const { page, ctx, errors } = await newPage();
+  // 长页面能滚到底：最后一块内容不被底部标签栏挡住
+  for (const tab of ['review', 'library']) {
+    await page.click(`.tabbar [data-tab="${tab}"]`); await page.waitForTimeout(800);
+    await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight)); await page.waitForTimeout(400);
+    const gap = await page.evaluate(() => { const last = [...$$('#view .stack > *')].filter(e => e.offsetHeight).at(-1); return $('.tabbar').getBoundingClientRect().top - last.getBoundingClientRect().bottom; });
+    check(gap >= 0, `「${tab}」页滚到底时最后一块完整可见（距标签栏 ${Math.round(gap)}px）`);
+  }
   await page.evaluate(() => go('section', { id: 'learn1s1' })); await page.waitForTimeout(500); await page.click('#start'); await page.waitForSelector('.post .rate');
   await page.locator('.post .rate[data-g="3"]').first().click(); await page.waitForTimeout(300);
   await page.click('[data-close-s]'); await page.waitForTimeout(500); await page.evaluate(() => go('today', {}, { tab: true })); await page.waitForTimeout(600);
