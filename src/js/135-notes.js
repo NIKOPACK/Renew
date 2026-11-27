@@ -7,7 +7,7 @@ function viewNotes({ course, sec, tab }) {
     ${qs.length ? `<h3 class="doc-qh">本节练习</h3>${qs.map((it, i) => `<article class="doc-q" id="a-${it.id}" data-it="${it.id}">${bmBtn(c, it)}<div class="ptype q">${i + 1}. ${TYPE_LABEL[it.t]}</div>${it.title && it.t === 'think' ? `<b>${esc(it.title)}</b>` : ''}<div class="md">${md(it.q, { cloze: true })}</div>${it.o ? `<div class="md">${it.o.map((o, k) => `<p>${String.fromCharCode(65 + k)}. ${md(o, { inline: true })}</p>`).join('')}</div>` : ''}<details><summary>答案与解答</summary><div class="md">${ansText(it) ? `<p><strong>答案：${ansText(it)}</strong></p>` : ''}${it.t === 'think' && it.st?.length ? `<ol>${it.st.map(t => `<li>${md(t, { inline: true })}</li>`).join('')}</ol>` : ''}${it.a && typeof it.a === 'string' ? md(it.a) : ''}${it.x ? md(it.x) : ''}</div></details></article>`).join('')}` : ''}</section>`; };
   const body = s ? secHTML(s) : c.chapters.map(ch => `<div class="doc-ch"><span class="eyebrow">${esc(ch.title)}</span></div>${ch.sections.map(secHTML).join('')}`).join('');
   v.innerHTML = appbar('', `<button class="ibtn" id="nt-bms" aria-label="书签">${ico('bookmarks')}</button><button class="ibtn" id="nt-typo" aria-label="阅读排版">${ico('aa')}</button>`) + `<div class="wrap"><div class="stack" style="padding-top:6px">
-  <header style="padding:4px 2px"><span class="eyebrow" style="color:${c.color}">${esc(c.title)}${s ? ' · ' + esc(CHAPS.get(s.chap).title) : ''}</span><h1 style="margin:6px 0 4px;font-size:26px;font-weight:800">${esc(s ? s.title : '课程笔记')}</h1></header>
+  <header style="padding:4px 2px"><span class="eyebrow" style="color:${c.color}">${esc(c.title)}${s ? ' · ' + esc(CHAPS.get(s.chap).title) : ''}</span><h1 class="phead">${esc(s ? s.title : '课程笔记')}</h1></header>
   ${noteTabs(c, s, 'read')}
   ${!s ? `<div class="chips">${c.chapters.map((ch, i) => `<button class="chip" data-jump="${ch.sections[0]?.id}">${esc(chapShort(ch))}</button>`).join('')}</div>` : ''}
   <div class="card doc">${body}</div>
@@ -60,7 +60,7 @@ function bookmarkSheet(c) {
   const list = bookmarks(c.id).filter(b => ITEMS.has(b.it)).sort((a, b) => (order.get(a.sec) ?? 1e9) - (order.get(b.sec) ?? 1e9));
   const pos = Reading.get(c.id), posIt = pos && ITEMS.get(pos.it);
   const row = (id, last) => { const it = ITEMS.get(id), sec = SECS.get(it.sec); return `<button data-go-it="${it.id}">${ico(last ? 'flag' : 'bookmark', '', last ? '' : 'fill')}<span class="grow">${last ? '上次读到：' : ''}${esc(plain(it.title || it.q).slice(0, 40))}<small>${esc(sec?.title || '')}</small></span>${last ? '' : `<span class="ibtn" data-del-bm="${it.id}" role="button" aria-label="删除书签" style="color:var(--ink-3)">${ico('trash')}</span>`}</button>`; };
-  const s = sheet('书签', `${posIt ? `<div class="menu">${row(posIt.id, true)}</div>` : ''}${list.length ? `<div class="menu">${list.map(b => row(b.it)).join('')}</div>` : `<div class="empty">${ico('bookmark')}<b>还没有书签</b></div>`}`);
+  const s = sheet('书签', `${posIt ? `<div class="menu">${row(posIt.id, true)}</div>` : ''}${list.length ? `<div class="menu">${list.map(b => row(b.it)).join('')}</div>` : `<div class="empty">${tileIco('bookmark')}<b>还没有书签</b></div>`}`);
   $$('[data-del-bm]', s.body).forEach(x => x.onclick = e => { e.stopPropagation(); toggleBookmark(c, x.dataset.delBm); s.close(); bookmarkSheet(c); });
   $$('[data-go-it]', s.body).forEach(x => x.onclick = () => {
     s.close(); const id = x.dataset.goIt, top = Nav.stack[Nav.stack.length - 1];

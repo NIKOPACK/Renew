@@ -27,8 +27,8 @@ function dayBandHTML() {
   const nGoal = M.courses.reduce((s, x) => s + (x.sec ? Math.max(x.pace, x.done) : x.done), 0), rGoal = M.t.r + M.due;
   const all = nGoal + rGoal, done = M.t.n + M.t.r, canCheck = !ck && (M.finished || M.doneN >= 20) && M.doneN > 0;
   return `<div class="dayband"><button class="db-main" id="db-open" aria-label="今日任务与统计">
-      <span class="db-k" title="新学">${ico('layers', '', 'duo')}<b class="num">${M.t.n}<small>/${nGoal}</small></b></span>
-      <span class="db-k" title="复习">${ico('review', '', 'duo')}<b class="num">${M.t.r}<small>/${rGoal}</small></b></span>
+      <span class="db-k" title="新学">${ico('layers', '', 'fill')}<b class="num">${M.t.n}<small>/${nGoal}</small></b></span>
+      <span class="db-k" title="复习">${ico('review', '', 'fill')}<b class="num">${M.t.r}<small>/${rGoal}</small></b></span>
       <span class="db-k fire" title="连续打卡">${ico('flame', '', 'fill')}<b class="num">${sk}</b></span>
       ${ico('chev', 'chev')}<span class="db-bar"><i style="width:${all ? Math.min(100, done / all * 100) : done ? 100 : 0}%"></i></span></button>
     ${ck ? `<span class="db-ck on">${ico('check')}已打卡</span>` : canCheck ? `<button class="db-ck" id="db-ck">${ico('calendar')}打卡</button>` : ''}</div>`;
@@ -46,7 +46,7 @@ function viewToday() {
   const v = $('#view'), d = new Date(Date.now() - CUT), pr = dailyPr(), same = Feed.params === pr;
   if (!same) { Feed.params = pr; Feed.queue = dailyQueue(Daily.extra); Feed.posts.clear(); Feed.rendered = 0; Feed.results = new Map(); Feed.resKey = 'daily'; }
   else { const have = new Set(Feed.queue.map(it => it.id)); Feed.queue.push(...dailyQueue(Daily.extra).filter(it => !have.has(it.id))); } // 计划调整、新生成的内容接到后面
-  v.innerHTML = `<div class="wrap"><header class="lt"><div class="t"><div class="date">${d.getMonth() + 1}月${d.getDate()}日 星期${WEEK[d.getDay()]}</div><h1>今日</h1></div><button class="round" id="td-plan" aria-label="学习计划">${ico('target', '', 'duo')}</button><button class="round" data-go="settings" aria-label="设置">${ico('gear', '', 'duo')}</button></header>
+  v.innerHTML = `<div class="wrap"><header class="lt"><div class="t"><div class="date">${d.getMonth() + 1}月${d.getDate()}日 星期${WEEK[d.getDay()]}</div><h1>今日</h1></div><button class="round" id="td-plan" aria-label="学习计划">${ico('target')}</button><button class="round" data-go="settings" aria-label="设置">${ico('gear')}</button></header>
   ${dayBandHTML()}
   <div class="feed home" id="feed"></div><div class="sentinel"></div></div>`;
   bindDayband(v); $('#td-plan').onclick = planSheet;
@@ -61,7 +61,7 @@ function viewToday() {
 }
 /* 还没有在学的课程 */
 function startCard() {
-  const el = h(`<article class="post"><div class="endc"><div class="badge" style="background:var(--accent-soft);color:var(--accent)">${ico('book')}</div><h3>先选一门课程</h3><p>在计划里打开一门课，首页就会按每天的量推送要学和要复习的内容</p><div class="acts"><button class="btn pri" data-go-lib>去选课程</button><button class="btn" data-plan>学习计划</button></div></div></article>`);
+  const el = h(`<article class="post"><div class="endc">${heroBadge('book')}<h3>先选一门课程</h3><p>在计划里打开一门课，首页就会按每天的量推送要学和要复习的内容</p><div class="acts"><button class="btn pri" data-go-lib>去选课程</button><button class="btn" data-plan>学习计划</button></div></div></article>`);
   $('[data-go-lib]', el).onclick = () => go('library', {}, { tab: true }); $('[data-plan]', el).onclick = planSheet;
   return el;
 }
@@ -69,7 +69,7 @@ function startCard() {
 function dailyEndCard() {
   const M = todayModel(), ck = S().checkins[dayKey()], el = h(`<article class="post"><div class="endc"></div></article>`), box = $('.endc', el);
   const empty = M.courses.find(x => x.sec && secStatus(x.sec) === 'empty'), more = M.courses.some(x => freshItems(x.c, 1).length);
-  box.innerHTML = `<div class="badge">${ico('check')}</div><h3>${Feed.queue.length ? '完成' : '今天没有内容'}</h3>
+  box.innerHTML = `${heroBadge('check')}<h3>${Feed.queue.length ? '完成' : '今天没有内容'}</h3>
     <div class="kp3"><div><b>${M.t.n}</b><span>${ico('layers')}新学</span></div><div><b>${M.t.r}</b><span>${ico('review')}复习</span></div><div><b>${M.t.ok + M.t.bad ? Math.round(M.t.ok / (M.t.ok + M.t.bad) * 100) + '%' : '—'}</b><span>${ico('check')}正确率</span></div></div>
     ${empty ? `<div class="group menu" style="margin-bottom:14px"><button data-gen="${empty.sec.id}">${ico('wand')}<span class="grow">${esc(empty.c.title)}：${esc(empty.sec.title)}<small>${ico('wand')}生成内容</small></span></button></div>` : ''}
     <div class="acts">${!ck && M.doneN ? `<button class="btn pri" data-ck>${ico('calendar')}打卡</button>` : ''}${more ? `<button class="btn ${!ck && M.doneN ? '' : 'pri'}" data-more>${ico('plus')}再学一些</button>` : ''}${M.wrong ? `<button class="btn" data-wrong>${ico('alert')}错题 ${M.wrong}</button>` : ''}<button class="btn ghost" data-reflect-day>${ico('edit')}写笔记</button></div>`;
@@ -97,9 +97,9 @@ function todaySheet() {
   const days = [], today = dayKey(); let k0 = today; while ((keyToDate(k0).getDay() + 6) % 7 !== 0) k0 = addDays(k0, -1);
   for (let i = 0; i < 7; i++) { const k = addDays(k0, i), s = S().stats[k], n = s ? s.n + s.r : 0; days.push({ k, n, l: !n ? 0 : n < 15 ? 1 : n < 40 ? 2 : 3, ck: !!S().checkins[k], future: k > today }); }
   const s = sheet('今日', `<div class="stat3">
-      <div><span class="rb">${ring(nGoal ? M.t.n / nGoal : 0, 46, 3.6, 'var(--accent)')}${ico('layers')}</span><b>${M.t.n}<small>/${nGoal || 0}</small></b><span>新学</span></div>
-      <div><span class="rb">${ring(rGoal ? M.t.r / rGoal : 0, 46, 3.6, 'var(--good)')}${ico('review')}</span><b>${M.t.r}<small>/${rGoal}</small></b><span>复习</span></div>
-      <div><span class="rb">${ring(Math.min(1, sk / 7), 46, 3.6, 'var(--warn)')}${ico('flame')}</span><b>${sk}<small> 天</small></b><span>连续打卡</span></div></div>
+      <div><span class="rb">${ring(nGoal ? M.t.n / nGoal : 0, 46, 3.6, 'var(--accent)')}${ico('layers', '', 'fill')}</span><b>${M.t.n}<small>/${nGoal || 0}</small></b><span>新学</span></div>
+      <div><span class="rb">${ring(rGoal ? M.t.r / rGoal : 0, 46, 3.6, 'var(--good)')}${ico('review', '', 'fill')}</span><b>${M.t.r}<small>/${rGoal}</small></b><span>复习</span></div>
+      <div><span class="rb">${ring(Math.min(1, sk / 7), 46, 3.6, 'var(--warn)')}${ico('flame', '', 'fill')}</span><b>${sk}<small> 天</small></b><span>连续打卡</span></div></div>
     <div class="gh" style="margin-top:4px"><b>今日任务</b><button class="link" data-plan>计划</button></div><div class="group">${rows.join('')}</div>
     ${ck ? `<button class="btn soft block" disabled>${ico('check')}今日已打卡</button>` : `<button class="btn ${canCheck ? 'pri' : ''} block" data-ck ${canCheck ? '' : 'disabled'}>${ico('calendar')}打卡${canCheck ? '' : ` · ${M.doneN}/${Math.max(M.goal, 1)}`}</button>`}
     <div class="gh"><b>本周</b><button class="link" data-stats>学习记录</button></div>

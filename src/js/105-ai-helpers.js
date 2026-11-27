@@ -30,7 +30,7 @@ function pickSection(title, cb) {
 }
 function weakSheet() {
   const rows = [...SECS.values()].map(sec => ({ sec, n: secItems(sec).reduce((a, it) => a + (getSt(it)?.lapses || 0), 0) })).filter(x => x.n).sort((a, b) => b.n - a.n).slice(0, 8);
-  if (!rows.length) return sheet('薄弱点补强', `<div class="empty">${ico('target')}<b style="color:var(--ink)">还没有错题记录</b><span>学习一段时间后，这里会列出遗忘最多的小节。</span></div>`);
+  if (!rows.length) return sheet('薄弱点补强', `<div class="empty">${tileIco('target')}<b style="color:var(--ink)">还没有错题记录</b><span>学习一段时间后，这里会列出遗忘最多的小节。</span></div>`);
   menuSheet('遗忘最多的小节', rows.map(({ sec, n }) => ({ icon: 'target', label: sec.title, sub: `${COURSES.get(sec.course).title} · 累计遗忘 ${n} 次`, run: () => genSheet({ sid: sec.id, kpN: 2, qN: 5, weak: true }) })));
 }
 function describeAction(a) {

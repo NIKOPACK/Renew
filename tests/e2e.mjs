@@ -102,7 +102,7 @@ await run('学习主流程', async () => {
   const { page, ctx, errors } = await newPage();
   check(await page.evaluate(() => Platform.id) === 'web', '普通浏览器使用 web 平台');
   check(await page.evaluate(() => COURSES.has('learn')), '示例课程已加载');
-  await shot(page, 'today');
+  await page.waitForTimeout(700); await shot(page, 'today');
   await page.click('.tabbar [data-tab="library"]'); await page.waitForTimeout(500); await page.click('[data-course="learn"]'); await page.waitForTimeout(600);
   await page.evaluate(() => go('section', { id: 'learn1s1' })); await page.waitForTimeout(600);
   await page.click('#start'); await page.waitForSelector('.post'); await page.waitForTimeout(500); await shot(page, 'learn');
@@ -499,8 +499,19 @@ await run('深色模式', async () => {
   const { page, ctx, errors } = await newPage({ dark: true });
   const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
   check(/rgb\((\d+), \1, \1\)/.test(bg) && parseInt(bg.slice(4)) < 40, '深色背景 ' + bg);
-  await shot(page, 'today-dark');
+  await page.waitForTimeout(700); await shot(page, 'today-dark');
   check(!errors.length, '没有脚本错误');
+  await ctx.close();
+});
+
+await run('宽屏 Muse 左侧图标 Dock', async () => {
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const page = await ctx.newPage();
+  await page.goto(URL0); await page.waitForSelector('.dayband', { timeout: 20000 });
+  await page.waitForTimeout(700);
+  const dock = await page.evaluate(() => { const r = $('.tabbar').getBoundingClientRect(); return { w: Math.round(r.width), h: Math.round(r.height), x: Math.round(r.left) }; });
+  check(dock.x === 0 && dock.w === 72 && dock.h >= 750, `宽屏导航自动切换为左侧 72px 图标栏（${dock.w}×${dock.h}）`);
+  await shot(page, 'desktop-dock');
   await ctx.close();
 });
 
@@ -603,6 +614,113 @@ await run('安全校验、双端 DSL 哈希、IndexedDB 迁移与完整备份恢
   const mig2 = await p2.evaluate(() => Notes.get('mig1')?.title);
   check(mig1.title === '旧版笔记' && mig1.lsGone && mig1.idb && mig2 === '旧版笔记', '旧 localStorage 文档自动迁移至 IndexedDB 并释放 localStorage');
   await ctx2.close();
+});
+
+await run('悬浮会话栏、首页快捷键、问 AI 沉淀飞轮、交互矢量图与听学朗读', async () => {
+  const { page, ctx, errors } = await newPage();
+  // 1) 首页学习流键盘快捷键（直接按 3 评分、右方向键打开详解）
+  await page.keyboard.press('3'); await page.waitForTimeout(350);
+  check(await page.evaluate(() => todayStats().n === 1), '首页今日学习流支持键盘 1-4 直接评分');
+  await page.evaluate(() => { const el = $$('#feed > [data-pk]').find(e => $('[data-act="detail"]', e)); el?.scrollIntoView(); });
+  await page.waitForTimeout(300);
+  await page.keyboard.press('ArrowRight'); await page.waitForTimeout(350);
+  check(await page.evaluate(() => !!Detail.cur && !!$('.dtl .dtl-bar .fpill')), '首页按 → 打开详解页，详解页右上角使用悬浮胶囊');
+  await page.keyboard.press('Escape'); await page.waitForTimeout(300);
+
+  // 2) 学习会话统一为悬浮按钮 + 贴顶进度线（不溢出手机宽度）
+  await page.evaluate(() => go('section', { id: 'learn1s1' })); await page.waitForTimeout(400);
+  await page.click('#start'); await page.waitForSelector('.sfbar'); await page.waitForTimeout(300);
+  const sb = await page.evaluate(() => ({
+    noOld: !$('.sbar'),
+    hasTopProg: !!$('.readprog #sp'),
+    hasSteps: $$('.sfbar .ssteps [data-step]').length === 3,
+    fit: $('.sfbar .wrap').scrollWidth <= innerWidth + 2
+  }));
+  check(sb.noOld && sb.hasTopProg && sb.hasSteps && sb.fit, '学习会话统一为贴顶进度线 + 悬浮胶囊，手机宽度无溢出');
+  await shot(page, 'session-float');
+
+  // 3) 交互矢量图：图内挖空、填空卡联动与分步演进
+  const vizRes = await page.evaluate(() => {
+    const F = '```';
+    const box = h(`<div id="vz-test"></div>`); document.body.append(box);
+    box.innerHTML = md(`${F}cells\n=== 初始\narr: 5 * | {{2}} | 4\n=== 交换后\narr: 2 | 5 * | {{4}}\n${F}`);
+    const fig = $('figure.viz.viz-steps', box);
+    const step0 = $('.vz-sn', fig)?.textContent, title0 = $('.vz-st', fig)?.textContent;
+    const cz0 = $('.vz-fr:not([hidden]) .vz-cz', fig);
+    const beforeOn = cz0?.classList.contains('on');
+    cz0?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    const afterOn = cz0?.classList.contains('on'), openedViewer = !!VizView.cur;
+    $('[data-vs="1"]', fig).click();
+    const step1 = $('.vz-sn', fig)?.textContent, title1 = $('.vz-st', fig)?.textContent;
+    const visText = $('.vz-fr:not([hidden]) svg', fig)?.textContent || '';
+    // 点图本身应打开当前第 2 步的放大查看器
+    $('.vz-fr:not([hidden]) svg', fig).dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    const zoomHas2 = !!$('.vzv svg') && /交换后|4/.test($('.vzv svg').textContent);
+    VizView.cur?.();
+    box.remove();
+    return { step0, title0, beforeOn, afterOn, openedViewer, step1, title1, visText, zoomHas2 };
+  });
+  check(vizRes.step0 === '1/2' && vizRes.title0 === '初始' && vizRes.step1 === '2/2' && vizRes.title1 === '交换后' && vizRes.zoomHas2, '分步演进图：切换步骤、更新标题与放大当前帧');
+  check(!vizRes.beforeOn && vizRes.afterOn && !vizRes.openedViewer, '图内挖空：默认遮罩，点按原地翻开且不误触放大');
+
+  // 纯图示 ::cloze 填空卡联动
+  const czCard = await page.evaluate(() => {
+    const sec = SECS.get('learn1s1');
+    const parsed = parseDSL('::cloze 图示填空\n```tree\n根\n  {{左}}\n  {{右}}\n```\n?? 解析', 'learn1s1', 't');
+    saveItems('learn1s1', parsed.items);
+    const it = ITEMS.get(parsed.items[0].id);
+    go('session', { kind: 'items', ids: [it.id] });
+    const post = $('#feed .post[data-pk]');
+    const beforeRate = $$('.rate', post).length;
+    $('.vz-cz[data-vcz="0"]', post).dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    const midRate = $$('.rate', $('#feed .post[data-pk]')).length;
+    $('.vz-cz[data-vcz="1"]', $('#feed .post[data-pk]')).dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    const afterRate = $$('.rate', $('#feed .post[data-pk]')).length;
+    return { beforeRate, midRate, afterRate };
+  });
+  check(czCard.beforeRate === 0 && czCard.midRate === 0 && czCard.afterRate === 4, '图示填空卡：逐个点开图内遮罩后自动解锁 FSRS 评分');
+
+  // 4) 卡片「问 AI」持久化、加入详解、转成卡片、全屏升格
+  const AI_REPLY = 'A. 顺序查找\nB. 折半查找\n\n答案：B。折半查找每次排除一半。';
+  await page.route('https://api.deepseek.com/**', r => r.fulfill({ headers: { 'content-type': 'text/event-stream' }, body: sse([oa({ content: AI_REPLY })]) }));
+  await page.evaluate(async () => {
+    await Platform.aiConfig.set({ provider: 'deepseek', kind: 'openai', key: 'sk-test', model: 'deepseek-chat', base: 'https://api.deepseek.com' });
+    await AI.reload();
+    const it = courseSecs(COURSES.get('learn'))[0].items[0];
+    askAI(it);
+  });
+  await page.waitForSelector('#ak-in');
+  await page.fill('#ak-in', '出个类似题'); await page.click('#ak-go');
+  await page.waitForSelector('.sheet .am [data-a="2"]', { timeout: 10000 });
+  check(await page.evaluate(() => { const id = courseSecs(COURSES.get('learn'))[0].items[0].id; return (lsGet('askmem')?.[id] || []).length === 2; }), '卡片问 AI 记录持久化保存');
+  // 加入详解
+  await page.click('.sheet .am [data-a="1"]'); await page.waitForTimeout(200);
+  check(await page.evaluate(() => /折半查找/.test(courseSecs(COURSES.get('learn'))[0].items[0].d || '')), '问 AI 回复一键加入卡片详解');
+  // 转成卡片
+  const secBefore = await page.evaluate(() => secItems(SECS.get('learn1s1')).length);
+  await page.click('.sheet .am [data-a="2"]'); await page.waitForSelector('#g-save');
+  await page.click('#g-save'); await page.waitForTimeout(300);
+  check(await page.evaluate(n => secItems(SECS.get('learn1s1')).length === n + 1, secBefore), '问 AI 回复一键转成新卡片并保存到当前小节');
+  // 升格至全屏 AI 助手
+  await page.click('.sheet [data-promote]'); await page.waitForSelector('#ch-in'); await page.waitForTimeout(300);
+  check(await page.evaluate(() => Nav.tab === 'ai' && Chat.get()?.msgs.length >= 2 && Chat.get()?.ctx === 'learn'), '卡片问 AI 一键升格至全屏 AI 助手并保留上下文');
+
+  // 5) 碎片听学语音朗读（模拟 speechSynthesis 验证启停与切页自动停止）
+  const spk = await page.evaluate(() => {
+    const log = [];
+    window.SpeechSynthesisUtterance = function (t) { this.text = t; };
+    Object.defineProperty(window, 'speechSynthesis', { configurable: true, value: { speak: u => log.push('speak:' + u.text.slice(0, 12)), cancel: () => log.push('cancel') } });
+    go('section', { id: 'learn1s1' });
+    startSection('learn1s1');
+    const btn = $('[data-speak]'); btn?.click();
+    const active = Speech.auto && !!Speech.cur && btn?.classList.contains('speaking');
+    go('today', {}, { tab: true });
+    const stopped = !Speech.auto && !Speech.cur;
+    return { active, stopped, spoke: log.some(x => x.startsWith('speak:')) };
+  });
+  check(spk.active && spk.spoke && spk.stopped, '碎片听学朗读：会话内启停、状态高亮与切页自动停止');
+  check(!errors.length, '没有脚本错误' + (errors.length ? '：' + errors.join(' | ') : ''));
+  await ctx.close();
 });
 
 await browser.close(); server.close();

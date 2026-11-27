@@ -5,8 +5,9 @@ const Detail = {
   cur: null,
   html(p, k) {
     const it = p.it, sec = SECS.get(it.sec), c = COURSES.get(it.course);
+    const spk = typeof Speech !== 'undefined' && Speech.ok ? `<button class="ibtn" data-d="speak" aria-label="朗读">${ico('speaker')}</button>` : '';
     return `<div class="dtl" role="dialog" aria-label="${k === 'd' ? '详解' : '详细解答'}">
-      <div class="dtl-bar"><button class="fbtn" data-d="back" aria-label="返回">${ico('back')}</button><span class="grow"></span><button class="fbtn" data-d="ask" aria-label="问 AI">${ico('spark')}</button></div>
+      <div class="dtl-bar"><button class="fbtn" data-d="back" aria-label="返回">${ico('back')}</button><span class="grow"></span><div class="fpill">${spk}<button class="ibtn" data-d="ask" aria-label="问 AI">${ico('spark')}</button></div></div>
       <div class="dtl-sc" tabindex="-1"><div class="dtl-in">
         <div class="dtl-k"><i class="cdot" style="--c:${c.color}"></i><span>${esc(sec.title)}</span></div>
         <h2 class="pt">${esc(it.title || plain(it.q).slice(0, 40) || TYPE_LABEL[it.t])}</h2>
@@ -21,6 +22,7 @@ const Detail = {
     let done = false;
     const close = instant => {
       if (done) return; done = true; Detail.cur = null; removeEventListener('keydown', key);
+      if (typeof Speech !== 'undefined' && Speech.cur?.startsWith('detail:')) Speech.stop(true);
       const fin = () => { w.remove(); if (!$('.dtl')) document.body.classList.remove('dtl-on'); };
       if (instant || !Motion.ok()) return fin();
       const a = w.animate([{ transform: getComputedStyle(w).transform === 'none' ? 'translateX(0)' : getComputedStyle(w).transform }, { transform: 'translateX(100%)' }], { duration: 240, easing: Motion.E, fill: 'forwards' });
@@ -28,7 +30,7 @@ const Detail = {
     };
     const key = e => { if (e.key === 'Escape' && !VizView.cur && !$('.sheet-wrap')) { e.preventDefault(); close(); } };
     addEventListener('keydown', key);
-    $('.dtl-bar', w).onclick = e => { const d = e.target.closest('[data-d]')?.dataset.d; if (d === 'back') close(); else if (d === 'ask') askAI(p.it, p); };
+    $('.dtl-bar', w).onclick = e => { const d = e.target.closest('[data-d]')?.dataset.d; if (d === 'back') close(); else if (d === 'ask') askAI(p.it, p); else if (d === 'speak') Speech?.toggleDetail?.(p.it, k); };
     Detail.swipeBack(w, close);
     Detail.cur = close; Detail.el = w;
     return w;
@@ -70,7 +72,7 @@ function hScrollable(t, stop) {
 /* 卡片上的详解入口：只在有内容时出现（知识点直接可看；题目在作答后才出现） */
 function detailRow(p, k) {
   const v = p.it[k]; if (!v) return '';
-  return `<button class="drow" data-act="detail" data-k="${k}">${ico('bulb')}<span class="pl">${k === 'd' ? '详解' : '详细解答'}</span><span class="pv">${esc(plain(v).slice(0, 40))}</span>${ico('chev', 'chev')}</button>`;
+  return `<button class="drow" data-act="detail" data-k="${k}">${ico('bulb', '', 'fill')}<span class="pl">${k === 'd' ? '详解' : '详细解答'}</span><span class="pv">${esc(plain(v).slice(0, 40))}</span>${ico('chev', 'chev')}</button>`;
 }
 /* 信息流里向左滑卡片 → 详解页跟手从右侧滑入 */
 (() => {

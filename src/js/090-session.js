@@ -28,6 +28,7 @@ function viewSession(pr) {
   v.innerHTML = sessionBar(pr) + `<div class="wrap"><div class="feed" id="feed"></div><div class="sentinel"></div></div>`;
   $('[data-close-s]', v).onclick = back;
   $('[data-typo]', v).onclick = typoSheet;
+  $('[data-speak]', v)?.addEventListener('click', () => Speech?.toggleSession?.());
   if (same && pr.step !== 'summary') for (const p of Feed.posts.values()) { const el = h(`<article class="post" data-pk="${p.pk}"></article>`); el.innerHTML = postHTML(p); $('#feed', v).append(el); }
   $$('[data-step]', v).forEach(b => b.onclick = () => { if (b.dataset.step === pr.step) return; const np = { ...pr, step: b.dataset.step }; delete np.only; Nav.fx = stepDir(pr.step, np.step); Nav.stack[Nav.stack.length - 1].params = np; render(true); });
   const feed = $('#feed');

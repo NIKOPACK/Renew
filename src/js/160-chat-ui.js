@@ -7,7 +7,8 @@ function msgHTML(m, i, last) {
   const waiting = m.streaming && !m.text && !perms.some(p => p.st === 'pending');
   const text = m.text ? `<div class="md">${md(m.text)}</div>${m.streaming ? '<span class="caret"></span>' : ''}` : waiting ? `<div class="typing"><i></i><i></i><i></i></div>` : '';
   const btns = m.buttons?.length ? `<div class="amb">${m.buttons.map((b, k) => `<button class="chip" data-mb="${i}:${k}">${ico(b.type === 'open_section' ? 'play' : b.type === 'generate' ? 'wand' : b.type === 'wrong_book' ? 'alert' : 'review')}${esc(b.label || { open_section: '打开小节', start_review: '开始复习', wrong_book: '错题本', generate: '生成内容' }[b.type])}</button>`).join('')}</div>` : '';
-  const foot = !m.streaming && m.text ? `<div class="amf"><button data-copy="${i}" aria-label="复制">${ico('file')}</button>${last ? `<button data-regen aria-label="重新生成">${ico('sync')}</button>` : ''}</div>` : '';
+  const hasCard = !m.streaming && m.text && /^::\s*(kp|choice|multi|tf|qa|cloze|think|note)\b/m.test(m.text);
+  const foot = !m.streaming && m.text ? `<div class="amf"><button data-copy="${i}" aria-label="复制">${ico('file')}</button>${hasCard ? `<button data-tocard="${i}" aria-label="存为卡片">${ico('layers')}</button>` : ''}${last ? `<button data-regen aria-label="重新生成">${ico('sync')}</button>` : ''}</div>` : '';
   return `<div class="am">${tg}${pm}${text}${btns}${foot}</div>`;
 }
 const chatCtx = () => { const id = lsGet('chatctx'); return COURSES.has(id) ? id : null; };
@@ -56,6 +57,7 @@ function drawMsgs(toBottom) {
   $$('[data-allow]', box).forEach(b => b.onclick = () => Chat.resolvers.get(b.dataset.allow)?.(true));
   $$('[data-deny]', box).forEach(b => b.onclick = () => Chat.resolvers.get(b.dataset.deny)?.(false));
   $$('[data-copy]', box).forEach(b => b.onclick = () => copyText(c.msgs[+b.dataset.copy].text, '已复制'));
+  $$('[data-tocard]', box).forEach(b => b.onclick = () => { const txt = c.msgs[+b.dataset.tocard].text; pickSection('存到哪一节？', sid => { const s = sheet('存为卡片 · ' + SECS.get(sid).title, `<div id="cc-out"></div>`); showGenerated($('#cc-out', s.body), parseDSL(txt, sid, 'a'), SECS.get(sid), false, s); }); });
   $('[data-regen]', box)?.addEventListener('click', () => { const lastU = [...c.msgs].reverse().find(m => m.role === 'user'); if (!lastU || Chat.busy) return; c.msgs.splice(c.msgs.lastIndexOf(lastU)); aiSend(lastU.text, lastU._att || []); });
   $$('[data-mb]', box).forEach(b => b.onclick = () => { const [i, k] = b.dataset.mb.split(':').map(Number), bt = c.msgs[i].buttons[k];
     if (bt.type === 'open_section') go('section', { id: bt.sid }); else if (bt.type === 'generate') genSheet({ sid: bt.sid }); else if (bt.type === 'wrong_book') openReview('wrong'); else openReview('review', bt.cid ? { course: bt.cid } : {}); });

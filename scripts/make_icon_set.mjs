@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const A = path.join(ROOT, 'node_modules/@phosphor-icons/core/assets');
-// App 内的图标名 → Phosphor 图标名（带 :bold 的使用粗体线框，保证小尺寸下清晰）
+// App 内的图标名 → Phosphor 图标名（统一轻盈极简线框，仅极小箭头/关闭/确认使用 :bold 保持辨识度）
 const MAP = {
   home: 'house', book: 'books', review: 'cards', spark: 'sparkle', gear: 'gear-six',
   back: 'caret-left:bold', chev: 'caret-right:bold', down: 'caret-down:bold', close: 'x:bold', x: 'x:bold',
@@ -25,8 +25,14 @@ const MAP = {
   scroll: 'scroll', scales: 'scales', chart: 'chart-line-up', code: 'code', music: 'music-notes', palette: 'palette',
   nib: 'pen-nib', bookopen: 'book-open-text', student: 'student',
   // 对话输入框的附件
-  mic: 'microphone', video: 'video', clip: 'paperclip', images: 'images', web: 'globe-simple'
+  mic: 'microphone', video: 'video', clip: 'paperclip', images: 'images', web: 'globe-simple',
+  // 听学朗读与资料书本图标
+  speaker: 'speaker-high', bookbm: 'book-bookmark'
 };
+// 这些图标在 Phosphor duotone 中带人工底框/底圆，叠加在浅色按钮上会显得生硬，去掉底层
+const NO_DUO_BG = new Set(['plus', 'minus', 'download', 'upload', 'sync', 'grow', 'close', 'x', 'check', 'send', 'back', 'chev', 'down']);
+// 这些图标在 Phosphor fill 中外包了一层实心方框，用 tileIco 时保留清晰线框；其余统一采用扁平实心镂空（同 fire-fill）
+const NO_TILE_FILL = new Set(['sync', 'list', 'translate', 'terminal', 'fn', 'chart', 'code', 'plus', 'minus', 'check', 'close', 'x', 'link']);
 const inner = f => fs.readFileSync(f, 'utf8').replace(/^[\s\S]*?<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '').trim();
 const out = {};
 for (const [name, spec] of Object.entries(MAP)) {
@@ -34,17 +40,19 @@ for (const [name, spec] of Object.entries(MAP)) {
   const r = inner(path.join(A, weight, `${ph}${weight === 'regular' ? '' : '-' + weight}.svg`));
   const f = inner(path.join(A, 'fill', `${ph}-fill.svg`));
   const duo = inner(path.join(A, 'duotone', `${ph}-duotone.svg`));
-  const b = (duo.match(/<[^>]+opacity="0\.2"[^>]*\/>/g) || []).map(x => x.replace(/\s*opacity="0\.2"/, '')).join('');
+  const b = NO_DUO_BG.has(name) ? '' : (duo.match(/<[^>]+opacity="0\.2"[^>]*\/>/g) || []).map(x => x.replace(/\s*opacity="0\.2"/, '')).join('');
   out[name] = { r, f, ...(b ? { b } : {}) };
 }
 const js = `/* ============ 图标（Phosphor Icons，MIT 许可，由 scripts/make_icon_set.mjs 生成，请勿手改） ============ */
 const IC = ${JSON.stringify(out)};
-/* ico(名称, 额外类名, 形态)：形态 '' 线框，'fill' 实心，'duo' 双色 */
+const _NO_TILE_FILL = new Set(${JSON.stringify([...NO_TILE_FILL])});
+/* ico(名称, 额外类名, 形态)：形态 '' 极简线框，'fill' 扁平实心镂空，'duo' 双色；tileIco 优先输出扁平实心镂空 */
 const ico = (n, cls = '', w = '') => {
   const d = IC[n]; if (!d) return '';
-  const body = w === 'fill' ? d.f : (w === 'duo' && d.b ? d.b.replace(/\\/>/g, ' opacity=".24"/>') : '') + d.r;
+  const body = w === 'fill' ? d.f : (w === 'duo' && d.b ? d.b.replace(/\\/>/g, ' opacity=".18"/>') : '') + d.r;
   return \`<svg class="ic \${cls}" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">\${body}</svg>\`;
 };
+const tileIco = (n, cls = '') => ico(n, cls, _NO_TILE_FILL.has(n) ? '' : 'fill');
 `;
 fs.writeFileSync(path.join(ROOT, 'src/js/001-icons.js'), js);
 console.log(`icons: ${Object.keys(out).length}, ${(js.length / 1024).toFixed(1)} KB`);

@@ -6,6 +6,8 @@ function renderTabbar() {
   $$('.tabbar button').forEach(b => {
     const [i, l] = TAB_META[b.dataset.tab];
     b.innerHTML = `${ico(i, '', b.dataset.tab === Nav.tab ? 'fill' : '')}<span>${l}</span>${b.dataset.tab === 'review' && due ? `<span class="badge">${due > 99 ? '99+' : due}</span>` : ''}`;
+    b.dataset.tip = l;
+    b.setAttribute('aria-label', l);
     b.dataset.tab === Nav.tab ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current');
   });
 }
@@ -26,6 +28,7 @@ function openReview(kind, opt = {}) { go('session', { kind, ...opt }); }
 function render(anim, restore) {
   const top = Nav.stack[Nav.stack.length - 1], v = $('#view');
   Feed.obs?.disconnect();
+  if (typeof Speech !== 'undefined') Speech.stop();
   const prevImm = document.body.classList.contains('immersive'), newImm = top.view === 'session' || top.view === 'ai';
   const fx = anim ? navType(Nav.fx, prevImm, newImm) : null; Nav.fx = null;
   const ghost = anim && v.firstElementChild && !v.querySelector('.loading') ? navCapture(fx) : null;

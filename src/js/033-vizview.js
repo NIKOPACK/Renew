@@ -3,7 +3,7 @@
    手势：双指缩放、单指拖动、双击放大/还原；电脑上按住 Ctrl 滚轮或触控板捏合缩放，滚轮拖动。 */
 const VizView = {
   open(fig) {
-    const src = $('svg', fig); if (!src) return;
+    const src = $('.vz-fr:not([hidden]) svg', fig) || $('svg', fig); if (!src) return;
     const vb = src.viewBox.baseVal, bw = vb.width || src.getBBox().width, bh = vb.height || src.getBBox().height;
     const w = h(`<div class="vzv" role="dialog" aria-label="查看图示">
       <div class="vzv-sc"><div class="vzv-in viz"></div></div>
@@ -12,9 +12,10 @@ const VizView = {
     </div>`);
     const sc = $('.vzv-sc', w), inner = $('.vzv-in', w), svg = src.cloneNode(true), pct = $('.vzv-pct', w);
     svg.removeAttribute('style'); inner.append(svg); document.body.append(w); document.body.classList.add('vzv-on');
-    const fit = () => Math.min((sc.clientWidth - 32) / bw, (sc.clientHeight - 32) / bh, 4);
+    const fit = () => Math.max(.1, Math.min((sc.clientWidth - 32) / bw, (sc.clientHeight - 32) / bh, 4));
     let s = 0;
     const set = (ns, fx = sc.clientWidth / 2, fy = sc.clientHeight / 2) => {
+      if (!w.isConnected) return;
       ns = Math.max(fit() * .5, Math.min(ns, 12));
       const ox = sc.scrollLeft + fx - inner.offsetLeft, oy = sc.scrollTop + fy - inner.offsetTop, k = s ? ns / s : 1;
       s = ns; svg.setAttribute('width', r(bw * s)); svg.setAttribute('height', r(bh * s));
@@ -23,8 +24,8 @@ const VizView = {
       pct.textContent = Math.round(s / fit() * 100) + '%';
     };
     const r = n => Math.round(n * 10) / 10;
-    requestAnimationFrame(() => set(fit()));
-    const close = () => { w.remove(); document.body.classList.remove('vzv-on'); removeEventListener('keydown', key); VizView.cur = null; };
+    const raf = requestAnimationFrame(() => set(fit()));
+    const close = () => { cancelAnimationFrame(raf); w.remove(); document.body.classList.remove('vzv-on'); removeEventListener('keydown', key); VizView.cur = null; };
     const key = e => { if (e.key === 'Escape') close(); else if (e.key === '+' || e.key === '=') set(s * 1.25); else if (e.key === '-') set(s / 1.25); };
     addEventListener('keydown', key); VizView.cur = close;
     $('.vzv-bar', w).onclick = e => { const z = e.target.closest('[data-z]')?.dataset.z; if (z === 'close') close(); else if (z === 'in') set(s * 1.4); else if (z === 'out') set(s / 1.4); else if (z === 'fit') set(fit()); };
@@ -50,4 +51,43 @@ const VizView = {
   },
   cur: null
 };
-document.addEventListener('click', e => { const f = e.target.closest('figure.viz'); if (f && !e.target.closest('a,button,.vzv')) VizView.open(f); });
+/* 图示交互：图内挖空（点击翻开）、分步演示（上/下一步）、点开放大查看 */
+function setVizStep(fig, idx) {
+  const frs = $$('.vz-fr', fig), n = frs.length; if (!n) return;
+  const i = Math.max(0, Math.min(n - 1, idx));
+  fig.dataset.vsi = String(i);
+  frs.forEach((f, k) => f.hidden = k !== i);
+  $$('.vz-dot', fig).forEach((d, k) => d.classList.toggle('on', k === i));
+  const sn = $('.vz-sn', fig), st = $('.vz-st', fig), t = frs[i].dataset.ft || '';
+  if (sn) sn.textContent = `${i + 1}/${n}`;
+  if (st) { st.textContent = t; st.hidden = !t; }
+  const prev = $('[data-vs="-1"]', fig), next = $('[data-vs="1"]', fig);
+  if (prev) prev.disabled = i <= 0;
+  if (next) next.disabled = i >= n - 1;
+}
+document.addEventListener('click', e => {
+  const cz = e.target.closest('.vz-cz');
+  if (cz) {
+    if (cz.dataset.czCard) {
+      const post = cz.closest('[data-pk]'), p = post && Feed.posts.get(post.dataset.pk);
+      if (p) { p.rev.add(+cz.dataset.vcz); Motion.haptic(); rerender(p); return; }
+    }
+    cz.classList.toggle('on'); Motion.haptic(); return;
+  }
+  const all = e.target.closest('[data-vcz-all]');
+  if (all) {
+    const fig = all.closest('figure.viz'), list = $$('.vz-cz', fig);
+    const show = list.some(x => !x.classList.contains('on'));
+    list.forEach(x => x.classList.toggle('on', show));
+    all.classList.toggle('on', show); Motion.haptic(); return;
+  }
+  const sb = e.target.closest('[data-vs],[data-vdot]');
+  if (sb) {
+    const fig = sb.closest('figure.viz');
+    const cur = +(fig?.dataset.vsi || 0);
+    const to = sb.dataset.vdot != null ? +sb.dataset.vdot : cur + (+sb.dataset.vs);
+    setVizStep(fig, to); Motion.haptic(); return;
+  }
+  const f = e.target.closest('figure.viz');
+  if (f && !e.target.closest('a,button,.vzv,.vz-cz,.vz-bar')) VizView.open(f);
+});

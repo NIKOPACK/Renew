@@ -17,7 +17,7 @@ function daySheet(k) {
   const body = `<div class="kp4"><div><b>${st.n}</b><span>新学</span></div><div><b>${st.r}</b><span>复习</span></div><div><b>${acc}</b><span>正确率</span></div><div><b>${Math.round((st.sec || 0) / 60)}</b><span>分钟</span></div></div>
     ${ck ? `<div class="daytag">${ico('check')}已打卡</div>` : ''}
     ${secs.length ? `<div class="group icons">${secs.map(x => { const sec = SECS.get(x.sid), c = COURSES.get(sec.course); return `<button class="rowi" data-goto-sec="${x.sid}">${courseMark(c)}<span class="grow"><div class="t">${esc(sec.title)}</div><div class="m">${esc(c.title)}${x.n ? ` · 新学 ${x.n}` : ''}${x.r ? ` · 复习 ${x.r}` : ''}${x.bad ? ` · 答错 ${x.bad}` : ''}</div></span>${ico('chev', 'chev')}</button>`; }).join('')}</div>`
-      : `<div class="empty">${ico('calendar')}<b>这一天没有学习</b></div>`}`;
+      : `<div class="empty">${tileIco('calendar')}<b>这一天没有学习</b></div>`}`;
   const s = sheet(fmtDay(k), body);
   $$('[data-goto-sec]', s.body).forEach(b => b.onclick = () => { s.close(); go('section', { id: b.dataset.gotoSec }); });
 }

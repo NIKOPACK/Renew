@@ -4,8 +4,8 @@ const usesBuiltin = c => Platform.builtinAI && !(c?.key && c.provider !== 'built
 function aiSettingsGroup() {
   const c = AI_CFG, pr = c && AI_PRESETS[c.provider], ic = IMG_CFG, ip = ic && IMG_PRESETS[ic.provider], builtin = usesBuiltin(c);
   return `<div class="gh"><b>AI 服务</b></div><div class="group icons">
-    <button class="rowi" id="s-ai"><span class="tico" style="--c:${AI.ok ? 'var(--accent)' : 'var(--warn)'}">${ico('spark', '', 'duo')}</span><span class="grow"><div class="t">对话模型</div><div class="m">${builtin ? esc(Platform.builtinAI) : c?.key ? esc((pr?.label || c.provider) + ' · ' + (c.model || '未选择模型')) : '未设置'}</div></span>${ico('chev', 'chev')}</button>
-    <button class="rowi" id="s-img"><span class="tico" style="--c:${ImageClient.ok(ic) ? '#ff2d55' : 'var(--ink-3)'}">${ico('image', '', 'duo')}</span><span class="grow"><div class="t">图片模型</div><div class="m">${ImageClient.ok(ic) ? esc((ip?.label || ic.provider) + ' · ' + ic.model) : '未设置'}</div></span>${ico('chev', 'chev')}</button>
+    <button class="rowi" id="s-ai"><span class="tico" style="--c:${AI.ok ? 'var(--accent)' : 'var(--warn)'}">${tileIco('spark')}</span><span class="grow"><div class="t">对话模型</div><div class="m">${builtin ? esc(Platform.builtinAI) : c?.key ? esc((pr?.label || c.provider) + ' · ' + (c.model || '未选择模型')) : '未设置'}</div></span>${ico('chev', 'chev')}</button>
+    <button class="rowi" id="s-img"><span class="tico" style="--c:${ImageClient.ok(ic) ? '#ff2d55' : 'var(--ink-3)'}">${tileIco('image')}</span><span class="grow"><div class="t">图片模型</div><div class="m">${ImageClient.ok(ic) ? esc((ip?.label || ic.provider) + ' · ' + ic.model) : '未设置'}</div></span>${ico('chev', 'chev')}</button>
   </div>`;
 }
 function bindAiSettingsGroup(v) { $('#s-ai', v)?.addEventListener('click', () => aiConfigSheet()); $('#s-img', v)?.addEventListener('click', () => imgConfigSheet()); }
@@ -25,7 +25,7 @@ async function aiConfigSheet() {
   const s = sheet('AI 服务', body), msg = t => $('#ai-msg', body).innerHTML = t;
   const draw = () => {
     $('#ai-test', body).hidden = st.provider === 'builtin';
-    if (st.provider === 'builtin') { $('#ai-f', body).innerHTML = `<div class="card" style="padding:14px 16px;display:flex;gap:12px;align-items:center"><span class="tico" style="--c:var(--accent)">${ico('spark', '', 'duo')}</span><div class="grow"><div class="t" style="font-weight:600">${esc(Platform.builtinAI)}</div><div class="m small" style="margin:2px 0 0">由 claude.ai 提供，不需要 API Key</div></div></div>`; return; }
+    if (st.provider === 'builtin') { $('#ai-f', body).innerHTML = `<div class="card" style="padding:14px 16px;display:flex;gap:12px;align-items:center"><span class="tico" style="--c:var(--accent)">${tileIco('spark')}</span><div class="grow"><div class="t" style="font-weight:600">${esc(Platform.builtinAI)}</div><div class="m small" style="margin:2px 0 0">由 claude.ai 提供，不需要 API Key</div></div></div>`; return; }
     const p = preset(), custom = st.provider === 'custom';
     if (!st.model && p.model) st.model = p.model;
     if (st.vision === undefined) st.vision = p.vision;
@@ -33,7 +33,7 @@ async function aiConfigSheet() {
       <label class="field"><span>API Key${p.site ? `<small style="font-weight:400;color:var(--ink-2)"> · 在 ${p.site} 获取</small>` : ''}</span><input class="inp" id="ai-key" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${p.kind === 'anthropic' ? 'sk-ant-…' : 'sk-…'}" value="${esc(st.key)}"></label>
       ${custom || st.provider === 'openai' || st.base ? `<label class="field"><span>接口地址</span><input class="inp" id="ai-base" inputmode="url" autocapitalize="off" spellcheck="false" placeholder="https://…/v1" value="${esc(st.base || p.base)}"></label>` : ''}
       <label class="field"><span>模型</span><div class="row"><input class="inp grow" id="ai-model" list="ai-ml" autocapitalize="off" spellcheck="false" placeholder="模型名称" value="${esc(st.model)}"><button class="btn sm soft" id="ai-list">获取列表</button></div><datalist id="ai-ml">${st.models.map(m => `<option value="${esc(m)}">`).join('')}</datalist></label>
-      <div class="rowi" style="padding:0"><span class="tico" style="--c:#2f9e63">${ico('camera', '', 'duo')}</span><span class="grow"><div class="t">识别图片</div></span><button class="toggle" role="switch" id="ai-vis" aria-checked="${!!st.vision}" aria-label="模型能识别图片"></button></div>`;
+      <div class="rowi" style="padding:0"><span class="tico" style="--c:#0aa650">${tileIco('camera')}</span><span class="grow"><div class="t">识别图片</div></span><button class="toggle" role="switch" id="ai-vis" aria-checked="${!!st.vision}" aria-label="模型能识别图片"></button></div>`;
     $('#ai-key', body).oninput = e => st.key = e.target.value.trim();
     $('#ai-base', body)?.addEventListener('input', e => st.base = e.target.value.trim());
     $('#ai-model', body).oninput = e => st.model = e.target.value.trim();

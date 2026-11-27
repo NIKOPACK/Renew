@@ -4,14 +4,15 @@ function tex(src, display) {
   return `<code class="tex">${esc(src)}</code>`;
 }
 const CALLOUT = { analogy: ['打个比方', 'spark'], key: ['重点', 'star'], example: ['例题', 'pen'], warn: ['易错', 'alert'], exam: ['怎么考', 'target'], tip: ['记忆', 'bulb'], why: ['为什么', 'chat'], note: ['补充', 'list'] };
-function callout(ty, ttl, body) { const k = CALLOUT[ty] ? ty : 'note', [l, ic] = CALLOUT[k]; return `<div class="co co-${k}"><div class="coh">${ico(ic)}<span>${esc(ttl.trim() || l)}</span></div><div class="cob md">${md(body.trim())}</div></div>`; }
+function callout(ty, ttl, body) { const k = CALLOUT[ty] ? ty : 'note', [l, ic] = CALLOUT[k]; return `<div class="co co-${k}"><div class="coh">${tileIco(ic)}<span>${esc(ttl.trim() || l)}</span></div><div class="cob md">${md(body.trim())}</div></div>`; }
 function md(src, opt = {}) {
   const slots = [], put = html => `\u0000${slots.push(html) - 1}\u0000`;
   let s = String(src ?? '').replace(/\r/g, '');
   { const fences = s.match(/^[ \t>]*```/gm) || []; if (fences.length % 2) { const i = s.lastIndexOf('```'), lang = (s.slice(i + 3).match(/^(\w+)/) || [])[1]; if (lang && Viz.has(lang)) s = s.slice(0, i) + '\n' + put('<div class="viz-wait"><span class="spin"></span>正在画图…</div>') + '\n'; } }
-  s = s.replace(/^>[ \t]*\[!(\w+)\][ \t]*(.*)\n?((?:^>.*(?:\n|$))*)/gm, (_, ty, ttl, body) => '\n' + put(callout(ty, ttl, body.replace(/^>[ \t]?/gm, ''))) + '\n');
-  s = s.replace(/```([^\n]*)\n([\s\S]*?)```/g, (_, lang, code) => '\n' + put(Viz.has(lang.trim()) ? Viz.render(lang.trim(), code) : `<pre class="${lang.trim() === 'diagram' ? 'fig' : ''}"><code>${esc(code.replace(/\n$/, ''))}</code></pre>`) + '\n');
   let cz = 0;
+  const nextCz = () => cz++;
+  s = s.replace(/^>[ \t]*\[!(\w+)\][ \t]*(.*)\n?((?:^>.*(?:\n|$))*)/gm, (_, ty, ttl, body) => '\n' + put(callout(ty, ttl, body.replace(/^>[ \t]?/gm, ''))) + '\n');
+  s = s.replace(/```([^\n]*)\n([\s\S]*?)```/g, (_, lang, code) => '\n' + put(Viz.has(lang.trim()) ? Viz.render(lang.trim(), code, opt.cloze ? { ...opt, nextCz } : opt) : `<pre class="${lang.trim() === 'diagram' ? 'fig' : ''}"><code>${esc(code.replace(/\n$/, ''))}</code></pre>`) + '\n');
   s = s.replace(/\{\{([\s\S]+?)\}\}/g, (_, a) => opt.cloze ? put(`<span class="cz${opt.revealAll || opt.revealed?.has(cz) ? ' on' : ''}" data-act="cz" data-i="${cz++}"><span class="cza">${md(a, { inline: true })}</span></span>`) : put(`<mark>${md(a, { inline: true })}</mark>`));
   s = s.replace(/`([^`\n]+)`/g, (_, c) => put(`<code>${esc(c)}</code>`));
   s = s.replace(/\$\$([\s\S]+?)\$\$/g, (_, t) => '\n' + put(`<div class="mblock">${tex(t.trim(), true)}</div>`) + '\n');

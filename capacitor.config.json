@@ -2,7 +2,7 @@
   "appId": "io.github.nikopack.renew",
   "appName": "温新",
   "webDir": "www",
-  "backgroundColor": "#f2f2f7",
+  "backgroundColor": "#f5f4f0",
   "ios": {
     "contentInset": "never",
     "scrollEnabled": true
@@ -13,11 +13,11 @@
   "plugins": {
     "SplashScreen": {
       "launchAutoHide": false,
-      "backgroundColor": "#f2f2f7",
+      "backgroundColor": "#f5f4f0",
       "showSpinner": false
     },
     "LocalNotifications": {
-      "iconColor": "#3461f0",
+      "iconColor": "#1d5bd6",
       "smallIcon": "ic_stat_renew"
     }
   }

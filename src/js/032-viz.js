@@ -6,16 +6,27 @@
    ```cells  数组、链表、栈、指令格式、指针标注
    语法见 docs/content-format.md。解析出错时退回显示源文本。 */
 const Viz = (() => {
-  let uid = 0;
+  let uid = 0, czCtx = null;
   const FS = 13;
+  const stripCz = s => String(s).replace(/\{\{([\s\S]+?)\}\}/g, '$1');
   const cjk = c => /[⺀-鿿豈-﫿＀-￯　-〿]/.test(c);
-  const tw = (s, fs = FS) => [...String(s)].reduce((w, c) => w + (cjk(c) ? fs : /[A-Z0-9mwMW@%]/.test(c) ? fs * .64 : fs * .55), 0);
+  const tw = (s, fs = FS) => [...stripCz(s)].reduce((w, c) => w + (cjk(c) ? fs : /[A-Z0-9mwMW@%]/.test(c) ? fs * .64 : fs * .55), 0);
   const X = s => esc(s);
   const r1 = n => Math.round(n * 10) / 10;
-  const COLORS = ['var(--accent)', 'var(--bad)', 'var(--good)', 'var(--warn)', '#8a4fd0', '#1f7fbf'];
+  const COLORS = ['var(--accent)', 'var(--bad)', 'var(--good)', 'var(--warn)', '#7654bd', '#20759c'];
   const svg = (w, h, body, cls) => `<svg class="vz ${cls}" viewBox="-8 -6 ${r1(w + 16)} ${r1(h + 12)}" width="${r1(w + 16)}" height="${r1(h + 12)}" style="max-width:100%;height:auto" role="img" xmlns="http://www.w3.org/2000/svg" font-size="${FS}">${body}</svg>`;
   const arrowDef = id => `<defs><marker id="${id}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 1L10 5L0 9z" fill="var(--ink-2)"/></marker></defs>`;
-  const label = (x, y, s, o = {}) => `<text x="${r1(x)}" y="${r1(y)}" text-anchor="${o.a || 'middle'}" dominant-baseline="${o.b || 'central'}"${o.cls ? ` class="${o.cls}"` : ''}${o.fs ? ` font-size="${o.fs}"` : ''}${o.fill ? ` fill="${o.fill}"` : ''}>${X(s)}</text>`;
+  const label = (x, y, s, o = {}) => {
+    const raw = String(s);
+    if (czCtx && /\{\{([\s\S]+?)\}\}/.test(raw)) {
+      const clean = stripCz(raw), i = czCtx.next(); czCtx.count++;
+      const on = czCtx.revealAll || !!czCtx.revealed?.has(i);
+      const fs = o.fs || FS, w = Math.max(26, tw(clean, fs) + 12), hh = fs + 8, a = o.a || 'middle';
+      const rx = a === 'start' ? x - 4 : a === 'end' ? x - w + 4 : x - w / 2, ry = y - hh / 2;
+      return `<g class="vz-cz${on ? ' on' : ''}" data-vcz="${i}"${czCtx.card ? ' data-cz-card="1"' : ''} role="button" tabindex="0" aria-label="点击查看答案"><rect class="vz-cz-m" x="${r1(rx)}" y="${r1(ry)}" width="${r1(w)}" height="${r1(hh)}" rx="5"/><text class="vz-cz-q" x="${r1(rx + w / 2)}" y="${r1(y)}" text-anchor="middle" dominant-baseline="central" font-size="${r1(Math.max(10, fs - 1))}">?</text><text class="vz-cz-t" x="${r1(x)}" y="${r1(y)}" text-anchor="${a}" dominant-baseline="${o.b || 'central'}"${o.fs ? ` font-size="${o.fs}"` : ''}>${X(clean)}</text></g>`;
+    }
+    return `<text x="${r1(x)}" y="${r1(y)}" text-anchor="${o.a || 'middle'}" dominant-baseline="${o.b || 'central'}"${o.cls ? ` class="${o.cls}"` : ''}${o.fs ? ` font-size="${o.fs}"` : ''}${o.fill ? ` fill="${o.fill}"` : ''}>${X(raw)}</text>`;
+  };
 
   /* ---------- 安全的表达式解析（不使用 eval） ---------- */
   const FN = { sin: Math.sin, cos: Math.cos, tan: Math.tan, asin: Math.asin, acos: Math.acos, atan: Math.atan, exp: Math.exp, ln: Math.log, log: Math.log10, lg: Math.log10, log2: Math.log2, log10: Math.log10, sqrt: Math.sqrt, abs: Math.abs, floor: Math.floor, ceil: Math.ceil, round: Math.round, min: Math.min, max: Math.max, pow: Math.pow, sign: Math.sign };
@@ -89,7 +100,7 @@ const Viz = (() => {
     if (yt) g += ytk.map(v => label(L - 6, Yp(v), fmtN(v), { a: 'end', cls: 'vz-tk' })).join('');
     if (xl) g += label(W - R, H - 6, xl, { a: 'end', cls: 'vz-lb' });
     if (yl) g += label(L - 2, 10, yl, { a: 'start', cls: 'vz-lb' });
-    let vi = 0; refs.forEach(r => { const vy = T + 8 + (r.k === 'v' ? (vi++ % 2) * 15 : 0); g += r.k === 'h' ? `<line x1="${L}" x2="${W - R}" y1="${r1(Yp(r.v))}" y2="${r1(Yp(r.v))}" class="vz-ref"/>${r.name ? label(W - R - 2, Yp(r.v) - 8, r.name, { a: 'end', cls: 'vz-tk' }) : ''}` : `<line y1="${T}" y2="${T + ph}" x1="${r1(Xp(r.v))}" x2="${r1(Xp(r.v))}" class="vz-ref"/>${r.name ? label(Xp(r.v) + 4, vy, r.name, { a: 'start', cls: 'vz-tk', fs: 11 }) : ''}`; });
+    refs.forEach(r => { g += r.k === 'h' ? `<line x1="${L}" x2="${W - R}" y1="${r1(Yp(r.v))}" y2="${r1(Yp(r.v))}" class="vz-ref"/>` : `<line y1="${T}" y2="${T + ph}" x1="${r1(Xp(r.v))}" x2="${r1(Xp(r.v))}" class="vz-ref"/>`; });
     let leg = '', ly = T + 4, ci = -1, lw = 0;
     series.forEach(s => {
       if (!s.cont) ci++; const c = COLORS[ci % COLORS.length]; let d = '', pen = false;
@@ -99,9 +110,34 @@ const Viz = (() => {
       if (s.kind === 'p') g += s.pts.map(([x, y]) => `<circle cx="${r1(Xp(x))}" cy="${r1(Yp(y))}" r="3" fill="${c}"/>`).join('');
       if (s.name) { lw = Math.max(lw, tw(s.name, 12) + 30); leg += `<line x1="${W - R - 8 - tw(s.name, 12) - 20}" x2="${W - R - 8 - tw(s.name, 12) - 6}" y1="${ly}" y2="${ly}" stroke="${c}" stroke-width="2.6" stroke-linecap="round"/>${label(W - R - 6, ly, s.name, { a: 'end', fs: 12 })}`; ly += 17; }
     });
+    const dense = s => { const q = (s.kind === 's' ? s.pts.flatMap((p, j) => j ? [[p[0], s.pts[j - 1][1]], p] : [p]) : s.pts).filter(p => isFinite(p[1])).map(p => [Xp(p[0]), Yp(p[1])]); return q.flatMap((p, j) => j ? Array.from({ length: 8 }, (_, k) => [q[j - 1][0] + (p[0] - q[j - 1][0]) * (k + 1) / 8, q[j - 1][1] + (p[1] - q[j - 1][1]) * (k + 1) / 8]) : [p]); };
+    const curvePts = series.flatMap(dense), refBoxes = [], refPts = [];
+    let refLabels = '';
+    refs.forEach(r => {
+      if (!r.name) return;
+      if (r.k === 'h') {
+        const ry = Yp(r.v), yy = ry - 8 < T + 8 ? ry + 10 : ry - 8, w = tw(r.name, 11);
+        refLabels += label(W - R - 2, yy, r.name, { a: 'end', cls: 'vz-rlb', fs: 11 });
+        refBoxes.push([W - R - 2 - w, yy - 7, W - R - 2, yy + 7]);
+        refPts.push([W - R - 2 - w / 2, yy]);
+      } else {
+        const vx = Xp(r.v), w = tw(r.name, 11), right = vx + 4 + w <= W - R - 2;
+        const lx = right ? vx + 4 : vx - 4, al = right ? 'start' : 'end', bx0 = right ? lx : lx - w, bx1 = bx0 + w;
+        const score = y => {
+          const hits = curvePts.filter(([px, py]) => px >= bx0 - 4 && px <= bx1 + 4 && py >= y - 9 && py <= y + 9).length;
+          const overlap = refBoxes.some(([ax0, ay0, ax1, ay1]) => bx0 - 4 <= ax1 && bx1 + 4 >= ax0 && y - 9 <= ay1 && y + 9 >= ay0) ? 100 : 0;
+          return hits + overlap;
+        };
+        const vy = [T + 12, T + 28, T + ph - 16].reduce((best, y) => score(y) < score(best) ? y : best);
+        refLabels += label(lx, vy, r.name, { a: al, cls: 'vz-rlb', fs: 11 });
+        refBoxes.push([bx0, vy - 7, bx1, vy + 7]);
+        refPts.push([bx0, vy], [bx0 + w / 2, vy], [bx1, vy]);
+      }
+    });
     notes.forEach(n => g += label(Xp(n.x), Yp(n.y), n.s, { cls: 'vz-note', fs: 12 }));
+    g += refLabels;
     if (leg) { // 图例放到曲线和标注最少的角落
-      const bh = ly - T + 2, dense = s => { const q = (s.kind === 's' ? s.pts.flatMap((p, j) => j ? [[p[0], s.pts[j - 1][1]], p] : [p]) : s.pts).filter(p => isFinite(p[1])).map(p => [Xp(p[0]), Yp(p[1])]); return q.flatMap((p, j) => j ? Array.from({ length: 8 }, (_, k) => [q[j - 1][0] + (p[0] - q[j - 1][0]) * (k + 1) / 8, q[j - 1][1] + (p[1] - q[j - 1][1]) * (k + 1) / 8]) : [p]); }, pts = series.flatMap(dense).concat(refs.filter(r => r.k === 'v').map(r => [Xp(r.v) + 20, T + 10]), notes.flatMap(n => [[Xp(n.x) - 8, Yp(n.y)], [Xp(n.x) + 8, Yp(n.y)]]));
+      const bh = ly - T + 2, pts = curvePts.concat(refPts, notes.flatMap(n => [[Xp(n.x) - 8, Yp(n.y)], [Xp(n.x) + 8, Yp(n.y)]]));
       const spots = [T - 6, T + ph * .3, T + ph * .55, T + ph - bh - 12].flatMap(y => [[W - R - lw - 6, y], [L + 8, y]]);
       const cnt = ([x, y]) => pts.filter(([px, py]) => px >= x - 4 && px <= x + lw + 10 && py >= y - 4 && py <= y + bh + 4).length;
       const [bx, by] = spots.reduce((b, s) => cnt(s) < cnt(b) ? s : b), dx = bx - (W - R - lw - 6), dy = by - (T - 6);
@@ -381,7 +417,7 @@ const Viz = (() => {
       l = l.replace(/(<?)(--|==|-\.)\s*([^-=>.|][^>|]*?)\s*(-->|==>|\.->)/, (_, lt, a, t) => { lab = unq(t.trim()); return lt ? ' <-> ' : a === '-.' ? ' -.-> ' : ' -> '; });
       l = l.replace(/(<?-{2,3}>|<?={2,3}>|-\.+->|-{3,}|<-->)\s*\|([^|]*)\|/g, (_, a, t) => { lab = unq(t.trim()); return a; });
       l = l.replace(/<-{2,3}>|<={2,3}>/g, '<->').replace(/-\.+->/g, '-.->').replace(/={2,3}>/g, '->').replace(/-{2,3}>/g, '->').replace(/-{3,}/g, '--');
-      l = l.replace(/\(\[([^\]]*)\]\)/g, '($1)').replace(/\[\[([^\]]*)\]\]/g, '[$1]').replace(/\[\(([^)]*)\)\]/g, '[$1]').replace(/\{\{([^}]*)\}\}/g, '{$1}').replace(/(\w)>([^\]>]*)\]/g, '$1[$2]').replace(/\[\/([^\]]*)\/\]/g, '[$1]').replace(/\[\\([^\]]*)\\\]/g, '[$1]');
+      l = l.replace(/\(\[([^\]]*)\]\)/g, '($1)').replace(/\[\[([^\]]*)\]\]/g, '[$1]').replace(/\[\(([^)]*)\)\]/g, '[$1]').replace(/(\w)\{\{([^}]*)\}\}/g, '$1{$2}').replace(/(\w)>([^\]>]*)\]/g, '$1[$2]').replace(/\[\/([^\]]*)\/\]/g, '[$1]').replace(/\[\\([^\]]*)\\\]/g, '[$1]');
       l = l.replace(/([\[\(\{])\s*"([^"]*)"\s*([\]\)\}])/g, '$1$2$3').replace(/&\s*/g, '');
       out.push(lab ? `${l} : ${lab}` : l);
     }
@@ -389,16 +425,44 @@ const Viz = (() => {
   }
   const looksMermaid = (lang, src) => lang === 'mermaid' || (lang === 'graph' && /^\s*(graph|flowchart)\s*(TD|TB|LR|RL|BT)?\s*;?\s*$/im.test(src.split('\n').find(l => l.trim()) || '')) || (lang === 'graph' && /-->|==>/.test(src)) || (lang === 'seq' && /->>|^\s*sequenceDiagram/m.test(src));
 
+  /* ---------- 分步演进：用 === 标题 分隔多个画面 ---------- */
+  function splitSteps(code) {
+    const lines = String(code).replace(/\r/g, '').split('\n');
+    if (!lines.some(l => /^===\s*/.test(l.trim()))) return null;
+    const frames = []; let cur = null;
+    for (const l of lines) {
+      const m = l.trim().match(/^===\s*(.*)$/);
+      if (m) { cur = { title: m[1].trim(), lines: [] }; frames.push(cur); }
+      else if (cur) cur.lines.push(l);
+      else if (l.trim()) { cur = { title: '', lines: [l] }; frames.push(cur); }
+    }
+    const out = frames.map(f => ({ title: f.title, code: f.lines.join('\n').trim() })).filter(f => f.code);
+    return out.length >= 2 ? out : null;
+  }
+
   const KINDS = { plot, graph, tree, cells, seq };
+  const renderOne = (lang, code) => {
+    if (looksMermaid(lang, code)) ({ lang, code } = fromMermaid(code));
+    if (!(lang in KINDS)) throw new Error('暂不支持这种图');
+    return KINDS[lang](code);
+  };
   return {
     has: lang => lang in KINDS || lang === 'mermaid',
-    render(lang, code) {
+    render(lang, code, opt = {}) {
+      czCtx = { card: !!opt.cloze, next: opt.nextCz || (() => czCtx.n++), n: 0, count: 0, revealAll: !!opt.revealAll, revealed: opt.revealed || null };
       try {
-        if (looksMermaid(lang, code)) ({ lang, code } = fromMermaid(code));
-        if (!(lang in KINDS)) throw new Error('暂不支持这种图');
-        return `<figure class="viz" title="点开放大查看">${KINDS[lang](code)}<span class="vz-zoom" aria-hidden="true">${ico('grow')}</span></figure>`;
+        const steps = splitSteps(code);
+        const eyeBtn = () => czCtx.count && !czCtx.card ? `<button class="vz-eye" data-vcz-all aria-label="显示或隐藏全部填空">${ico('eye')}</button>` : '';
+        if (steps) {
+          const frs = steps.map((st, i) => `<div class="vz-fr" data-ft="${esc(st.title)}"${i ? ' hidden' : ''}>${renderOne(lang, st.code)}</div>`).join('');
+          const dots = steps.map((_, i) => `<button class="vz-dot${i ? '' : ' on'}" data-vdot="${i}" aria-label="第 ${i + 1} 步"></button>`).join('');
+          return `<figure class="viz viz-steps" data-vsi="0" title="点开放大查看"><div class="vz-frames">${frs}</div><div class="vz-bar"><button class="vz-sb" data-vs="-1" aria-label="上一步" disabled>${ico('back')}</button><div class="vz-sc"><span class="vz-sd">${dots}</span><span class="vz-sn num">1/${steps.length}</span>${steps[0].title ? `<span class="vz-st">${esc(steps[0].title)}</span>` : '<span class="vz-st" hidden></span>'}</div><button class="vz-sb" data-vs="1" aria-label="下一步">${ico('chev')}</button></div>${eyeBtn()}<span class="vz-zoom" aria-hidden="true">${ico('grow')}</span></figure>`;
+        }
+        const out = renderOne(lang, code);
+        return `<figure class="viz" title="点开放大查看">${out}${eyeBtn()}<span class="vz-zoom" aria-hidden="true">${ico('grow')}</span></figure>`;
       }
       catch (e) { return `<pre class="fig"><code>${esc(code)}</code></pre><p class="small" style="color:var(--bad)">图示无法绘制：${esc(e.message || e)}</p>`; }
+      finally { czCtx = null; }
     },
     compile
   };

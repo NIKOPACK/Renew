@@ -115,10 +115,10 @@ function viewMyNotes({ course, sec }) {
   Notes.all().filter(x => Notes.empty(x) && Date.now() - x.created > 3000).forEach(x => Notes.del(x)); // 清理新建后没写内容的笔记
   const list = Notes.of(c.id, s?.id), cards = cardNotes(c, s);
   v.innerHTML = appbar('', `<button class="ibtn" id="mn-more" aria-label="更多">${ico('more')}</button>`) + `<div class="wrap"><div class="stack" style="padding-top:6px">
-  <header style="padding:4px 2px"><span class="eyebrow" style="color:${c.color}">${esc(c.title)}${s ? ' · ' + esc(CHAPS.get(s.chap).title) : ''}</span><h1 style="margin:6px 0 4px;font-size:26px;font-weight:800">${esc(s ? s.title : '课程笔记')}</h1></header>
+  <header style="padding:4px 2px"><span class="eyebrow" style="color:${c.color}">${esc(c.title)}${s ? ' · ' + esc(CHAPS.get(s.chap).title) : ''}</span><h1 class="phead">${esc(s ? s.title : '课程笔记')}</h1></header>
   ${noteTabs(c, s, 'mine')}
   <div class="mn-cta"><button class="btn pri" id="mn-new">${ico('edit')}写笔记</button><button class="btn soft" id="mn-ai">${ico('spark')}AI 帮我写</button></div>
-  ${list.length ? `<div class="nlist">${list.map(noteCard).join('')}</div>` : cards.length ? '' : `<div class="empty">${ico('notebook')}<b>还没有笔记</b></div>`}
+  ${list.length ? `<div class="nlist">${list.map(noteCard).join('')}</div>` : cards.length ? '' : `<div class="empty">${tileIco('notebook')}<b>还没有笔记</b></div>`}
   ${cards.length ? `<div class="gh"><b>卡片笔记</b><span>${cards.length}</span></div><div class="group">${cards.map(it => `<button class="rowi" data-cnote="${it.id}"><span class="grow"><div class="t">${esc(plain(it.title || it.q).slice(0, 40))}</div><div class="m">${esc(plain(S().notes[it.id]).slice(0, 60))}</div></span>${ico('chev', 'chev')}</button>`).join('')}</div>` : ''}
   </div></div>`;
   $('[data-back]', v).onclick = back; bindNoteTabs(v);
@@ -280,15 +280,15 @@ function viewNotebook() {
   if (nbCourse && !withN.some(c => c.id === nbCourse)) nbCourse = '';
   const list = all.filter(n => !nbCourse || n.course === nbCourse), cards = (nbCourse ? [COURSES.get(nbCourse)] : withN).flatMap(c => cardNotes(c));
   const bmN = cs.reduce((s, c) => s + bookmarks(c.id).filter(b => ITEMS.has(b.it)).length, 0), starN = starItems().length;
-  v.innerHTML = `<div class="wrap"><header class="lt"><div class="t"><h1>笔记</h1></div><button class="round acc" id="nb-new" aria-label="写笔记">${ico('edit', '', 'duo')}</button></header>
+  v.innerHTML = `<div class="wrap"><header class="lt"><div class="t"><h1>笔记</h1></div><button class="round acc" id="nb-new" aria-label="写笔记">${ico('edit')}</button></header>
   <div class="stack">
-  <div class="nb3"><button id="nb-ai"><span class="ib" style="--c:var(--accent)">${ico('spark', '', 'duo')}</span><b>AI 帮我写</b></button>
-    <button id="nb-star"><span class="ib" style="--c:#df8a0b">${ico('star', '', 'duo')}</span><b>收藏</b><span class="n">${starN}</span></button>
-    <button id="nb-bm"><span class="ib" style="--c:#2f9e63">${ico('bookmarks', '', 'duo')}</span><b>书签</b><span class="n">${bmN}</span></button></div>
+  <div class="nb3"><button id="nb-ai"><span class="ib" style="--c:var(--accent)">${tileIco('spark')}</span><b>AI 帮我写</b><span class="nb-go">${ico('chev', 'chev')}</span></button>
+    <button id="nb-star"><span class="ib" style="--c:var(--warn)">${tileIco('star')}</span><b>收藏</b><span class="n num">${starN}</span></button>
+    <button id="nb-bm"><span class="ib" style="--c:var(--good)">${tileIco('bookmarks')}</span><b>书签</b><span class="n num">${bmN}</span></button></div>
   ${withN.length > 1 ? `<div class="chips">${[['', '全部'], ...withN.map(c => [c.id, c.title])].map(([id, l]) => `<button class="chip" data-nbc="${id}" aria-pressed="${nbCourse === id}">${esc(l)}</button>`).join('')}</div>` : ''}
   ${list.length ? `<div class="nlist">${list.map(n => noteCard(n, !nbCourse)).join('')}</div>` : ''}
   ${cards.length ? `<div class="gh"><b>卡片笔记</b><span>${cards.length}</span></div><div class="group">${cards.map(it => `<button class="rowi" data-cnote="${it.id}"><span class="grow"><div class="t">${esc(plain(it.title || it.q).slice(0, 40))}</div><div class="m">${esc(COURSES.get(it.course).title)} · ${esc(plain(S().notes[it.id]).slice(0, 50))}</div></span>${ico('chev', 'chev')}</button>`).join('')}</div>` : ''}
-  ${!list.length && !cards.length ? `<div class="empty">${ico('notebook')}<b>还没有笔记</b></div>` : ''}
+  ${!list.length && !cards.length ? `<div class="empty">${tileIco('notebook')}<b>还没有笔记</b></div>` : ''}
   </div></div>`;
   $('#nb-new').onclick = () => nbCourse ? newNote({ course: nbCourse }) : pickCourse('选择科目', c => newNote({ course: c.id }));
   $('#nb-ai').onclick = reflectToday;
