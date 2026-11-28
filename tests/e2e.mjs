@@ -773,7 +773,7 @@ await run('首页内容：推荐范围、自定义卡片、AI 添加与 AI 每�
   check(!st.H.learn && st.H.wrong === 3 && st.H.cards.some(c => c.type === 'ai' && c.by === 'ai' && c.ai?.day === st.today), 'AI 添加的范围生效，AI 每日卡片已生成今天的内容');
   check(!st.xss && st.H.cards.some(c => c.body.includes('坚持')), 'AI 给的卡片内容经过转义，没有注入');
   // 5) AI 助手：update_home 工具确认后添加卡片
-  await page.evaluate(() => aiSend('加一个考研倒计时')); await page.waitForSelector('[data-allow]', { timeout: 10000 });
+  await page.evaluate(() => { aiSend('加一个考研倒计时'); }); // 不等待：工具在等用户确认 await page.waitForSelector('[data-allow]', { timeout: 10000 });
   await page.click('[data-allow]'); await page.waitForFunction(() => !Chat.busy, null, { timeout: 10000 });
   check(await page.evaluate(() => homeCfg().cards.some(c => c.type === 'count' && c.date === '2026-12-26')), 'AI 助手可以定制首页（修改前征得同意）');
   // 6) 备份里的异常配置被校正
