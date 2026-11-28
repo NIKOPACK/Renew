@@ -74,6 +74,7 @@ npm run ios          # 构建并用 Xcode 打开（需要 macOS）
 - [架构说明](docs/architecture.md)：源码结构、平台适配层、数据存储、界面原则
 - [课程格式](docs/content-format.md)：卡片文本格式、作图写法与课程包格式
 - [AI 服务](docs/ai-providers.md)：对话模型与图片模型、AI 作图、接口协议与隐私
+- [AI 学情分析与提分](docs/ai-learning-analysis.md)：录题、作答记录、学情模型与诊断报告的调研与方案
 - [发布](docs/release.md)：版本号、签名与自动发布
 
 ## 参与贡献
