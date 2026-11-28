@@ -52,6 +52,9 @@ function navCapture(type) {
   g.className = 'navghost'; g.setAttribute('aria-hidden', 'true'); inner.className = 'navghost-in';
   while (v.firstChild) inner.append(v.firstChild);
   inner.querySelectorAll('[id]').forEach(e => e.removeAttribute('id'));
+  /* 快照层只做动画：旧页面的节点仍带着事件处理，必须让它失去焦点且不可交互，否则键盘输入会落到已离开的页面上 */
+  if (inner.contains(document.activeElement)) document.activeElement.blur();
+  g.inert = true;
   g.append(inner); document.body.append(g); g.scrollTop = sy;
   Motion.ghost = g; return g;
 }
