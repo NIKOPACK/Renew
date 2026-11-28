@@ -74,3 +74,44 @@ function itemEditSheet({ it = null, sid = '', type = 'kp', p = null } = {}) {
   const s = sheet(it ? '编辑' + TYPE_LABEL[it.t] : '新建', body);
   if (!it) setTimeout(() => $('#ie-q', body)?.focus(), 300);
 }
+
+/* ============ 调整顺序：小节里的知识点和题目、课程「卡片」分支里的卡片 ============ */
+/* 小节的顺序存在 sec/<小节id> 文档的 order 里（内置课程也可以调，不改原文件）；没列出的内容（如之后新加的）排在后面 */
+function applySecOrder(sec) {
+  const o = Store.get('sec/' + sec.id)?.order; if (!Array.isArray(o) || !o.length) return;
+  const idx = new Map(o.map((id, i) => [String(id), i])), at = it => idx.has(it.id) ? idx.get(it.id) : 1e9;
+  sec.items.sort((a, b) => at(a) - at(b));
+}
+/* 通用的排序弹层：groups = [{ title, list: [{ id, label, sub }] }]，保存时回调每组新的 id 顺序 */
+function orderSheet(title, groups, save) {
+  const G = groups.filter(g => g.list.length).map(g => ({ ...g, list: [...g.list] }));
+  if (!G.some(g => g.list.length > 1)) return toast('内容少于两项，不用排序');
+  const body = h(`<div style="display:flex;flex-direction:column;gap:14px"></div>`);
+  const draw = () => {
+    body.innerHTML = G.map((g, gi) => `${g.title ? `<div class="gh"><b>${esc(g.title)}</b><span>${g.list.length}</span></div>` : ''}<div class="group">${g.list.map((x, i) => `<div class="rowi ordrow"><span class="ordn num">${i + 1}</span><span class="grow"><div class="t">${esc(x.label)}</div>${x.sub ? `<div class="m">${esc(x.sub)}</div>` : ''}</span><button class="ibtn" data-mv="${gi}:${i}:-1" ${i ? '' : 'disabled'} aria-label="上移">${ico('down', 'up')}</button><button class="ibtn" data-mv="${gi}:${i}:1" ${i < g.list.length - 1 ? '' : 'disabled'} aria-label="下移">${ico('down')}</button></div>`).join('')}</div>`).join('') +
+      `<button class="btn pri block" data-osave>${ico('check')}保存顺序</button>`;
+  };
+  body.onclick = e => {
+    const b = e.target.closest('button'); if (!b || b.disabled) return;
+    if (b.dataset.mv) { const [gi, i, d] = b.dataset.mv.split(':').map(Number), l = G[gi].list; [l[i], l[i + d]] = [l[i + d], l[i]]; Motion.haptic?.(); draw(); const nb = $(`[data-mv="${gi}:${i + d}:${d}"]`, body); (nb && !nb.disabled ? nb : $(`[data-mv="${gi}:${i + d}:${-d}"]`, body))?.focus(); }
+    else if (b.hasAttribute('data-osave')) { save(G.map(g => g.list.map(x => x.id))); s.close(); toast('顺序已保存'); }
+  };
+  draw(); const s = sheet(title, body);
+}
+const itemLabel = it => plain(it.title || it.q).slice(0, 40) || TYPE_LABEL[it.t];
+function secOrderSheet(sid) {
+  const sec = SECS.get(sid); if (!sec) return;
+  const kps = learnItems(sec), qs = practiceItems(sec); // 按学习步骤分组：学习（知识点和随堂题）、练习
+  orderSheet('调整顺序', [{ title: '学习', list: kps.map(it => ({ id: it.id, label: itemLabel(it), sub: it.t === 'kp' ? '' : TYPE_LABEL[it.t] })) }, { title: '练习', list: qs.map(it => ({ id: it.id, label: itemLabel(it), sub: TYPE_LABEL[it.t] })) }], groups => {
+    const shown = kps.length && qs.length ? groups.flat() : groups[0] || [], hidden = sec.items.filter(it => !visible(it)).map(it => it.id);
+    const path = 'sec/' + sid, doc = Store.get(path) || { items: [] }; doc.order = [...shown, ...hidden]; Store.put(path, doc);
+    applySecOrder(sec); refresh();
+  });
+}
+function cardOrderSheet(cid, after) {
+  const cs = courseCards(cid);
+  orderSheet('调整卡片顺序', [{ list: cs.map(c => ({ id: c.id, label: c.title || plain(c.body || c.prompt).slice(0, 30) || HC_TYPES[c.type][1], sub: HC_TYPES[c.type][1] })) }], ([ids]) => {
+    const H = homeCfg(), mine = ids.map(id => H.cards.find(c => c.id === id)).filter(Boolean); let k = 0;
+    H.cards = H.cards.map(c => c.course === cid ? mine[k++] || c : c); saveState(); after?.();
+  });
+}

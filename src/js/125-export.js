@@ -2,9 +2,11 @@
 const stripItem = it => { const o = {}; for (const k of ['id', 't', 'title', 'imp', 'q', 'd', 'o', 'a', 'x', 'st', 'pr']) if (it[k] !== undefined) o[k] = it[k]; return o; };
 function coursePack(c, withProg) {
   const pack = { format: 'renew-course', v: 1, exportedAt: new Date().toISOString(), course: { id: c.id, title: c.title, cat: c.cat, color: c.color, desc: c.desc, chapters: c.chapters.map(ch => ({ id: ch.id, title: ch.title, sections: ch.sections.map(s => ({ id: s.id, title: s.title, points: s.points || [], items: secItems(s).map(stripItem) })) })) } };
+  const cards = courseCards(c.id).map(stripCard); if (cards.length) pack.course.cards = cards;
   if (withProg) { pack.progress = {}; for (const s of courseSecs(c)) for (const it of secItems(s)) { const st = getSt(it); if (st) pack.progress[it.id] = st; } }
   return pack;
 }
+const stripCard = c => { const o = {}; for (const k of ['type', 'title', 'body', 'date', 'prompt', 'pos', 'on']) if (c[k] !== undefined && c[k] !== '') o[k] = c[k]; return o; }; // 不带 AI 每日卡片当天生成的内容
 const texForAnki = s => String(s || '').replace(/\$\$([\s\S]+?)\$\$/g, '\\[$1\\]').replace(/\$([^$\n]+?)\$/g, '\\($1\\)');
 function itemMD(it, n) {
   const L = [];

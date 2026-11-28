@@ -28,8 +28,21 @@ function importPack(pack, name) {
   Store.put('course/' + cid, course); addCourse(course, false);
   for (const ch of course.chapters) for (const s of ch.sections) for (const it of Store.get('sec/' + s.id)?.items || []) addItem(it, SECS.get(s.id), false);
   if (isPlainObj(pack.progress)) { const d = srsDoc(cid); for (const [oid, st] of Object.entries(pack.progress)) if (idMap[oid] && isPlainObj(st)) d.c[idMap[oid]] = st; saveSrs(cid); }
-  coursePlan(cid); logEvent('导入课程 ' + course.title); saveState();
+  importPackCards(cid, src.cards, false); coursePlan(cid); logEvent('导入课程 ' + course.title); saveState();
   toast(`已导入「${course.title}」`); Nav.tab = 'library'; Nav.stack = [{ view: 'library' }, { view: 'course', params: { id: cid } }]; render(true);
+}
+/* 课程包里的「卡片」分支：校正后放进这门课；更新课程时同类型同标题的卡片就地更新，用户自己加的卡片保留 */
+function importPackCards(cid, list, update) {
+  if (!Array.isArray(list)) return 0; const H = homeCfg(); let n = 0;
+  for (const x of list.slice(0, HC_MAX)) {
+    if (!isPlainObj(x) || !HC_TYPES[x.type]) continue;
+    const c = normHomeCard({ type: x.type, title: x.title, body: x.body, date: x.date, prompt: x.prompt, pos: x.pos, on: x.on, course: cid });
+    if (c.type === 'text' && !c.body.trim() || c.type === 'count' && !c.date || c.type === 'ai' && !c.prompt.trim()) continue;
+    const same = update && H.cards.find(y => y.course === cid && y.type === c.type && y.title === c.title);
+    if (same) { const keep = same.prompt === c.prompt ? same.ai : undefined; Object.assign(same, c, { id: same.id }); if (keep) same.ai = keep; else delete same.ai; n++; }
+    else if (H.cards.length < HC_MAX * 4) { H.cards.push(c); n++; }
+  }
+  return n;
 }
 /* 用课程包更新已有课程：卡片 id 不变，学习记录（按卡片 id 保存）、笔记、书签自然保留 */
 function updateFromPack(old, src) {
@@ -52,7 +65,7 @@ function updateFromPack(old, src) {
   for (const k of Store.keys('sec/' + cid + 'c')) if (!keep.has(k)) Store.drop(k);
   Store.put('course/' + cid, course); addCourse(course, false);
   for (const ch of course.chapters) for (const s of ch.sections) for (const it of Store.get('sec/' + s.id)?.items || []) addItem(it, SECS.get(s.id), false);
-  logEvent('更新课程 ' + course.title); saveState();
+  importPackCards(cid, src.cards, true); logEvent('更新课程 ' + course.title); saveState();
   toast(`已更新「${course.title}」，学习进度已保留`); Nav.tab = 'library'; Nav.stack = [{ view: 'library' }, { view: 'course', params: { id: cid } }]; render(true);
 }
 function parseCourseDSL(text) {

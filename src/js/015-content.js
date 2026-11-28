@@ -26,6 +26,7 @@ async function loadContent() {
   data.forEach(c => addCourse(c, true));
   for (const k of Store.keys('course/')) addCourse(Store.get(k), false);
   for (const k of Store.keys('sec/')) { const sec = SECS.get(k.slice(4)); if (sec) for (const it of Store.get(k).items || []) addItem(it, sec, false); }
+  for (const k of Store.keys('sec/')) { const sec = SECS.get(k.slice(4)); if (sec) applySecOrder(sec); } // 用户调整过的顺序
 }
 const visible = it => !S().hidden[it.id];
 const isQ = it => it.t !== 'kp';

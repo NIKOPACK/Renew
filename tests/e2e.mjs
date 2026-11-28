@@ -841,6 +841,40 @@ await run('手动新建、编辑、移动知识点和题目', async () => {
   await ctx.close();
 });
 
+await run('调整顺序；课程包带上卡片分支', async () => {
+  const { page, ctx, errors } = await newPage();
+  // 1) 小节里的知识点、题目调整顺序（内置课程也可以，刷新后保留）
+  await page.evaluate(() => go('section', { id: 'learn1s1' })); await page.waitForSelector('#smore');
+  const before = await page.evaluate(() => ({ k: learnItems(SECS.get('learn1s1')).map(i => i.id), q: practiceItems(SECS.get('learn1s1')).map(i => i.id) }));
+  await page.click('#smore'); await page.waitForTimeout(300); await page.locator('.sheet .menu button', { hasText: '调整顺序' }).click(); await page.waitForSelector('[data-osave]');
+  check(await page.evaluate(() => $('[data-mv="0:0:-1"]').disabled && $$('.ordrow').length >= 3), '排序弹层：分「学习」「练习」两组，第一项不能再上移');
+  await page.click('[data-mv="0:0:1"]'); await page.click('[data-mv="1:0:1"]'); await page.click('[data-osave]'); await page.waitForTimeout(400);
+  const after = await page.evaluate(() => ({ k: learnItems(SECS.get('learn1s1')).map(i => i.id), q: practiceItems(SECS.get('learn1s1')).map(i => i.id), first: $('[data-kp]')?.dataset.kp === secKps(SECS.get('learn1s1'))[0].id }));
+  check(after.k[0] === before.k[1] && after.k[1] === before.k[0] && after.q[0] === before.q[1] && after.first, '知识点和题目的顺序已调整，小节页立即更新');
+  await page.evaluate(() => Store.flushAll?.()); await page.reload(); await page.waitForSelector('.dayband');
+  const kept = await page.evaluate(() => ({ k: learnItems(SECS.get('learn1s1')).map(i => i.id), q: practiceItems(SECS.get('learn1s1')).map(i => i.id) }));
+  check(kept.k.join() === after.k.join() && kept.q.join() === after.q.join(), '重新打开 App 后顺序保留');
+  await page.evaluate(() => startSection('learn1s1')); await page.waitForSelector('.post[data-pk]');
+  check(await page.evaluate(k => Feed.queue[0]?.id === k, after.k[0]), '学习时按调整后的顺序出卡');
+  // 2) 课程「卡片」分支排序
+  await page.evaluate(() => { const H = homeCfg(); for (const t of ['甲', '乙', '丙']) H.cards.push(normHomeCard({ course: 'learn', type: 'text', title: t, body: t })); saveState(); go('course', { id: 'learn' }); });
+  await page.waitForSelector('#ccord'); await page.click('#ccord'); await page.waitForSelector('[data-osave]');
+  await page.click('[data-mv="0:2:-1"]'); await page.click('[data-osave]'); await page.waitForTimeout(400);
+  check(await page.evaluate(() => courseCards('learn').map(c => c.title).join() === '甲,丙,乙' && $$('#ccl [data-hedit] .t').map(e => e.textContent).join() === '甲,丙,乙'), '卡片分支可以调整顺序');
+  // 3) 课程包：导出带卡片（不带 AI 当天内容），另存导入后卡片跟着课程走
+  const pack = await page.evaluate(() => { homeCfg().cards.push(normHomeCard({ course: 'learn', type: 'ai', title: '每日一句', prompt: '名言', ai: { day: dayKey(), text: '旧内容' } })); saveState(); return coursePack(COURSES.get('learn'), false); });
+  check(pack.course.cards?.length === 4 && pack.course.cards.every(c => !c.ai && !c.id && !c.course), `课程包带上卡片分支（${pack.course.cards?.length} 张，不含当天 AI 内容）`);
+  pack.course.cards.push({ type: 'count', title: '坏', date: 'x' }, { type: 'text', title: '<b>x</b>', body: '<script>alert(1)</script>ok' });
+  const nid = await page.evaluate(p => { importPack(p, 'x'); return Nav.stack.at(-1).params.id; }, pack); await page.waitForSelector('#ccards');
+  const st = await page.evaluate(id => ({ n: courseCards(id).length, titles: courseCards(id).map(c => c.title).join(), xss: !!$('#view script') }), nid);
+  check(nid !== 'learn' && st.n === 5 && /甲,丙,乙/.test(st.titles) && !st.xss, `导入课程包：卡片放进新课程的卡片分支，无效卡片被丢弃（${st.n} 张）`);
+  // 4) 用课程包更新自建课程：同名卡片就地更新，自己加的卡片保留
+  const upd = await page.evaluate(id => { homeCfg().cards.push(normHomeCard({ course: id, type: 'text', title: '我自己的', body: '保留' })); const p = coursePack(COURSES.get(id), false); p.course.cards = [{ type: 'text', title: '甲', body: '甲·新' }, { type: 'text', title: '丁', body: '丁' }]; updateFromPack(COURSES.get(id), p.course); const cs = courseCards(id); return { 甲: cs.find(c => c.title === '甲')?.body, 丁: !!cs.find(c => c.title === '丁'), mine: !!cs.find(c => c.title === '我自己的'), n: cs.filter(c => c.title === '甲').length }; }, nid);
+  check(upd.甲 === '甲·新' && upd.丁 && upd.mine && upd.n === 1, '更新课程：同名卡片就地更新，新卡片加入，自己加的保留');
+  check(!errors.length, '没有脚本错误' + (errors.length ? '：' + errors.join(' | ') : ''));
+  await ctx.close();
+});
+
 await browser.close(); server.close();
 console.log(failed ? `\n${failed} 项失败` : '\n全部通过');
 process.exit(failed ? 1 : 0);

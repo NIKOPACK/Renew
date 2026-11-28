@@ -51,7 +51,7 @@ function viewCourse({ id }) {
   <div class="qa4"><button id="cplan"><span class="ib">${tileIco('target')}</span>计划</button><button id="csync"><span class="ib">${tileIco('sync')}</span>同步进度</button><button id="cnotes"><span class="ib">${tileIco('doc')}</span>笔记</button><button id="cmat"><span class="ib">${tileIco('folder')}</span>资料</button></div>
   ${s.emptySecs ? `<div class="group"><button class="rowi" id="cgen"><span class="grow"><div class="t" style="color:var(--accent)">AI 生成 ${s.emptySecs} 个空小节</div></span>${ico('chev', 'chev')}</button></div>` : ''}
   ${c.chapters.map(ch => { const done = ch.sections.filter(x => ['done', 'external'].includes(secStatus(x))).length; return `<div class="gh" id="ch-${ch.id}"><b>${esc(ch.title)}</b><span class="num">${done}/${ch.sections.length}</span></div><div class="group" style="--sepl:50px">${ch.sections.map(secRow).join('')}</div>`; }).join('')}
-  <div class="gh" id="ccards"><b>${ico('grid', 'brico')}卡片</b><button class="link" id="ccadd">${ico('plus')}添加</button><button class="link" id="ccai">${ico('spark')}AI</button></div>
+  <div class="gh" id="ccards"><b>${ico('grid', 'brico')}卡片</b>${courseCards(c.id).length > 1 ? `<button class="link" id="ccord">${ico('list')}排序</button>` : ''}<button class="link" id="ccadd">${ico('plus')}添加</button><button class="link" id="ccai">${ico('spark')}AI</button></div>
   <div id="ccl">${courseCardsHTML(c)}</div>
   </div></div>`;
   $('[data-back]', v).onclick = back;
@@ -61,6 +61,7 @@ function viewCourse({ id }) {
   const redrawCards = () => { const l = $('#ccl', v); if (!l) return; l.innerHTML = courseCardsHTML(c); bindCardRows(l, redrawCards); };
   bindCardRows($('#ccl', v), redrawCards);
   $('#ccadd').onclick = () => homeCardSheet({ course: c.id, after: redrawCards });
+  $('#ccord')?.addEventListener('click', () => cardOrderSheet(c.id, redrawCards));
   $('#ccai').onclick = () => { if (AI.require()) homeAISheet({ course: c.id, after: redrawCards }); };
   $('#cplan').onclick = planSheet; $('#csync').onclick = () => syncSheet(c);
   $('#cgen')?.addEventListener('click', () => batchGenSheet(c));
@@ -117,6 +118,7 @@ function viewSection({ id }) {
     { icon: 'wand', label: 'AI 补充内容', run: () => genSheet({ sid: id }) },
     { icon: 'pen', label: '新建知识点', run: () => itemEditSheet({ sid: id, type: 'kp' }) },
     { icon: 'pen', label: '新建题目', run: () => itemEditSheet({ sid: id, type: 'choice' }) },
+    { icon: 'list', label: '调整顺序', run: () => secOrderSheet(id) },
     { icon: 'upload', label: '导入卡片文本', run: () => importSheet(id) },
     { icon: 'doc', label: '本节笔记', run: () => go('notes', { course: c.id, sec: id }) },
     { icon: 'edit', label: '写本节笔记', run: () => newNote({ course: c.id, sec: id, ai: true }) },

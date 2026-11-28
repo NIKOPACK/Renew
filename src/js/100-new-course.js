@@ -71,7 +71,7 @@ function editOutlineSheet(c) {
     Store.put('course/' + c.id, doc);
     for (const ch of c.chapters) { CHAPS.delete(ch.id); for (const sec of ch.sections) { SECS.delete(sec.id); for (const it of sec.items) ITEMS.delete(it.id); } }
     COURSES.delete(c.id); addCourse(doc, false);
-    for (const k of Store.keys('sec/')) { const sec = SECS.get(k.slice(4)); if (sec && sec.course === c.id) for (const it of Store.get(k).items || []) addItem(it, sec, false); }
+    for (const k of Store.keys('sec/')) { const sec = SECS.get(k.slice(4)); if (sec && sec.course === c.id) { for (const it of Store.get(k).items || []) addItem(it, sec, false); applySecOrder(sec); } }
     s.close(); refresh(); toast('目录已更新');
   };
 }
