@@ -116,7 +116,7 @@ function linkSheet(done) {
 /* opts: placeholder, ids（[输入框 id, 发送按钮 id]）, chips（输入框里的额外按钮 HTML）, extra（「+」面板里的其它工具）, onSend({ text, att }), onStop(), busy() */
 function Composer(opts) {
   const el = h(`<div class="cbox"><div class="catt" hidden></div><textarea rows="1"></textarea>
-    <div class="crow"><button class="cb" data-c="plus" aria-label="添加图片、视频、文件或链接">${ico('plus')}</button><button class="cmod" data-c="model" aria-label="选择模型">${modelChipHTML()}</button>${opts.chips || ''}<span class="grow"></span>${SR ? `<button class="cb mic" data-c="mic" aria-label="语音输入">${ico('mic')}</button>` : ''}<button class="send" data-c="send" aria-label="发送">${ico('send')}</button></div></div>`);
+    <div class="crow"><button class="cb" data-c="plus" aria-label="添加图片、视频、文件或链接">${ico('plus')}</button><button class="cmod" data-c="model" aria-label="模型设置">${modelChipHTML()}</button>${opts.chips || ''}<span class="grow"></span>${SR ? `<button class="cb mic" data-c="mic" aria-label="语音输入">${ico('mic')}</button>` : ''}<button class="send" data-c="send" aria-label="发送">${ico('send')}</button></div></div>`);
   const ta = $('textarea', el), strip = $('.catt', el), send = $('[data-c="send"]', el), att = [];
   ta.placeholder = opts.placeholder || '';
   if (opts.ids) { ta.id = opts.ids[0]; send.id = opts.ids[1]; }
@@ -146,7 +146,7 @@ function Composer(opts) {
     const rm = e.target.closest('[data-rm]'); if (rm) { att.splice(+rm.dataset.rm, 1); drawAtt(); return; }
     const c = e.target.closest('[data-c]')?.dataset.c; if (!c) { if (e.target === el) ta.focus(); return; }
     if (c === 'plus') attachSheet(add, opts.extra);
-    else if (c === 'model') { if (Platform.aiConfigurable) modelSheet(); else toast(modelLabel()); }
+    else if (c === 'model') { if (Platform.aiConfigurable) openAiSettings(); else toast(modelLabel()); }
     else if (c === 'mic') listen();
     else if (c === 'send') go();
   };

@@ -10,7 +10,7 @@ const AI = {
   get ok() { return !!this.fn; },
   get need() { return Platform.aiNeed; },
   /* 需要 AI 时调用：可用返回 true；否则引导用户去配置（App）或给出提示（网页） */
-  require() { if (this.fn) return true; if (Platform.aiConfigurable && typeof aiConfigSheet === 'function') aiConfigSheet(); else toast(Platform.aiNeed); return false; },
+  require() { if (this.fn) return true; if (Platform.aiConfigurable && typeof openAiSettings === 'function') openAiSettings(true); else toast(Platform.aiNeed); return false; },
   err(e) {
     const m = { not_granted: '你没有允许这个页面使用 Claude，可以在页面的权限菜单里重新打开。', rate_limited: '请求有点频繁，等一会儿再试。', prompt_too_large: '资料太长，请减少页数或分几次生成。', session_expired: '登录已过期，刷新页面后再试。', images_unavailable: '当前环境不能发送图片，请改用文字。', image_rejected: '有图片无法识别，请换成 JPG/PNG。', invalid_json: 'AI 返回的格式不对，请再试一次。', cancelled: '已停止。' };
     const own = { no_key: '还没有填写 AI 服务的 API Key。', auth: 'API Key 无效或没有权限，请在「设置 → AI 服务」里检查。', quota: '账户余额或额度不足，请到服务商后台充值。', network: '连不上 AI 服务，请检查网络或接口地址。', overloaded: 'AI 服务繁忙，请稍后再试。', refusal: '模型拒绝回答这个请求，换个说法再试。', truncated: '回答太长被截断了，请缩小范围再试。', bad_request: '请求被 AI 服务拒绝' + (e?.detail ? '：' + String(e.detail).slice(0, 120) : '。'), no_model: '还没有选择模型，请在「设置 → AI 服务」里选择。' };

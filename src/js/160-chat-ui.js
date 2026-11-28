@@ -11,9 +11,12 @@ function msgHTML(m, i, last) {
   const foot = !m.streaming && m.text ? `<div class="amf"><button data-copy="${i}" aria-label="复制">${ico('file')}</button>${hasCard ? `<button data-tocard="${i}" aria-label="存为卡片">${ico('layers')}</button>` : ''}${last ? `<button data-regen aria-label="重新生成">${ico('sync')}</button>` : ''}</div>` : '';
   return `<div class="am">${tg}${pm}${text}${btns}${foot}</div>`;
 }
-const chatCtx = () => { const id = lsGet('chatctx'); return COURSES.has(id) ? id : null; };
+/* 对话范围：可以多选课程，空数组表示全部课程（旧数据里是单个课程 id 或 null，读取时统一转成数组） */
+const ctxIds = v => (Array.isArray(v) ? v : v ? [v] : []).filter(id => COURSES.has(id));
+const chatCtx = () => ctxIds(lsGet('chatctx'));
+const ctxLabel = ids => !ids.length ? '全部课程' : ids.length === 1 ? COURSES.get(ids[0]).title : `${ids.length} 门课程`;
 function viewAI() {
-  const v = $('#view'), c = Chat.get(), hr = new Date().getHours(), ctx = COURSES.get(c?.ctx ?? chatCtx());
+  const v = $('#view'), c = Chat.get(), hr = new Date().getHours(), ctx = ctxIds(c?.ctx ?? lsGet('chatctx'));
   const hello = hr < 5 ? '夜深了' : hr < 11 ? '早上好' : hr < 14 ? '中午好' : hr < 18 ? '下午好' : '晚上好';
   const empty = !c || !c.msgs.length;
   v.innerHTML = appbar('', `<button class="ibtn" id="ch-hist" aria-label="对话记录">${ico('list')}</button><button class="ibtn" id="ch-new" aria-label="新对话">${ico('edit')}</button>`, `<button class="fbtn" id="ch-back" aria-label="返回">${ico('back')}</button>`) + `
@@ -24,7 +27,7 @@ function viewAI() {
     <div id="cmp-box"></div>
   </div></div>`;
   const cmp = Composer({ ids: ['ch-in', 'ch-send'], placeholder: AI.ok ? '和 AI 聊聊学习' : AI.ready ? Platform.aiNeedShort : '正在连接…',
-    chips: `<button class="cctx" id="ch-ctx" aria-label="对话范围">${ico('book')}<span>${ctx ? esc(ctx.title) : '全部课程'}</span></button>`,
+    chips: `<button class="cctx" id="ch-ctx" aria-label="对话范围">${ico('book')}<span>${esc(ctxLabel(ctx))}</span></button>`,
     extra: [
       { icon: 'plus', label: '新建课程', run: newCourseSheet },
       { icon: 'wand', label: '为小节生成内容', run: () => pickSection('选择小节', sid => genSheet({ sid })) },
@@ -35,16 +38,30 @@ function viewAI() {
   $('#cmp-box').replaceWith(cmp.el);
   const inp = cmp.ta, sync = cmp.sync;
   $('#ch-back').onclick = () => go(Nav.prevTab && Nav.prevTab !== 'ai' ? Nav.prevTab : 'today', {}, { tab: true });
-  $('#ch-setup')?.addEventListener('click', () => aiConfigSheet());
+  $('#ch-setup')?.addEventListener('click', () => openAiSettings(true));
   $('#ch-new').onclick = () => { Chat.ctl?.abort(); Chat.cur = null; refresh(); setTimeout(() => $('#ch-in')?.focus(), 50); };
   $('#ch-hist').onclick = historySheet;
-  $('#ch-ctx').onclick = () => menuSheet('对话范围', [{ icon: 'layers', label: '全部课程', cls: !ctx ? 'cur' : '', run: () => setCtx(null) }, ...shownCourses().map(x => ({ icon: 'book', label: x.title, cls: ctx?.id === x.id ? 'cur' : '', run: () => setCtx(x.id) }))]);
+  $('#ch-ctx').onclick = scopeSheet;
   $$('[data-sg]', v).forEach(b => b.onclick = () => { const q = SUGGEST[+b.dataset.sg][1]; if (b.dataset.sg === '0') cmp.set('我在书上已经学到了'); else aiSend(q); });
   $('#ch-down').onclick = () => scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
   drawMsgs(true); sync(); kbFix();
   v._sync = sync;
 }
-function setCtx(id) { lsSet('chatctx', id); const c = Chat.get(); if (c) { c.ctx = id; Chat.save(); } refresh(); }
+/* 选择对话范围：点课程切换选中，点「全部课程」清空选择；弹层不关闭，可以连续多选 */
+function scopeSheet() {
+  let ids = ctxIds(Chat.get()?.ctx ?? lsGet('chatctx'));
+  const s = sheet('对话范围', '<div class="menu"></div>'), box = $('.menu', s.body);
+  const draw = () => box.innerHTML = [['', 'layers', '全部课程', !ids.length], ...shownCourses().map(x => [x.id, 'book', x.title, ids.includes(x.id)])]
+    .map(([id, icon, label, on]) => `<button data-id="${id}" class="${on ? 'cur' : ''}" aria-pressed="${on}">${ico(icon)}<span class="grow">${esc(label)}</span>${on ? ico('check', 'mck') : ''}</button>`).join('');
+  box.onclick = e => {
+    const b = e.target.closest('[data-id]'); if (!b) return; const id = b.dataset.id;
+    ids = !id ? [] : ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id];
+    setCtx(ids); Motion.haptic(); draw();
+  };
+  draw();
+}
+/* 只更新范围按钮上的文字，不重画页面（以免清掉输入框里没发出的内容） */
+function setCtx(ids) { lsSet('chatctx', ids); const c = Chat.get(); if (c) { c.ctx = ids; Chat.save(); } const sp = $('#ch-ctx span'); if (sp) sp.textContent = ctxLabel(ids); }
 function drawMsgs(toBottom) {
   const box = $('#cm'); if (!box) return; const c = Chat.get();
   if (!c || !c.msgs.length) return;

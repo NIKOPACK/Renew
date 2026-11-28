@@ -45,7 +45,7 @@ function promoteToChat(it, turns, sh) {
   const msgs = turns.length
     ? [{ role: 'user', text: intro }, ...turns.map(t => t.role === 'user' ? { role: 'user', text: t.label || t.content, ...(t.att?.length ? { att: t.att } : {}) } : { role: 'assistant', parts: [], text: t.content })]
     : [{ role: 'user', text: intro }, { role: 'assistant', parts: [], text: '已加载这张卡片，可以继续追问原理、出练习题，或让我结合你的学习记录一起分析。' }];
-  Chat.list.unshift({ id, title, t: Date.now(), msgs, ctx: it.course });
+  Chat.list.unshift({ id, title, t: Date.now(), msgs, ctx: [it.course] });
   Chat.cur = id; Chat.save();
   sh.close(); Detail.cur?.(true);
   go('ai', {}, { tab: true });

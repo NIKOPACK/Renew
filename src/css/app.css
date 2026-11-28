@@ -648,6 +648,7 @@ textarea.inp{min-height:120px;line-height:1.65;resize:vertical}
 .menu button>.ic{color:var(--ink)}
 .menu button small{display:block;color:var(--ink-2);font-size:13px;font-weight:400;margin-top:1px}
 .menu button.cur,.menu button.cur .ic{color:var(--accent);font-weight:600}
+.menu button .mck{flex:none;width:20px;height:20px}
 .menu button.danger,.menu button.danger .ic{color:var(--bad)}
 .eyebrow{font-size:13px;font-weight:550;color:var(--ink-2)}
 @keyframes up{from{transform:translateY(100%)}}

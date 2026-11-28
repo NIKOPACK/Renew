@@ -142,9 +142,11 @@ await run('自带 Key 的 AI（DeepSeek 与 Claude）', async () => {
   const { page, ctx, errors } = await newPage(); const reqs = []; await mockAI(page, reqs);
   await page.click('.tabbar [data-tab="ai"]'); await page.waitForSelector('#ch-setup');
   await page.click('#ch-setup'); await page.waitForSelector('#ai-key');
+  check(await page.evaluate(() => Nav.stack.at(-1).view === 'settings'), '对话页「设置 AI 服务」跳到设置页');
   await page.fill('#ai-key', 'sk-test'); await page.click('#ai-list'); await page.waitForFunction(() => /找到 2 个模型/.test(document.querySelector('#ai-msg').textContent));
   await page.click('#ai-test'); await page.waitForFunction(() => /连接成功/.test(document.querySelector('#ai-msg').textContent));
   await page.click('#ai-save'); await page.waitForFunction(() => AI.ok);
+  await page.waitForTimeout(400); await page.click('#view [data-back]'); await page.waitForSelector('#ch-in'); await page.waitForTimeout(400);
   await page.fill('#ch-in', '这门课有几章？'); await page.click('#ch-send'); await page.waitForFunction(() => !Chat.busy, null, { timeout: 15000 });
   let m = await page.evaluate(() => { const a = Chat.get().msgs.at(-1); return { text: a.text, tools: (a.parts || []).map(p => p.st) }; });
   check(/共 2 章/.test(m.text) && m.tools.includes('done'), 'DeepSeek：流式输出 + 工具调用 → ' + JSON.stringify(m.text));
@@ -283,7 +285,7 @@ await run('模型配置（对话 + 图片）与我的笔记', async () => {
   await page.route('https://open.bigmodel.cn/**', r => { const req = r.request(); imgReqs.push({ url: req.url(), body: req.postDataJSON?.(), auth: req.headers().authorization }); return r.fulfill({ json: { data: [{ url: 'https://img.example.com/a.png' }] }, headers: { 'access-control-allow-origin': '*' } }); });
   await page.route('https://img.example.com/**', r => r.fulfill({ body: PNG, headers: { 'content-type': 'image/png', 'access-control-allow-origin': '*' } }));
   await page.evaluate(() => go('settings')); await page.waitForSelector('#s-img');
-  check(await page.evaluate(() => !!$('#s-ai') && /对话模型/.test($('#s-ai').textContent) && /图片模型/.test($('#s-img').textContent)), '设置页：对话模型、图片模型两项');
+  check(await page.evaluate(() => /AI 服务/.test($('#s-ai').textContent) && /图片模型/.test($('#s-img').textContent) && !$('#s-model') && !$('#s-eff')), '设置页：未配置时只有 AI 服务、图片模型两项');
   await page.click('#s-img'); await page.waitForSelector('#im-key');
   await page.click('.imp [data-p="glm"]'); await page.fill('#im-key', 'img-key'); await shot(page, 'img-config');
   await page.click('#im-test'); await page.waitForFunction(() => /生成成功/.test($('#im-msg').textContent), null, { timeout: 10000 });
@@ -354,17 +356,20 @@ await run('模型配置（对话 + 图片）与我的笔记', async () => {
   const ar = reqs.filter(x => x.url.includes('anthropic') && x.body?.messages).flatMap(x => x.body.messages).filter(m => Array.isArray(m.content) && m.content.some(c => c.type === 'image')).at(-1)?.content || [];
   check(Array.isArray(ar) && ar.some(c => c.type === 'image' && c.source?.media_type) && ar.some(c => c.type === 'text' && /这张图讲的是什么/.test(c.text)), 'AI 页：图片和问题一起发给模型');
   check(await page.evaluate(() => !!$('#cm .ug .uatt img') && !!Chat.get().msgs[0].att?.[0]?.thumb), 'AI 页：消息显示图片缩略图，并保存在对话记录里');
-  // 选择模型（参考 Claude App）：列表 + 说明 + 思考强度
-  await page.click('#cmp .cmod'); await page.waitForSelector('.msel .mrow'); await page.waitForTimeout(500); await shot(page, 'model-picker');
-  let ms = await page.evaluate(() => ({ rows: $$('.msel #ms-l .mrow').map(r => r.querySelector('.t').textContent), cur: $('.msel .mrow .mck')?.closest('.mrow').querySelector('.t').textContent, desc: $('.msel .mrow .m')?.textContent, eff: $('#ms-eff .r')?.textContent }));
+  // 模型配置集中在设置页：输入框的模型按钮只跳转，不在对话页弹出选择模型
+  await page.click('#cmp .cmod'); await page.waitForSelector('#s-model'); await page.waitForTimeout(500);
+  check(await page.evaluate(() => Nav.stack.at(-1).view === 'settings' && !$('.sheet-wrap') && $('#s-model .m').textContent === 'Opus 5.5' && $('#s-eff .m').textContent === '中'), '模型按钮跳到设置页：对话模型 Opus 5.5、思考强度「中」');
+  // 选择模型（参考 Claude App）：列表 + 说明
+  await page.click('#s-model'); await page.waitForSelector('.msel .mrow'); await page.waitForTimeout(500); await shot(page, 'model-picker');
+  let ms = await page.evaluate(() => ({ rows: $$('.msel #ms-l .mrow').map(r => r.querySelector('.t').textContent), cur: $('.msel .mrow .mck')?.closest('.mrow').querySelector('.t').textContent, desc: $('.msel .mrow .m')?.textContent }));
   check(ms.rows.join() === 'Opus 5.5,Sonnet 5.5,Fable 5.2费用更高,Haiku 5.5' && ms.cur === 'Opus 5.5' && /复杂工作/.test(ms.desc), '选择模型：常用模型、说明和当前选中');
-  check(ms.eff === '中', '选择模型：Opus 5.5 默认思考强度为「中」');
   await page.locator('.msel .mrow', { hasText: 'Sonnet 5.5' }).click(); await page.waitForTimeout(600);
-  check(await page.evaluate(async () => (await Platform.aiConfig.get()).model === 'claude-sonnet-5-5' && /Sonnet 5\.5/.test($('#cmp .cmod').textContent) && $('#cmp .cmod em').textContent === '高'), '选择模型：切换后保存并更新输入框（Sonnet 5.5 · 高）');
-  await page.click('#cmp .cmod'); await page.waitForSelector('#ms-eff'); await page.click('#ms-eff'); await page.waitForSelector('[data-e="xhigh"]'); await shot(page, 'model-effort');
+  check(await page.evaluate(async () => (await Platform.aiConfig.get()).model === 'claude-sonnet-5-5' && $('#s-model .m').textContent === 'Sonnet 5.5' && $('#s-eff .m').textContent === '高'), '选择模型：切换后保存并更新设置页（Sonnet 5.5 · 高）');
+  await page.click('#s-eff'); await page.waitForSelector('[data-e="xhigh"]'); await shot(page, 'model-effort');
   await page.click('[data-e="xhigh"]'); await page.waitForTimeout(600);
-  check(await page.evaluate(() => $('#cmp .cmod em').textContent === '超高' && $('#ms-eff .r').textContent === '超高'), '思考强度：选择后输入框和列表同步');
-  await page.evaluate(() => $$('.sheet [data-close]').forEach(b => b.click())); await page.waitForTimeout(400);
+  check(await page.evaluate(() => $('#s-eff .m').textContent === '超高'), '思考强度：选择后设置页同步');
+  await page.click('#view [data-back]'); await page.waitForSelector('#ch-in'); await page.waitForTimeout(400);
+  check(await page.evaluate(() => /Sonnet 5\.5/.test($('#cmp .cmod').textContent) && $('#cmp .cmod em').textContent === '超高'), '返回对话页：输入框显示新模型和思考强度');
   await page.fill('#ch-in', '再讲一遍'); await page.waitForTimeout(100); await page.click('#ch-send'); await page.waitForFunction(() => !Chat.busy, null, { timeout: 10000 });
   const lastA = reqs.filter(x => x.url.includes('anthropic') && x.body?.messages).at(-1)?.body;
   check(lastA?.model === 'claude-sonnet-5-5' && lastA?.output_config?.effort === 'xhigh', '请求使用所选模型和思考强度（output_config.effort）');
@@ -703,7 +708,7 @@ await run('悬浮会话栏、首页快捷键、问 AI 沉淀飞轮、交互矢�
   check(await page.evaluate(n => secItems(SECS.get('learn1s1')).length === n + 1, secBefore), '问 AI 回复一键转成新卡片并保存到当前小节');
   // 升格至全屏 AI 助手
   await page.click('.sheet [data-promote]'); await page.waitForSelector('#ch-in'); await page.waitForTimeout(300);
-  check(await page.evaluate(() => Nav.tab === 'ai' && Chat.get()?.msgs.length >= 2 && Chat.get()?.ctx === 'learn'), '卡片问 AI 一键升格至全屏 AI 助手并保留上下文');
+  check(await page.evaluate(() => Nav.tab === 'ai' && Chat.get()?.msgs.length >= 2 && JSON.stringify(Chat.get()?.ctx) === '["learn"]'), '卡片问 AI 一键升格至全屏 AI 助手并保留上下文');
 
   // 5) 碎片听学语音朗读（模拟 speechSynthesis 验证启停与切页自动停止）
   const spk = await page.evaluate(() => {

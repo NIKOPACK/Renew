@@ -1,14 +1,32 @@
 /* ============ 设置 → AI 服务（独立 App / 网页版：用户自带 API Key） ============ */
 let AI_CFG = null, IMG_CFG = null; // 当前配置的内存副本，供设置页同步显示
 const usesBuiltin = c => Platform.builtinAI && !(c?.key && c.provider !== 'builtin');
+/* 所有模型相关的配置都集中在这里：AI 服务、对话模型、思考强度、图片模型。
+   对话输入框里只显示当前模型，点击后跳到这里（openAiSettings），不在对话页面里修改 */
 function aiSettingsGroup() {
-  const c = AI_CFG, pr = c && AI_PRESETS[c.provider], ic = IMG_CFG, ip = ic && IMG_PRESETS[ic.provider], builtin = usesBuiltin(c);
-  return `<div class="gh"><b>AI 服务</b></div><div class="group icons">
-    <button class="rowi" id="s-ai"><span class="tico" style="--c:${AI.ok ? 'var(--accent)' : 'var(--warn)'}">${tileIco('spark')}</span><span class="grow"><div class="t">对话模型</div><div class="m">${builtin ? esc(Platform.builtinAI) : c?.key ? esc((pr?.label || c.provider) + ' · ' + (c.model || '未选择模型')) : '未设置'}</div></span>${ico('chev', 'chev')}</button>
-    <button class="rowi" id="s-img"><span class="tico" style="--c:${ImageClient.ok(ic) ? '#ff2d55' : 'var(--ink-3)'}">${tileIco('image')}</span><span class="grow"><div class="t">图片模型</div><div class="m">${ImageClient.ok(ic) ? esc((ip?.label || ic.provider) + ' · ' + ic.model) : '未设置'}</div></span>${ico('chev', 'chev')}</button>
+  // 优先用正在使用的客户端配置（和对话输入框的模型按钮一致），没有时再用内存副本
+  const c = AI.fn?.cfg?.key ? AI.fn.cfg : AI_CFG, pr = c && AI_PRESETS[c.provider], ic = IMG_CFG, ip = ic && IMG_PRESETS[ic.provider], builtin = usesBuiltin(c), eff = effortOf(AI.fn?.cfg);
+  const row = (id, color, icon, t, m) => `<button class="rowi" id="${id}"><span class="tico" style="--c:${color}">${tileIco(icon)}</span><span class="grow"><div class="t">${t}</div><div class="m">${esc(m)}</div></span>${ico('chev', 'chev')}</button>`;
+  return `<div class="gh" id="s-aig"><b>AI 服务</b></div><div class="group icons">
+    ${row('s-ai', AI.ok ? 'var(--accent)' : 'var(--warn)', 'spark', 'AI 服务', builtin ? Platform.builtinAI : c?.key ? pr?.label || c.provider : '未设置')}
+    ${!builtin && c?.key ? row('s-model', 'var(--accent)', 'brain', '对话模型', c.model ? prettyModel(c.model) : '未选择') : ''}
+    ${eff ? row('s-eff', '#ff9500', 'bulb', '思考强度', effortName(eff)) : ''}
+    ${row('s-img', ImageClient.ok(ic) ? '#ff2d55' : 'var(--ink-3)', 'image', '图片模型', ImageClient.ok(ic) ? (ip?.label || ic.provider) + ' · ' + ic.model : '未设置')}
   </div>`;
 }
-function bindAiSettingsGroup(v) { $('#s-ai', v)?.addEventListener('click', () => aiConfigSheet()); $('#s-img', v)?.addEventListener('click', () => imgConfigSheet()); }
+function bindAiSettingsGroup(v) {
+  $('#s-ai', v)?.addEventListener('click', () => aiConfigSheet());
+  $('#s-model', v)?.addEventListener('click', () => modelSheet());
+  $('#s-eff', v)?.addEventListener('click', async () => effortSheet(await Platform.aiConfig.get(), refresh));
+  $('#s-img', v)?.addEventListener('click', () => imgConfigSheet());
+}
+/* 从其它页面进入 AI 设置：先关掉打开的弹层，跳到设置页的 AI 分组；openService 为真时再打开 AI 服务面板（还没配置 AI 时） */
+function openAiSettings(openService) {
+  $$('.sheet-wrap [data-close]').forEach(b => b.click());
+  if (Nav.stack[Nav.stack.length - 1]?.view !== 'settings') go('settings');
+  setTimeout(() => { const g = $('#s-aig'); if (g) scrollTo({ top: g.getBoundingClientRect().top + scrollY - 76, behavior: 'smooth' }); }, 60); // 留出顶部悬浮按钮的高度
+  if (openService) setTimeout(() => aiConfigSheet(), 320);
+}
 async function aiConfigSheet() {
   const saved = AI_CFG || await Platform.aiConfig.get() || {};
   const st = { provider: saved.provider || (Platform.builtinAI ? 'builtin' : 'deepseek'), key: saved.key || '', model: saved.model || '', base: saved.base || '', vision: saved.vision, models: [] };

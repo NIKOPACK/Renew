@@ -1,4 +1,4 @@
-/* ============ 选择模型（参考 Claude App）：模型列表 + 思考强度 + 服务设置 ============ */
+/* ============ 选择模型（参考 Claude App）：模型列表；思考强度单独一个面板。都从设置页打开 ============ */
 /* 常用模型带一句话说明；能拿到服务商的模型列表时，其余模型收进「更多模型」。
    思考强度只对支持 effort 的 Claude 模型生效，请求里写在 output_config.effort。 */
 const MODEL_INFO = {
@@ -23,18 +23,17 @@ const effortName = e => (EFFORTS.find(x => x[0] === e) || [])[1] || '';
 const visionGuess = (cfg, m) => cfg.kind === 'anthropic' || /vl|vision|4o|gpt-4\.1|gpt-5|glm-4v|-v\d/i.test(m) ? true : MODEL_INFO[cfg.provider]?.some(([id]) => id === m) ? false : cfg.vision;
 const MODEL_LISTS = new Map();
 
-/* 输入框里的模型按钮：模型名 + 思考强度 */
+/* 输入框里的模型按钮：只显示模型名 + 思考强度，点击跳到设置页 */
 function modelChipHTML() {
   const cfg = AI.fn?.cfg, eff = effortOf(cfg);
-  return `<span>${esc(modelLabel())}</span>${eff ? `<em>${effortName(eff)}</em>` : ''}${ico('down')}`;
+  return `<span>${esc(modelLabel())}</span>${eff ? `<em>${effortName(eff)}</em>` : ''}${ico('chev')}`;
 }
 const refreshModelChips = () => $$('.cmod').forEach(b => b.innerHTML = modelChipHTML());
 
 async function modelSheet() {
   const cfg = await Platform.aiConfig.get(), builtin = usesBuiltin(cfg);
   if (!builtin && !cfg?.key) return aiConfigSheet();
-  const body = h(`<div class="msel"><div class="group mlist" id="ms-l"></div><div id="ms-more"></div>
-    <div class="group" id="ms-opt" style="margin-top:14px"></div></div>`);
+  const body = h(`<div class="msel"><div class="group mlist" id="ms-l"></div><div id="ms-more"></div></div>`);
   const s = sheet('选择模型', body);
   let fetched = MODEL_LISTS.get(cfg?.provider) || null, open = false;
   const row = (id, desc, badge, cur) => `<button class="rowi mrow" data-m="${esc(id)}"><span class="grow"><div class="t">${esc(prettyModel(id))}${badge ? `<span class="mbadge">${esc(badge)}</span>` : ''}</div>${desc ? `<div class="m">${esc(desc)}</div>` : ''}</span>${cur ? ico('check', 'mck') : ''}</button>`;
@@ -50,26 +49,18 @@ async function modelSheet() {
       $('#ms-more', body).innerHTML = rest.length ? `<button class="mmore" id="ms-tg">${open ? '收起' : `更多模型 · ${rest.length}`}${ico('down', open ? 'up' : '')}</button>${open ? `<div class="group mlist">${rest.map(id => row(id, '', '', false)).join('')}</div>` : ''}` : fetched === null ? '<div class="small mload"><span class="spin"></span></div>' : '';
       $('#ms-tg', body)?.addEventListener('click', () => { open = !open; draw(); });
     }
-    const eff = effortOf(AI.fn?.cfg), ip = IMG_CFG && IMG_PRESETS[IMG_CFG.provider];
-    $('#ms-opt', body).innerHTML = (eff ? `<button class="rowi" id="ms-eff"><span class="grow t">思考强度</span><span class="r">${effortName(eff)}</span>${ico('chev', 'chev')}</button>` : '')
-      + `<button class="rowi" id="ms-svc"><span class="grow t">AI 服务</span><span class="r">${esc(builtin ? 'claude.ai 内置' : AI_PRESETS[cfg.provider]?.label || cfg.provider)}</span>${ico('chev', 'chev')}</button>`
-      + `<button class="rowi" id="ms-img"><span class="grow t">图片模型</span><span class="r">${esc(ImageClient.ok(IMG_CFG) ? ip?.label || IMG_CFG.provider : '未设置')}</span>${ico('chev', 'chev')}</button>`;
-    $('#ms-eff', body)?.addEventListener('click', () => effortSheet(cfg, draw));
-    $('#ms-svc', body).onclick = () => { s.close(); aiConfigSheet(); };
-    $('#ms-img', body).onclick = () => { s.close(); imgConfigSheet(); };
   };
   body.addEventListener('click', async e => {
     const b = e.target.closest('[data-m]'); if (!b || builtin) return;
     const m = b.dataset.m; if (m === cfg.model) return s.close();
     const c = { ...cfg, model: m, vision: visionGuess(cfg, m) }; if (c.effort && !EFFORT_RE.test(m)) delete c.effort;
-    await Platform.aiConfig.set(c); AI_CFG = c; await AI.reload(); Motion.haptic(); refreshModelChips(); s.close();
+    await Platform.aiConfig.set(c); AI_CFG = c; await AI.reload(); Motion.haptic(); refreshModelChips(); s.close(); refresh();
   });
   draw();
   if (!builtin && fetched === null) {
     try { fetched = await AIClient.models(cfg); } catch { fetched = []; }
     MODEL_LISTS.set(cfg.provider, fetched); if (body.isConnected) draw();
   }
-  IMG_CFG ||= await Platform.imgConfig.get(); if (body.isConnected) draw();
 }
 function effortSheet(cfg, done) {
   const cur = effortOf(cfg), def = effortDefault(cfg.model);

@@ -111,7 +111,9 @@ async function aiSend(text, att = []) {
   Chat.busy = true; Chat.ctl = new AbortController();
   const v = $('#view'); if (Nav.stack[Nav.stack.length - 1]?.view !== 'ai') go('ai', {}, { tab: true }); else if (isNew) render(false); else { drawMsgs(true); v._sync?.(); }
   let raf = 0; const redraw = () => { if (raf) return; raf = requestAnimationFrame(() => { raf = 0; drawMsgs(); }); };
-  const cc = COURSES.get(c.ctx), ctxTxt = cc ? `\n\n用户选择聚焦课程「${cc.title}」（${cc.id}），目录：\n` + cc.chapters.map(ch => ch.title + '\n' + ch.sections.map(x => { const q = secProg(x); return `${x.id} ${x.title} | ${SEC_LABEL[secStatus(x)]} | ${q.kpd + q.qd}/${q.kp + q.q}`; }).join('\n')).join('\n') : '';
+  const ccs = ctxIds(c.ctx).map(id => COURSES.get(id));
+  const dir = cc => `「${cc.title}」（${cc.id}），目录：\n` + cc.chapters.map(ch => ch.title + '\n' + ch.sections.map(x => { const q = secProg(x); return `${x.id} ${x.title} | ${SEC_LABEL[secStatus(x)]} | ${q.kpd + q.qd}/${q.kp + q.q}`; }).join('\n')).join('\n');
+  const ctxTxt = ccs.length === 1 ? `\n\n用户选择聚焦课程${dir(ccs[0])}` : ccs.length ? `\n\n用户选择聚焦以下 ${ccs.length} 门课程：` + ccs.map(cc => '\n\n' + dir(cc)).join('') : '';
   const input = [{ role: 'user', content: `${AI_RULES}\n\n当前学习概况：\n${overviewText()}${ctxTxt}` }, ...history, { role: 'user', content: (text || '请看附件') + pay.text }], imgs = pay.images.length ? { images: pay.images } : {};
   try {
     if (AI.limits?.tools) {
