@@ -1059,3 +1059,16 @@ body.dtl-on{overflow:hidden}
 .hrng .m{display:flex;align-items:center;gap:4px}
 .hrng .m .ic{width:13px;height:13px;flex:none}
 .endc.slim{padding:4px 0 0}
+/* 课程的「卡片」分支；手动编辑知识点和题目 */
+.brico{width:17px;height:17px;vertical-align:-2px;margin-right:6px;color:var(--accent)}
+.gh .link{display:inline-flex;align-items:center;gap:3px}
+.gh .link .ic{width:14px;height:14px}
+.qrow{display:flex;align-items:center}
+.qrow>.rowi{flex:1;min-width:0}
+.qrow>.qed{flex:none;margin-right:8px;color:var(--ink-3)}
+.oped{display:flex;flex-direction:column;gap:8px}
+.oprow{display:flex;align-items:center;gap:8px}
+.oprow .inp{flex:1;min-width:0}
+.opk{width:34px;height:34px;border-radius:50%;flex:none;display:grid;place-items:center;padding:0;font-weight:650;font-size:14px;background:var(--fill);color:var(--ink-2)}
+.opk.on{background:var(--good);color:#fff}
+.oprow .ibtn{color:var(--ink-3)}

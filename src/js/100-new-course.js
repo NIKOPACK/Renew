@@ -32,13 +32,13 @@ function newCourseSheet() {
       <button class="btn pri block" id="o-ok">${ico('check')}创建课程</button>`;
     $('#o-ok', body).onclick = () => {
       const title = $('#o-t', body).value.trim(), chs = parseOutline($('#o-x', body).value);
-      if (!title) return toast('先填课程名称'); if (!chs.length) return toast('目录是空的');
+      if (!title) return toast('先填课程名称'); // 目录可以是空的：只放卡片的课程
       const id = 'u' + Date.now().toString(36);
       const course = { id, title, cat: $('#o-c', body).value.trim() || '我的课程', desc: $('#o-d', body).value.trim(), color: PALETTE[COURSES.size % PALETTE.length],
         chapters: chs.map((ch, i) => ({ id: `${id}c${i + 1}`, title: ch.title, sections: ch.sections.map((x, j) => ({ id: `${id}c${i + 1}s${j + 1}`, title: x.title, points: x.points })) })) };
       Store.put('course/' + id, course); addCourse(course, false); coursePlan(id); saveState(); logEvent('新建课程 ' + title);
       s.close(); Nav.tab = 'library'; Nav.stack = [{ view: 'library' }, { view: 'course', params: { id } }]; render(true);
-      toast(`已创建「${title}」，${courseSecs(COURSES.get(id)).length} 个小节`);
+      toast(chs.length ? `已创建「${title}」，${courseSecs(COURSES.get(id)).length} 个小节` : `已创建「${title}」`);
     };
   };
   $('#nc-man', body).onclick = () => step2({ title: $('#nc-t', body).value.trim(), cat: $('#nc-c', body).value.trim(), chapters: [{ title: '第1章 ', sections: [{ title: '1.1 ', points: [] }] }] });
@@ -64,7 +64,7 @@ function editOutlineSheet(c) {
   const body = h(`<div style="display:flex;flex-direction:column;gap:12px"><p class="small" style="margin:0">同名的章节会保留已有内容和进度；新增的小节需要再生成内容。</p><label class="field"><span>课程名称</span><input class="inp" id="eo-t" value="${esc(c.title)}"></label><label class="field"><span>分类</span><input class="inp" id="eo-c" value="${esc(c.cat)}"></label><textarea class="inp" id="eo-x" style="min-height:320px;font-family:var(--mono);font-size:13px">${esc(outlineToText({ chapters: c.chapters.map(ch => ({ title: ch.title, sections: ch.sections })) }))}</textarea><button class="btn pri block" id="eo-ok">保存</button></div>`);
   const s = sheet('编辑目录', body);
   $('#eo-ok', body).onclick = () => {
-    const chs = parseOutline($('#eo-x', body).value), stamp = Date.now().toString(36); if (!chs.length) return toast('目录是空的');
+    const chs = parseOutline($('#eo-x', body).value), stamp = Date.now().toString(36);
     const doc = { id: c.id, title: $('#eo-t', body).value.trim() || c.title, cat: $('#eo-c', body).value.trim() || c.cat, desc: c.desc, color: c.color,
       chapters: chs.map((ch, i) => { const old = c.chapters.find(x => x.title === ch.title); const cid = old?.id || `${c.id}c${stamp}${i}`;
         return { id: cid, title: ch.title, sections: ch.sections.map((x, j) => { const os = old?.sections.find(y => y.title === x.title) || courseSecs(c).find(y => y.title === x.title); return { id: os?.id || `${cid}s${stamp}${j}`, title: x.title, points: x.points }; }) }; }) };
@@ -78,6 +78,6 @@ function editOutlineSheet(c) {
 async function deleteCourse(c) {
   if (!await confirmBox('删除课程', `会删除「${c.title}」的全部内容和学习记录，不能撤销。`, '删除', true)) return;
   for (const sec of courseSecs(c)) { Store.drop('sec/' + sec.id); for (const it of sec.items) ITEMS.delete(it.id); SECS.delete(sec.id); delete S().sec[sec.id]; }
-  c.chapters.forEach(ch => CHAPS.delete(ch.id)); Store.drop('course/' + c.id); Store.drop('srs/' + c.id); Notes.of(c.id).forEach(n => Notes.del(n)); COURSES.delete(c.id); delete plan().courses[c.id];
+  c.chapters.forEach(ch => CHAPS.delete(ch.id)); Store.drop('course/' + c.id); Store.drop('srs/' + c.id); Notes.of(c.id).forEach(n => Notes.del(n)); { const H = homeCfg(); H.cards = H.cards.filter(x => x.course !== c.id); delete H.range[c.id]; } COURSES.delete(c.id); delete plan().courses[c.id];
   saveState(); go('library', {}, { tab: true }); toast('已删除');
 }

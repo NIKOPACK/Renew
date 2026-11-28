@@ -723,62 +723,120 @@ await run('悬浮会话栏、首页快捷键、问 AI 沉淀飞轮、交互矢�
   await ctx.close();
 });
 
-await run('首页内容：推荐范围、自定义卡片、AI 添加与 AI 每日卡片', async () => {
+await run('首页内容：课程分支范围、课程里的卡片、AI 添加与 AI 每日卡片', async () => {
   const { page, ctx, errors } = await newPage(); const reqs = [];
   const txt = m => typeof m.content === 'string' ? m.content : (m.content || []).map(c => c.text || '').join('');
   await page.route('https://api.deepseek.com/**', async r => {
     const req = r.request(), body = req.postDataJSON?.() || null; reqs.push(body);
     if (req.url().endsWith('/models')) return r.fulfill({ json: { data: [{ id: 'deepseek-chat' }] } });
     const h = { 'content-type': 'text/event-stream' }, all = body.messages.map(txt).join('\n');
-    if (body.tools && !body.messages.some(m => m.role === 'tool')) return r.fulfill({ headers: h, body: sse([oa({ tool_calls: [{ index: 0, id: 'c1', type: 'function', function: { name: 'update_home', arguments: JSON.stringify({ cards: [{ type: 'count', title: '考研', date: '2026-12-26', pos: 'top' }] }) } }] })]) });
+    if (body.tools && !body.messages.some(m => m.role === 'tool')) return r.fulfill({ headers: h, body: sse([oa({ tool_calls: [{ index: 0, id: 'c1', type: 'function', function: { name: 'update_home', arguments: JSON.stringify({ cards: [{ course: 'learn', type: 'count', title: '考研', date: '2026-12-26', pos: 'top' }] }) } }] })]) });
     if (body.tools) return r.fulfill({ headers: h, body: sse([oa({ content: '已加上考研倒计时。' })]) });
-    if (/定制学习 App「温新」的首页/.test(all)) return r.fulfill({ headers: h, body: sse([oa({ content: JSON.stringify({ scope: { learn: false, wrong: 3 }, cards: [{ type: 'ai', title: '每日一句', prompt: '一句英文名言，附中文翻译', pos: 'top' }, { type: 'count', title: '坏日期', date: 'x' }, { type: 'text', title: '<img src=x onerror=alert(1)>', body: '<script>alert(1)</script>坚持' }] }) })]) });
+    if (/定制学习 App「温新」的首页/.test(all)) return r.fulfill({ headers: h, body: sse([oa({ content: JSON.stringify({ scope: { learn: false, wrong: 3 }, cards: [{ course: 'learn', type: 'ai', title: '每日一句', prompt: '一句英文名言，附中文翻译', pos: 'top' }, { type: 'count', title: '坏日期', date: 'x' }, { course: 'nope', type: 'text', title: '<img src=x onerror=alert(1)>', body: '<script>alert(1)</script>坚持' }] }) })]) });
     if (/首页写一张卡片/.test(all)) return r.fulfill({ headers: h, body: sse([oa({ content: '**Stay hungry, stay foolish.** 求知若饥，虚心若愚。' })]) });
     return r.fulfill({ headers: h, body: sse([oa({ content: '好的' })]) });
   });
-  // 1) 手动添加文字卡片（置顶）与倒计时（穿插在学习流）
+  // 1) 卡片属于课程：从首页添加文字卡片（置顶）与倒计时（穿插在学习流）
   await page.click('#td-home'); await page.waitForSelector('[data-hadd]');
   await page.click('[data-hadd]'); await page.waitForSelector('#hc-title');
+  check(await page.evaluate(() => $('#hc-course').value === 'learn'), '新卡片默认放进在学的课程');
   await page.fill('#hc-title', '本周目标'); await page.fill('#hc-body', '学完 **第 1 章**'); await page.click('.sheet-wrap:last-child [data-ok]'); await page.waitForTimeout(400);
   await page.click('[data-hadd]'); await page.waitForSelector('#hc-title'); await page.click('[data-ty="count"]');
   await page.fill('#hc-title', '期末'); await page.fill('#hc-date', '2026-12-20'); await page.click('[data-pos="feed"]'); await page.click('.sheet-wrap:last-child [data-ok]'); await page.waitForTimeout(400);
   await page.keyboard.press('Escape'); await page.waitForTimeout(500);
-  let st = await page.evaluate(() => ({ top: $$('#hws .hcard').map(e => e.textContent).join(), order: $$('#feed > *').map(e => e.dataset.pk ? 'p' : e.dataset.hw ? 'w' : 'o').join('') }));
-  check(/本周目标/.test(st.top) && /第 1 章/.test(st.top), '自定义文字卡片置顶显示在学习流上方');
+  let st = await page.evaluate(() => ({ top: $$('#hws .hcard').map(e => e.textContent).join(), src: $('#hws .hcard .src')?.textContent }));
+  check(/本周目标/.test(st.top) && /第 1 章/.test(st.top) && /学习的科学/.test(st.src), '课程里的卡片置顶显示在首页，并标出所属课程');
   await page.evaluate(() => { for (let i = 0; i < 30 && Feed.rendered < Feed.queue.length; i++) moreFeed(); });
   st = await page.evaluate(() => $$('#feed > *').map(e => e.dataset.pk ? 'p' : e.dataset.hw ? 'w' : 'e').join(''));
   check(/^pppw/.test(st) && (st.match(/w/g) || []).length === 1, `倒计时卡片穿插在第 3 个内容之后且只出现一次（${st}）`);
-  // 2) 推荐范围：只推第 2 章
+  // 课程页的「卡片」分支
+  await page.evaluate(() => go('course', { id: 'learn' })); await page.waitForSelector('#ccards');
+  check(await page.evaluate(() => $$('#ccl [data-hedit]').length === 2), '课程页有「卡片」分支，列出这门课的卡片');
+  // 2) 推荐范围：只推第 2 章 + 卡片分支
+  await page.evaluate(() => go('today', {}, { tab: true })); await page.waitForTimeout(300);
   const ch2 = await page.evaluate(() => COURSES.get('learn').chapters[1].id);
-  await page.click('#td-home'); await page.waitForSelector('[data-rng="learn"]'); await page.click('[data-rng="learn"]'); await page.waitForSelector(`[data-ch="${ch2}"]`);
-  await page.click(`[data-ch="${ch2}"]`); await page.waitForTimeout(200);
+  await page.click('#td-home'); await page.waitForSelector('[data-rng="learn"]'); await page.click('[data-rng="learn"]'); await page.waitForSelector(`[data-br="${ch2}"]`);
+  check(await page.evaluate(() => !!$('[data-br="@cards"]')), '分支列表里有各章和「卡片」');
+  await page.click(`[data-br="${ch2}"]`); await page.waitForTimeout(150); await page.click('[data-br="@cards"]'); await page.waitForTimeout(150);
   await page.keyboard.press('Escape'); await page.waitForTimeout(400);
-  check(await page.evaluate(ch => (homeRange('learn') || []).join() === ch && !/全部章节/.test($('[data-rng="learn"] .m').textContent), ch2), '课程范围可以只选部分章节');
+  check(await page.evaluate(ch => (homeRange('learn') || []).join() === ch + ',@cards' && /等 2 个分支/.test($('[data-rng="learn"] .m').textContent), ch2), '课程范围可以只选部分分支');
   await page.keyboard.press('Escape'); await page.waitForTimeout(400);
   await page.evaluate(() => { Daily.pr = null; refresh(); }); await page.waitForTimeout(300);
-  st = await page.evaluate(() => ({ chaps: [...new Set(Feed.queue.filter(it => !getSt(it)).map(it => SECS.get(it.sec).chap))], next: todayModel().courses[0]?.sec?.chap }));
-  check(st.chaps.length === 1 && st.chaps[0] === ch2 && st.next === ch2, `新内容只来自选定的章（${st.chaps}）`);
-  // 3) 关掉课程新内容和复习：首页只剩自己的卡片
+  st = await page.evaluate(() => ({ chaps: [...new Set(Feed.queue.filter(it => !getSt(it)).map(it => SECS.get(it.sec).chap))], next: todayModel().courses[0]?.sec?.chap, cards: $$('.hcard').length }));
+  check(st.chaps.length === 1 && st.chaps[0] === ch2 && st.next === ch2 && st.cards >= 1, `新内容只来自选定的章，卡片分支仍显示（${st.chaps}）`);
+  await page.evaluate(ch => { homeCfg().range.learn = [ch]; saveState(); Daily.pr = null; refresh(); }, ch2); await page.waitForTimeout(300);
+  check(await page.evaluate(() => !$$('.hcard').length), '没选「卡片」分支时，这门课的卡片不上首页');
+  await page.evaluate(() => { delete homeCfg().range.learn; saveState(); });
+  // 3) 关掉新内容和复习：首页只剩课程里的卡片
   await page.evaluate(() => { const H = homeCfg(); H.learn = false; H.review = false; saveState(); Daily.pr = null; refresh(); }); await page.waitForTimeout(300);
   st = await page.evaluate(() => ({ posts: $$('#feed .post[data-pk]').length, cards: $$('.hcard').length, k: $$('.dayband .db-k').length }));
-  check(st.posts === 0 && st.cards === 2 && st.k === 1, `课程可以不显示：首页只有自己的卡片（${JSON.stringify(st)}）`);
-  // 4) AI 添加：AI 给出范围与卡片，校验后加入；AI 每日卡片自动生成今天的内容
+  check(st.posts === 0 && st.cards === 2 && st.k === 1, `可以不推知识和题：首页只有卡片（${JSON.stringify(st)}）`);
+  // 4) 只有卡片的课程：目录为空也能创建
+  await page.evaluate(() => newCourseSheet()); await page.waitForSelector('#nc-man'); await page.fill('#nc-t', '日常'); await page.click('#nc-man'); await page.waitForSelector('#o-x');
+  await page.fill('#o-x', ''); await page.click('#o-ok'); await page.waitForSelector('#ccards');
+  const cid = await page.evaluate(() => Nav.stack.at(-1).params.id);
+  check(await page.evaluate(id => COURSES.get(id)?.chapters.length === 0, cid), '可以新建只放卡片、没有章节的课程');
+  await page.click('#ccadd'); await page.waitForSelector('#hc-title');
+  check(await page.evaluate(id => $('#hc-course').value === id, cid), '在课程页添加卡片默认放进这门课');
+  await page.fill('#hc-title', '座右铭'); await page.fill('#hc-body', '日日精进'); await page.click('.sheet-wrap:last-child [data-ok]'); await page.waitForTimeout(400);
+  check(await page.evaluate(() => $$('#ccl [data-hedit]').length === 1), '卡片出现在课程的「卡片」分支里');
+  await page.evaluate(() => go('today', {}, { tab: true })); await page.waitForTimeout(400);
+  check(await page.evaluate(() => /日日精进/.test($('#hws')?.textContent || '')), '只有卡片的课程，卡片也会上首页');
+  // 5) AI 添加：AI 给出放进哪门课的卡片与推荐内容调整，校验后加入；AI 每日卡片自动生成今天的内容
   await page.evaluate(async () => { await Platform.aiConfig.set({ provider: 'deepseek', kind: 'openai', key: 'sk-test', model: 'deepseek-chat', base: 'https://api.deepseek.com' }); await AI.reload(); homeCfg().learn = true; saveState(); });
   await page.evaluate(() => homeAISheet()); await page.waitForSelector('#ha-in');
   await page.click('[data-sg]'); await page.click('#ha-go'); await page.waitForSelector('#ha-ok', { timeout: 10000 });
   const prev = await page.evaluate(() => $('#ha-out').textContent);
-  check(/不推荐课程新内容/.test(prev) && /3 道错题/.test(prev) && /每日一句/.test(prev) && !/坏日期/.test(prev), 'AI 添加：先预览改动，无效卡片被丢弃');
+  check(/不推荐新内容/.test(prev) && /3 道错题/.test(prev) && /学习的科学」添加AI 每日卡片「每日一句/.test(prev) && !/坏日期/.test(prev), 'AI 添加：先预览改动（含放进哪门课），无效卡片被丢弃');
   await page.click('#ha-ok'); await page.waitForFunction(() => /Stay hungry/.test($('#hws')?.textContent || ''), null, { timeout: 10000 });
-  st = await page.evaluate(() => ({ H: homeCfg(), today: dayKey(), xss: !!$('#view script, #view img[src="x"]') }));
-  check(!st.H.learn && st.H.wrong === 3 && st.H.cards.some(c => c.type === 'ai' && c.by === 'ai' && c.ai?.day === st.today), 'AI 添加的范围生效，AI 每日卡片已生成今天的内容');
-  check(!st.xss && st.H.cards.some(c => c.body.includes('坚持')), 'AI 给的卡片内容经过转义，没有注入');
-  // 5) AI 助手：update_home 工具确认后添加卡片
-  await page.evaluate(() => { aiSend('加一个考研倒计时'); }); // 不等待：工具在等用户确认 await page.waitForSelector('[data-allow]', { timeout: 10000 });
-  await page.click('[data-allow]'); await page.waitForFunction(() => !Chat.busy, null, { timeout: 10000 });
-  check(await page.evaluate(() => homeCfg().cards.some(c => c.type === 'count' && c.date === '2026-12-26')), 'AI 助手可以定制首页（修改前征得同意）');
-  // 6) 备份里的异常配置被校正
-  check(await page.evaluate(() => { S().home = { learn: 'x', wrong: 999, range: { a: 'b' }, cards: [null, { type: 'evil', id: '../x', title: 1, on: 0 }] }; const H = homeCfg(); return H.learn === true && H.wrong === 30 && !H.range.a && H.cards.length === 1 && H.cards[0].type === 'text' && /^h/.test(H.cards[0].id); }), '异常的首页配置自动校正');
+  st = await page.evaluate(() => ({ H: homeCfg(), today: dayKey(), valid: homeCfg().cards.every(c => COURSES.has(c.course)), xss: !!$('#view script, #view img[src="x"]') }));
+  check(!st.H.learn && st.H.wrong === 3 && st.H.cards.some(c => c.type === 'ai' && c.course === 'learn' && c.by === 'ai' && c.ai?.day === st.today), 'AI 添加的范围生效，AI 每日卡片已生成今天的内容');
+  check(!st.xss && st.H.cards.some(c => c.body.includes('坚持')) && st.valid, 'AI 给的卡片内容经过转义，不存在的课程改放进默认课程');
+  // 6) AI 助手：update_home 工具确认后添加卡片
+  await page.evaluate(() => { aiSend('加一个考研倒计时'); }); // 不等待：工具在等用户确认
+  await page.waitForSelector('[data-allow]', { timeout: 10000 }); await page.click('[data-allow]'); await page.waitForFunction(() => !Chat.busy, null, { timeout: 10000 });
+  check(await page.evaluate(() => homeCfg().cards.some(c => c.type === 'count' && c.date === '2026-12-26' && c.course === 'learn')), 'AI 助手可以往课程里加首页卡片（修改前征得同意）');
+  // 7) 删除课程时一起删掉它的卡片；备份里的异常配置被校正
+  check(await page.evaluate(async id => { const p = deleteCourse(COURSES.get(id)); await new Promise(r => setTimeout(r, 400)); $('.sheet [data-v="1"]').click(); await p; return !homeCfg().cards.some(c => c.course === id); }, cid), '删除课程时一起删除它的卡片');
+  check(await page.evaluate(() => { S().home = { learn: 'x', wrong: 999, range: { a: 'b' }, cards: [null, { type: 'evil', id: '../x', title: 1, on: 0, course: 'nope' }] }; const H = homeCfg(); return H.learn === true && H.wrong === 30 && !H.range.a && H.cards.length === 1 && H.cards[0].type === 'text' && /^h/.test(H.cards[0].id) && H.cards[0].course === 'learn'; }), '异常的首页配置自动校正');
   await page.evaluate(() => go('today', {}, { tab: true })); await page.waitForTimeout(300);
+  check(!errors.length, '没有脚本错误' + (errors.length ? '：' + errors.join(' | ') : ''));
+  await ctx.close();
+});
+
+await run('手动新建、编辑、移动知识点和题目', async () => {
+  const { page, ctx, errors } = await newPage();
+  await page.evaluate(() => go('section', { id: 'learn1s1' })); await page.waitForSelector('[data-new="choice"]');
+  // 新建单选题
+  await page.click('[data-new="choice"]'); await page.waitForSelector('#ie-q');
+  await page.fill('#ie-q', '间隔复习的依据是？'); await page.fill('[data-o="0"]', '遗忘曲线'); await page.fill('[data-o="1"]', '学习金字塔'); await page.fill('[data-o="2"]', '');
+  await page.click('[data-ok="0"]'); await page.click('.sheet-wrap:last-child [data-save]'); await page.waitForTimeout(400);
+  let it = await page.evaluate(() => { const x = secItems(SECS.get('learn1s1')).find(i => i.q === '间隔复习的依据是？'); return x && { id: x.id, t: x.t, o: x.o, a: x.a, pr: x.pr }; });
+  check(it && it.t === 'choice' && it.o.length === 2 && it.a === 0 && it.pr === 1, '手动新建单选题（空选项自动去掉）');
+  check(await page.evaluate(id => !!$(`[data-q="${id}"]`), it?.id), '新题目出现在小节的练习里');
+  // 缺答案时提示
+  await page.click('[data-new="kp"]'); await page.waitForSelector('#ie-q'); await page.click('.sheet-wrap:last-child [data-save]'); await page.waitForTimeout(200);
+  check(await page.evaluate(() => /要点/.test($('.toast')?.textContent || '')), '必填项为空时提示，不保存');
+  await page.fill('#ie-title', '我的知识点'); await page.fill('#ie-q', '- 先回忆再看答案'); await page.fill('#ie-d', '主动回忆比重读有效'); await page.click('.sheet-wrap:last-child [data-save]'); await page.waitForTimeout(400);
+  check(await page.evaluate(() => secItems(SECS.get('learn1s1')).some(i => i.t === 'kp' && i.title === '我的知识点' && i.d === '主动回忆比重读有效' && !i.pr)), '手动新建知识点（要点 + 详解）');
+  // 编辑：改成多选，并移到另一个小节，保留复习进度
+  await page.evaluate(id => { const x = ITEMS.get(id); setSt(x, { s: 3, d: 5, reps: 2, lapses: 1, last: Date.now(), lr: 3, ivl: 3, due: Date.now() + 864e5 }); saveSrs('learn'); }, it.id);
+  await page.click(`[data-edit="${it.id}"]`); await page.waitForSelector('#ie-q');
+  await page.click('[data-ty="multi"]'); await page.click('[data-addo]'); await page.fill('[data-o="2"]', '记忆规律'); await page.click('[data-ok="2"]');
+  await page.selectOption('#ie-sec', 'learn1s2'); await page.click('.sheet-wrap:last-child [data-save]'); await page.waitForTimeout(400);
+  it = await page.evaluate(id => { const x = ITEMS.get(id); return x && { sec: x.sec, t: x.t, a: x.a, o: x.o, reps: getSt(x)?.reps, old: SECS.get('learn1s1').items.some(i => i.id === id) }; }, it.id);
+  check(it && it.sec === 'learn1s2' && it.t === 'multi' && it.a.join() === '0,2' && it.o.length === 3 && it.reps === 2 && !it.old, `编辑题目：改成多选并移到其他小节，保留复习进度（${JSON.stringify(it)}）`);
+  // 内置知识点：改内容以修正保存
+  const kp = await page.evaluate(() => secKps(SECS.get('learn1s1')).find(i => i.builtin).id);
+  await page.evaluate(() => refresh()); await page.waitForTimeout(300);
+  await page.click(`[data-kp="${kp}"]`); await page.waitForSelector(`.kopen [data-edit="${kp}"]`); await page.click(`.kopen [data-edit="${kp}"]`); await page.waitForSelector('#ie-title');
+  check(await page.evaluate(() => $('#ie-sec').disabled), '内置卡片不能移动');
+  await page.fill('#ie-title', '改过的标题'); await page.click('.sheet-wrap:last-child [data-save]'); await page.waitForTimeout(400);
+  check(await page.evaluate(id => ITEMS.get(id).title === '改过的标题' && Store.get('sec/learn1s1').items.some(x => x.id === id && x._p), kp), '内置知识点可以编辑（以修正保存）');
+  // 学习时卡片菜单里也能编辑
+  await page.evaluate(() => startSection('learn1s1')); await page.waitForSelector('.post [data-act="more"]');
+  await page.click('.post [data-act="more"]'); await page.waitForTimeout(300);
+  check(await page.evaluate(() => $$('.sheet .menu button').some(b => b.textContent.includes('编辑'))), '学习时卡片的「更多」菜单里有编辑');
   check(!errors.length, '没有脚本错误' + (errors.length ? '：' + errors.join(' | ') : ''));
   await ctx.close();
 });
