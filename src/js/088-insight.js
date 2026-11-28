@@ -23,7 +23,7 @@ function viewInsight({ course } = {}) {
   if (!list.length) { v.innerHTML = appbar('学情') + `<div class="wrap"><div class="empty">${tileIco('insight')}<b>还没有作答记录</b></div></div>`; $('[data-back]', v).onclick = back; return; }
   const cur = list.find(x => x.c.id === course) || list[0], c = cur.c, cnt = cur.cnt, causes = cur.causes;
   const ctot = CAUSES.reduce((s, [k]) => s + causes[k].all, 0), cmax = Math.max(1, ...CAUSES.map(([k]) => causes[k].all));
-  const wk = weeklyAcc(c.id), cal = calibration(c.id), top = Nav.stack[Nav.stack.length - 1]; top.params = { course: c.id };
+  const wk = weeklyAcc(c.id), cal = calibration(c.id), top = Nav.stack[Nav.stack.length - 1], fit = refreshModels(); top.params = { course: c.id };
   v.innerHTML = appbar('', AI.ok || Platform.aiConfigurable ? `<button class="ibtn" id="in-ai" aria-label="AI 分析">${ico('spark')}</button>` : '') + `<div class="wrap"><div class="stack">
   <header style="padding:4px 4px 0"><div class="eyebrow" style="color:${c.color}">学情</div><h1 class="phead">${esc(c.title)}</h1></header>
   ${list.length > 1 ? `<div class="chips">${list.map(x => `<button class="chip" data-ic="${x.c.id}" aria-pressed="${x.c.id === c.id}"><i class="cdot" style="--c:${x.c.color}"></i>${esc(x.c.title)}${x.weak.length ? `<span class="n">${x.weak.length}</span>` : ''}</button>`).join('')}</div>` : ''}
@@ -36,6 +36,7 @@ function viewInsight({ course } = {}) {
   <div class="gh"><b>全部小节</b><span class="num">${cur.rows.length}</span></div>
   <div class="group">${cur.rows.map(x => `<button class="rowi" data-is="${x.sec.id}"><span class="grow"><div class="t">${esc(x.sec.title)}</div><div class="m"><span class="mtag" style="color:${x.st === 'none' ? 'var(--ink-3)' : M_COLOR[x.st]}">${M_LABEL[x.st]}</span>${x.raw ? ` · <span class="num">${x.ok}/${x.raw}</span>` : ''}</div></span>${mBar(x)}${ico('chev', 'chev')}</button>`).join('')}</div>
   ${cal.n >= 200 ? calibrationCard(cal) : ''}
+  ${modelCard(fit, c.id)}
   </div></div>`;
   $('[data-back]', v).onclick = back;
   $$('[data-ic]', v).forEach(b => b.onclick = () => { top.params = { course: b.dataset.ic }; refresh(); });
@@ -45,6 +46,16 @@ function viewInsight({ course } = {}) {
   $$('[data-is]', v).forEach(b => b.onclick = () => go('section', { id: b.dataset.is }));
   $('#in-ai')?.addEventListener('click', () => runReport(c));
   bindReport($('#in-report', v), c);
+  $('#in-fsrs')?.addEventListener('click', () => { const pl = plan(); pl.fsrsOff = !pl.fsrsOff; refreshModels(true); refresh(); toast(pl.fsrsOff ? '已恢复默认复习参数' : '已按你的记录调整'); });
+  $('#in-refit')?.addEventListener('click', () => { refreshModels(true); refresh(); });
+}
+/* 按你的记录拟合的模型：都用留出数据检验，更准才启用 */
+function modelCard(fit, cid) {
+  const f = fit.fsrs || {}, p = fit.pfa?.[cid], pc = (a, b) => Math.round((1 - b / a) * 100);
+  const fs = !f.n || f.n < (f.need || 0) ? `<span class="m">${ico('clock')}<span class="num">${f.n || 0}/${f.need || MODEL_MIN.fsrs}</span></span>`
+    : plan().fsrsW ? `<span class="pill good">${ico('check')}误差 −${pc(f.ll0, f.ll1)}%</span>` : plan().fsrsOff && f.ok ? `<span class="pill">默认</span>` : `<span class="pill">默认更准</span>`;
+  const ps = !p || p.n < (p.need || 0) ? `<span class="m">${ico('clock')}<span class="num">${p?.n || 0}/${MODEL_MIN.pfa}</span></span>` : p.ok ? `<span class="pill good">${ico('check')}误差 −${pc(p.ll0, p.ll1)}%</span>` : `<span class="pill">掌握度更准</span>`;
+  return `<div class="gh"><b>个性化</b><button class="link" id="in-refit">${ico('sync')}</button></div><div class="group"><div class="rowi"><span class="grow"><div class="t">复习间隔</div><div class="m">FSRS · 按你的复习记录</div></span>${fs}${f.ok ? `<button class="toggle" role="switch" id="in-fsrs" aria-checked="${!plan().fsrsOff}" aria-label="按你的记录调整复习间隔"></button>` : ''}</div><div class="rowi"><span class="grow"><div class="t">答对预测</div><div class="m">PFA · 用来给薄弱点排序</div></span>${ps}</div></div>`;
 }
 /* 预测准确度：FSRS 预测的回忆概率 vs 实际记得的比例 */
 function calibrationCard(cal) {

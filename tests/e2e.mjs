@@ -817,6 +817,56 @@ await run('学情分析：作答记录、错因、掌握度、错题本、录题
   await ctx.close();
 });
 
+await run('学情分析：分析模型、FSRS 参数个性化、PFA', async () => {
+  const { page, ctx, errors } = await newPage(); const hits = { chat: 0, an: 0, anImg: 0 };
+  const sseR = obj => ({ headers: { 'content-type': 'text/event-stream' }, body: sse([oa({ content: JSON.stringify(obj) })]) });
+  await page.route('https://api.deepseek.com/**', r => { hits.chat++; return r.fulfill(sseR({ answer: 'B', questions: [] })); });
+  await page.route('https://an.example.com/**', r => { hits.an++; const b = r.request().postDataJSON?.() || {}; if (JSON.stringify(b).includes('image_url')) hits.anImg++; return r.fulfill(sseR({ answer: 'B' })); });
+  // 1) 分析模型：单独设置后，盲解走分析模型；它不能看图时，录题识别退回对话模型
+  await page.evaluate(async () => {
+    await Platform.aiConfig.set({ provider: 'deepseek', kind: 'openai', key: 'sk-test', model: 'deepseek-chat', base: 'https://api.deepseek.com', vision: true });
+    await Platform.anConfig.set({ provider: 'custom', kind: 'openai', key: 'sk-an', model: 'an-model', base: 'https://an.example.com/v1', vision: false }); await AI.reload();
+    await solveBlind({ t: 'choice', q: '题', o: ['a', 'b'] }, 3);
+  });
+  check(hits.an === 3 && hits.chat === 0, '设置分析模型后，盲解请求发给分析模型');
+  await page.evaluate(async () => { const cv = document.createElement('canvas'); cv.width = cv.height = 20; const b = await new Promise(r => cv.toBlob(r, 'image/png')); await capRecognize(COURSES.get('learn'), [b], '', 'all'); });
+  check(hits.chat === 2 && hits.anImg === 0, '分析模型不能看图时，录题识别退回能看图的对话模型');
+  await page.evaluate(() => go('settings')); await page.waitForSelector('#s-an');
+  check(/an-model/.test(await page.locator('#s-an').textContent()), '设置页显示分析模型');
+  await page.click('#s-an'); await page.waitForSelector('.sheet [data-p="same"]'); await page.click('.sheet [data-p="same"]'); await page.click('#ai-save'); await page.waitForTimeout(300);
+  check(await page.evaluate(async () => !(await Platform.anConfig.get()) && !AI.an && AI.A === AI.fn), '选「同对话模型」即取消单独设置');
+  // 2) FSRS 个性化：模拟一个记得比默认参数更久的学习者，按 App 的排程复习；拟合后留出卡片上的预测误差更小
+  const fs = await page.evaluate(() => {
+    let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    const WT = W.map((x, i) => i < 4 ? x * 3 : i === 8 ? x + .4 : x), t0 = Date.now() - 200 * 864e5;
+    for (let c = 0; c < 400; c++) {
+      const id = 'sim' + c; let t = t0 + c * 2e5, st = null, tr = null;
+      for (let k = 0; k < 9 && t < Date.now(); k++) {
+        const y = !tr ? 1 : rnd() < retr((t - tr.last) / 864e5, tr.s) ? 1 : 0, g = !st ? 3 : y ? 3 : 1;
+        attAdd({ id, c: 'zsim', s: 'learn1s1', t, m: 'review', g, first: true, ...(st ? { r: retr((t - st.last) / 864e5, st.s) } : {}) });
+        st = schedule(st, g, t, W); tr = schedule(tr, g, t, WT); t = Math.max(st.due, t + 864e5) + rnd() * 864e5;
+      }
+    }
+    const f = fitFsrs(); return { ok: f.ok, n: f.n, ll0: f.ll0, ll1: f.ll1, w0: f.w?.[2] };
+  });
+  check(fs.ok && fs.ll1 < fs.ll0 && fs.w0 > 3.7145, `FSRS 个性化：留出卡片误差 ${fs.ll0?.toFixed(3)} → ${fs.ll1?.toFixed(3)}，初始稳定度调大`);
+  const used = await page.evaluate(() => { refreshModels(true); const a = Wp() !== W; plan().fsrsOff = true; refreshModels(true); const b = Wp() === W; plan().fsrsOff = false; refreshModels(true); return a && b; });
+  check(used, '检验更准才启用个性化参数，可以恢复默认');
+  // 3) PFA：数据不足时不启用；足够时与 Beta 基线比较
+  const pf = await page.evaluate(() => {
+    const few = fitPfa('learn');
+    let seed = 3; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647, secs = courseSecs(COURSES.get('learn')).map(s => s.id), t0 = Date.now() - 60 * 864e5;
+    const cnt = {}; for (let i = 0; i < 500; i++) { const sid = secs[i % secs.length], n = cnt[sid] = (cnt[sid] || 0) + 1, p = 1 / (1 + Math.exp(-(-1.2 + secs.indexOf(sid) * .5 + .45 * Math.log1p(n)))); attAdd({ id: null, c: 'learn', s: sid, t: t0 + i * 864e5 / 9, m: 'practice', ok: rnd() < p, first: true }); }
+    const f = fitPfa('learn'); return { few: few.ok === false, n: f.n, ll0: f.ll0, ll1: f.ll1, ok: f.ok };
+  });
+  check(pf.few && pf.n >= 500 && pf.ll0 > 0 && pf.ll1 > 0, `PFA：数据不足不启用；500 次作答时 PFA ${pf.ll1?.toFixed(3)} vs 掌握度基线 ${pf.ll0?.toFixed(3)}（${pf.ok ? '启用' : '不启用'}）`);
+  await page.evaluate(() => go('insight', { course: 'learn' })); await page.waitForSelector('#in-refit');
+  await page.locator('#in-refit').scrollIntoViewIfNeeded(); await page.waitForTimeout(200); await shot(page, 'insight-models');
+  check(await page.locator('#in-fsrs').count() === 1, '学情页显示个性化状态和开关');
+  check(!errors.length, '没有脚本错误' + (errors.length ? '：' + errors.join(' | ') : ''));
+  await ctx.close();
+});
+
 await browser.close(); server.close();
 console.log(failed ? `\n${failed} 项失败` : '\n全部通过');
 process.exit(failed ? 1 : 0);

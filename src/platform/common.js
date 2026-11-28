@@ -7,7 +7,7 @@
    ai()                                      返回 AI 调用函数（与 claude.ai sample 接口一致），不可用时为 null
    save(name, blob)                          保存/分享文件：true 已保存，false 用户取消，null 不支持
    haptic(kind) / notify / onTheme()         震动、本地通知、状态栏配色
-   aiConfig / imgConfig                      对话模型、图片模型的配置（API Key 只存在本机） */
+   aiConfig / imgConfig / anConfig           对话模型、图片模型、分析模型的配置（API Key 只存在本机） */
 const CAP = window.Capacitor, NATIVE = !!(CAP && CAP.isNativePlatform && CAP.isNativePlatform());
 const Plug = name => (CAP && CAP.Plugins && CAP.Plugins[name]) || null;
 const b64ToBlob = (b64, type = '') => { const bin = atob(b64), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return new Blob([u], { type }); };
@@ -23,7 +23,7 @@ const LocalConf = (pref, ls) => ({
     lsSet(ls, cfg);
   }
 });
-const AIConfig = LocalConf('ai', 'aicfg'), ImgConfig = LocalConf('aiimg', 'imgcfg');
+const AIConfig = LocalConf('ai', 'aicfg'), ImgConfig = LocalConf('aiimg', 'imgcfg'), AnConfig = LocalConf('aian', 'ancfg'); // AnConfig：学情分析单独用的模型（可选）
 const IDB = { // 网页环境的本机库：f 存二进制文件，d 存学习文档（保留早期库名 xueliu 以兼容已有数据）
   db: null,
   open() {

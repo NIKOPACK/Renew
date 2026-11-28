@@ -61,6 +61,7 @@ npm install
 npm run build        # 编译课程内容，构建 App（www/）与网页单文件版（dist/artifact/）
 npm run serve        # 在浏览器预览 App：http://localhost:8780
 npm test             # 端到端测试（首次需要 npx playwright install chromium）
+EVAL_KEY=sk-... node scripts/eval-ai.mjs --provider deepseek --model deepseek-chat   # 学情分析在真实模型上的准确率（见 tests/eval）
 ```
 
 打包手机 App（[Capacitor](https://capacitorjs.com)）：

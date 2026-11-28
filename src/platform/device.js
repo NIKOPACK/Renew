@@ -71,7 +71,7 @@ const Platform = {
   ...(NATIVE ? { loadDocs: () => NativeFS.loadDocs(), writeDoc: (p, o) => NativeFS.writeDoc(p, o), dropDoc: p => NativeFS.dropDoc(p), saveKeys() {}, flush: () => NativeFS.flush(), blobs: NativeFS.blobs } : { ...WebDocs, blobs: IdbBlobs }),
   cloudDb: async () => null, cloudFiles: async () => null,
   async cloudBlob() { throw new Error('这个文件保存在 claude.ai 云端，请在 App 里重新导入原文件'); },
-  aiConfig: AIConfig, imgConfig: ImgConfig, byoClaude: true,
+  aiConfig: AIConfig, imgConfig: ImgConfig, anConfig: AnConfig, byoClaude: true,
   async ai() { const cfg = await AIConfig.get(); return cfg && cfg.key ? AIClient.create(cfg) : null; },
   async save(name, blob) {
     if (NATIVE) {

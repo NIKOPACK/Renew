@@ -23,7 +23,7 @@ ${it.t === 'choice' ? '答案写一个选项字母。' : it.t === 'multi' ? '答
 ${it.q}${it.o ? '\n' + it.o.map((o, i) => `${String.fromCharCode(65 + i)}. ${o}`).join('\n') : ''}`;
 }
 async function solveBlind(it, n = 3, signal) {
-  const runs = await Promise.allSettled(Array.from({ length: n }, () => AI.fn.json(solvePrompt(it), { signal, cache: false })));
+  const runs = await Promise.allSettled(Array.from({ length: n }, () => AI.A.json(solvePrompt(it), { signal, cache: false })));
   const votes = [];
   for (const r of runs) {
     if (r.status !== 'fulfilled' || !r.value) continue;
@@ -67,7 +67,7 @@ function variantSheet(ids) {
       if (stopped) break; const row = $(`[data-v="${it.id}"] small`, body); row.innerHTML = '<span class="spin" style="width:14px;height:14px;border-width:2px"></span> 出题';
       ctl = new AbortController();
       try {
-        const { text } = await AI.fn(variantPrompt(it), { signal: ctl.signal, cache: false });
+        const { text } = await AI.A(variantPrompt(it), { signal: ctl.signal, cache: false });
         const cands = parseDSL(text, it.sec, 'v').items.filter(c => ['choice', 'multi', 'tf'].includes(c.t) || (c.t === 'qa' && asNum(c.a) != null)).slice(0, 3);
         let ok = 0, bad = 0; const good = [];
         for (const c of cands) {

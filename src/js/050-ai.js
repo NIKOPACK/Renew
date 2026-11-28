@@ -1,11 +1,17 @@
 /* ============ AI ============ */
 const AI = {
-  fn: null, ready: false, limits: null,
+  fn: null, ready: false, limits: null, an: null, anLimits: null,
   async init() {
     try { this.fn = await Platform.ai(); } catch { this.fn = null; }
     this.limits = this.fn ? await this.fn.limits().catch(() => null) : null;
+    /* 分析模型（录题识别、盲解、错因、知识点、报告、变式题）：单独设置了就用它，否则用对话模型 */
+    try { const c = await Platform.anConfig?.get(); if (typeof AN_CFG !== 'undefined') AN_CFG = c; this.an = c?.key && c.model ? AIClient.create(c) : null; } catch { this.an = null; }
+    this.anLimits = this.an ? await this.an.limits().catch(() => null) : null;
     this.ready = true;
   },
+  get A() { return this.an || this.fn; },
+  /* 需要看图时：分析模型不能看图而对话模型能，就退回对话模型 */
+  pick(images) { if (!images || !this.an || this.anLimits?.images) return { fn: this.A, lim: this.an ? this.anLimits : this.limits }; return { fn: this.fn, lim: this.limits }; },
   async reload() { this.ready = false; await this.init(); },
   get ok() { return !!this.fn; },
   get need() { return Platform.aiNeed; },

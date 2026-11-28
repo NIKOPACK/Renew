@@ -49,20 +49,25 @@ ${itemToDSL(it)}
 ${causeSignals(it, r).join('\n')}`;
 }
 async function askCause(it, r, mine, signal) {
-  const j = await AI.fn.json(causePrompt(it, r, mine), { signal, cache: false });
+  const j = await AI.A.json(causePrompt(it, r, mine), { signal, cache: false });
   const cause = String(j?.cause || ''), conf = Math.max(0, Math.min(1, +j?.confidence || 0));
   if (!CAUSE[cause]) return null;
   const evOk = evidenceOk(it, r, j.evidence, mine);
   return { cause, conf: evOk ? conf : Math.min(conf, .4), mis: String(j.misconception || '').trim().slice(0, 40), ev: String(j.evidence || '').trim().slice(0, 80), evOk };
 }
 /* 答错卡片上的 AI 按钮：先问一次；置信度低或与规则推断冲突时再独立问一次，两次一致才采用 */
+/* 决定是否采用：先问一次；置信度低或与规则推断冲突时再独立问一次，两次一致才采用；最终置信度不到 0.5 不采用 */
+async function decideCause(it, r, mine, signal) {
+  let a = await askCause(it, r, mine, signal), asked = 1;
+  if (a && (a.conf < .6 || (r.by === 'rule' && r.cause && r.cause !== a.cause))) { const b = await askCause(it, r, mine, signal); asked++; a = b && b.cause === a.cause ? { ...a, conf: Math.max(a.conf, b.conf), mis: a.mis || b.mis } : null; }
+  return { res: a && a.conf >= .5 ? a : null, asked };
+}
 async function diagnoseCause(p) {
   if (!AI.require()) return; const it = p.it, r = p.att; if (!r || p.diag) return;
   p.diag = true; rerender(p);
   try {
-    let a = await askCause(it, r, p.mine);
-    if (a && (a.conf < .6 || (r.by === 'rule' && r.cause !== a.cause))) { const b = await askCause(it, r, p.mine); a = b && b.cause === a.cause ? { ...a, conf: Math.max(a.conf, b.conf), mis: a.mis || b.mis } : null; }
-    if (!a || a.conf < .5) toast('AI 拿不准，请自己选');
+    const { res: a } = await decideCause(it, r, p.mine);
+    if (!a) toast('AI 拿不准，请自己选');
     else if (r.by === 'me' && r.cause !== a.cause) toast(`AI 认为是「${CAUSE[a.cause].l}」，保留你的选择`);
     else setCause(r, a.cause, 'ai', a.mis || a.ev);
   } catch (e) { toast(AI.err(e)); }
@@ -75,7 +80,7 @@ async function tagSection(sec, signal) {
   const kps = secKps(sec), qs = secQs(sec).filter(q => q.kpsBy !== 'me' && !(q.kps?.length && q.kpsBy));
   if (!qs.length || !kps.length) return 0;
   if (kps.length === 1) { for (const q of qs) patchItem(q, { kps: [kps[0].id], kpsBy: 'auto' }); Att.ver++; return qs.length; }
-  if (!AI.ok) return 0;
+  if (!AI.A) return 0;
   const prompt = `下面是一个小节的知识点和题目。为每道题选出它考查的知识点（1~3 个，只能用下面列出的知识点 id；都不相关就给空数组）。
 只输出 JSON：{"map":{"题目id":["知识点id"]}}
 
@@ -84,7 +89,7 @@ ${kps.map(k => `${k.id} | ${k.title || ''} | ${plain(k.q).replace(/\n/g, ' ').sl
 
 题目：
 ${qs.map(q => `${q.id} | ${TYPE_LABEL[q.t]} | ${plain(q.title ? q.title + ' ' + q.q : q.q).replace(/\n/g, ' ').slice(0, 160)}`).join('\n')}`;
-  const j = await AI.fn.json(prompt, { signal, cache: false }), ok = new Set(kps.map(k => k.id)); let n = 0;
+  const j = await AI.A.json(prompt, { signal, cache: false }), ok = new Set(kps.map(k => k.id)); let n = 0;
   for (const q of qs) {
     const ids = [...new Set([].concat(j?.map?.[q.id] || []).map(String).filter(id => ok.has(id)))].slice(0, 3);
     if (ids.length) { patchItem(q, { kps: ids, kpsBy: 'ai' }); n++; }
@@ -151,6 +156,12 @@ function validateReport(j, E) {
   return out;
 }
 const fillText = (t, M) => esc(t).replace(/\{([^}]+)\}/g, (_, k) => k in M ? `<b class="num">${esc(M[k])}</b>` : '');
+/* 报告核心（评测脚本也调用）：最多请求两次，返回校验后的结果和每次被删去的条数 */
+async function makeReport(c) {
+  const E = evidencePack(c), tries = []; let rep = null;
+  for (let i = 0; i < 2 && !(rep?.findings.length); i++) { const raw = await AI.A.json(`${REPORT_RULES}\n\n证据：\n${E.text}`, { cache: false }); rep = validateReport(raw, E); tries.push({ raw: [].concat(raw?.findings || []).length, kept: rep.findings.length }); }
+  return { E, rep, tries };
+}
 async function runReport(c) {
   if (!AI.require()) return;
   const box = $('#in-report'); if (!box) return;
@@ -158,8 +169,7 @@ async function runReport(c) {
   try {
     for (const s of courseSecs(c)) if (evidence().sec.has(s.id) && secQs(s).some(q => !q.kps?.length && q.kpsBy !== 'me')) await tagSection(s);
     box.innerHTML = `<div class="card"><div class="prog"><span class="spin"></span>${ico('spark')}分析中…</div></div>`;
-    const E = evidencePack(c); let rep = null;
-    for (let i = 0; i < 2 && !(rep?.findings.length); i++) rep = validateReport(await AI.fn.json(`${REPORT_RULES}\n\n证据：\n${E.text}`, { cache: false }), E);
+    const { E, rep } = await makeReport(c);
     if (!rep.findings.length) { box.innerHTML = `<div class="card empty-s">${ico('alert')}这次没有得到可靠的结论，稍后再试</div>`; return; }
     (S().reports ||= {})[c.id] = { at: Date.now(), n: E.ins.n, M: E.M, R: E.R, ...rep }; saveState(); logEvent('学情分析 ' + c.title);
   } catch (e) { box.innerHTML = `<div class="card empty-s">${ico('alert')}${esc(AI.err(e))}</div>`; return; }

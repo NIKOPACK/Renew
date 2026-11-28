@@ -18,7 +18,7 @@ const Platform = {
   cloudFiles: () => capUse('assets'),
   async cloudBlob(id) { const r = await fetch('/_blob/' + id); if (!r.ok) throw new Error('文件读取失败（' + r.status + '）'); return r.blob(); },
   blobs: IdbBlobs,
-  aiConfig: AIConfig, imgConfig: ImgConfig,
+  aiConfig: AIConfig, imgConfig: ImgConfig, anConfig: AnConfig,
   /* 默认用 claude.ai 内置的 Claude；用户填了自己的 Key 就直连该服务（受浏览器安全策略限制，部分服务可能连不上） */
   async ai() { const cfg = await AIConfig.get(); return cfg?.key && cfg.provider !== 'builtin' ? AIClient.create(cfg) : capUse('sample'); },
   async save(name, blob) {

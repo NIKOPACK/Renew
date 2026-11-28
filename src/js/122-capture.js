@@ -5,7 +5,7 @@ const CAP_TYPES = { choice: '单选', multi: '多选', tf: '判断', qa: '其他
 function capSecs(cid) { const c = COURSES.get(cid); return c ? courseSecs(c) : []; }
 function captureSheet({ course, files } = {}) {
   const cs = shownCourses(), st = { src: files?.length ? 'img' : 'img', scope: 'all', course: COURSES.has(course) ? course : activeCourses()[0]?.id || cs[0]?.id || '_new', files: files || [], text: '' };
-  const lim = AI.limits?.images;
+  const lim = AI.pick(true).lim?.images;
   const body = h(`<div style="display:flex;flex-direction:column;gap:14px">
     <div class="seg" id="cp-src"><button data-s="img" aria-pressed="true">${ico('camera')}照片</button><button data-s="pdf" aria-pressed="false">${ico('file')}PDF</button><button data-s="text" aria-pressed="false">${ico('list')}文字</button></div>
     <div id="cp-in"></div>
@@ -84,25 +84,30 @@ async function cropQ(img, box) {
     return await new Promise(r => cv.toBlob(r, 'image/jpeg', .85));
   } catch { return img; }
 }
+/* 识别核心（不含界面，评测脚本也调用它）：同一提示独立识别两次，对齐后比对字段，不一致的标出来 */
+async function capRecognize(c, imgs, text, scope = 'all') {
+  const p = recogPrompt(c, imgs.length, text), opt = { cache: false, ...(imgs.length ? { images: imgs } : {}) }, F = AI.pick(imgs.length > 0).fn;
+  const [r1, r2] = await Promise.allSettled([F.json(p, opt), F.json(p, opt)]);
+  if (r1.status !== 'fulfilled' && r2.status !== 'fulfilled') throw r1.reason;
+  const A = (r1.status === 'fulfilled' ? r1.value : r2.value)?.questions || [], B = r1.status === 'fulfilled' && r2.status === 'fulfilled' ? r2.value?.questions || [] : null;
+  const qa = A.map(q => cleanQ(q, c, imgs.length)).filter(q => q.stem), qb = B ? B.map(q => cleanQ(q, c, imgs.length)).filter(q => q.stem) : null, out = [];
+  for (let i = 0; i < qa.length; i++) {
+    const a = qa[i], b = qb ? qb.find(x => x.page === a.page && x.no && x.no === a.no) || (qb.length === qa.length ? qb[i] : null) : null;
+    const flags = capCompare(a, b); if (qb && !b) flags.add('once');
+    const q = { ...a, flags: [...flags], ok: a.mark ? a.mark === 'right' : scope === 'wrong' ? false : null, ansSrc: a.answer ? 'given' : '', key: ansKey(a.type, a.answer), x: '', del: false };
+    if (q.ok == null && q.key && q.mine) q.ok = keyEq(ansKey(q.type, q.mine), q.key);
+    q.blob = imgs.length ? await cropQ(imgs[q.page - 1], q.box) : null;
+    out.push(q);
+  }
+  return out;
+}
 async function startCapture({ course, scope, imgs, text }) {
   Cap.urls.forEach(u => URL.revokeObjectURL(u));
   Object.assign(Cap, { qs: [], course, scope, imgs, urls: [], stage: 'recog', total: '', defSec: '', err: '' });
   go('capture');
   const c = capCourse(course); Cap.course = c.id;
   try {
-    const p = recogPrompt(c, imgs.length, text), opt = { cache: false, ...(imgs.length ? { images: imgs } : {}) };
-    const [r1, r2] = await Promise.allSettled([AI.fn.json(p, opt), AI.fn.json(p, opt)]);
-    if (r1.status !== 'fulfilled' && r2.status !== 'fulfilled') throw r1.reason;
-    const A = (r1.status === 'fulfilled' ? r1.value : r2.value)?.questions || [], B = r1.status === 'fulfilled' && r2.status === 'fulfilled' ? r2.value?.questions || [] : null;
-    const qa = A.map(q => cleanQ(q, c, imgs.length)).filter(q => q.stem), qb = B ? B.map(q => cleanQ(q, c, imgs.length)).filter(q => q.stem) : null;
-    for (let i = 0; i < qa.length; i++) {
-      const a = qa[i], b = qb ? qb.find(x => x.page === a.page && x.no && x.no === a.no) || (qb.length === qa.length ? qb[i] : null) : null;
-      const flags = capCompare(a, b); if (qb && !b) flags.add('once');
-      const q = { ...a, flags: [...flags], ok: a.mark ? a.mark === 'right' : scope === 'wrong' ? false : null, ansSrc: a.answer ? 'given' : '', key: ansKey(a.type, a.answer), x: '', del: false };
-      if (q.ok == null && q.key && q.mine) q.ok = keyEq(ansKey(q.type, q.mine), q.key);
-      q.blob = imgs.length ? await cropQ(imgs[q.page - 1], q.box) : null; if (q.blob) { q.url = URL.createObjectURL(q.blob); Cap.urls.push(q.url); }
-      Cap.qs.push(q);
-    }
+    for (const q of await capRecognize(c, imgs, text, scope)) { if (q.blob) { q.url = URL.createObjectURL(q.blob); Cap.urls.push(q.url); } Cap.qs.push(q); }
     const cnt = {}; Cap.qs.forEach(q => q.sec && (cnt[q.sec] = (cnt[q.sec] || 0) + 1));
     Cap.defSec = Object.entries(cnt).sort((x, y) => y[1] - x[1])[0]?.[0] || (S().cur[c.id] && capSecs(c.id).some(s => s.id === S().cur[c.id]) ? S().cur[c.id] : (nextSection(c) || capSecs(c.id)[0])?.id || '');
     Cap.qs.forEach(q => { if (!q.sec) q.sec = Cap.defSec; });

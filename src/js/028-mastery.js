@@ -80,7 +80,8 @@ function courseInsight(c) {
     for (const k of secKps(s)) if (evidence().kp.has(k.id)) kps.push({ it: k, ...kpMastery(k) });
   }
   const weakK = kps.filter(x => x.st === 'weak'), weakSecWithKp = new Set(weakK.map(x => x.it.sec));
-  const weak = [...weakK, ...rows.filter(x => x.st === 'weak' && !weakSecWithKp.has(x.sec.id))].sort((a, b) => a.p - b.p);
+  const pr = x => { const v = pfaNext(c.id, x.it ? x.it.sec : x.sec.id); return v ?? x.p; }; // PFA 检验更准时按它排序
+  const weak = [...weakK, ...rows.filter(x => x.st === 'weak' && !weakSecWithKp.has(x.sec.id))].sort((a, b) => pr(a) - pr(b));
   return { c, rows, kps, cnt, weak, causes: causeCounts(c.id), n: attAll().filter(r => r.c === c.id && r.ok !== undefined).reduce((s, r) => s + (r.k || 1), 0) };
 }
 /* 错因分布：每道题只取最近一次答错的错因（规则推荐的也算，但单独计数） */
