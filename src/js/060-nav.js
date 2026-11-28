@@ -34,7 +34,7 @@ function render(anim, restore) {
   const ghost = anim && v.firstElementChild && !v.querySelector('.loading') ? navCapture(fx) : null;
   document.body.classList.toggle('immersive', newImm);
   document.body.classList.toggle('aiv', top.view === 'ai');
-  const fn = { today: viewToday, library: viewLibrary, course: viewCourse, section: viewSection, review: viewReview, ai: viewAI, settings: viewSettings, session: viewSession, materials: viewMaterials, notebook: viewNotebook, cmats: viewCourseMats, material: viewMaterial, notes: viewNotes, note: viewNote, search: viewSearch }[top.view];
+  const fn = { today: viewToday, library: viewLibrary, course: viewCourse, section: viewSection, review: viewReview, ai: viewAI, settings: viewSettings, session: viewSession, materials: viewMaterials, notebook: viewNotebook, cmats: viewCourseMats, material: viewMaterial, notes: viewNotes, note: viewNote, search: viewSearch, insight: viewInsight, wrongbook: viewWrongbook, capture: viewCapture }[top.view];
   fn(top.params || {});
   renderTabbar(); updatePill();
   if (anim) { v.classList.remove('enter', 'solo'); void v.offsetWidth; v.classList.add('enter'); if (!ghost && !['next', 'prev'].includes(fx)) v.classList.add('solo'); }

@@ -723,6 +723,100 @@ await run('悬浮会话栏、首页快捷键、问 AI 沉淀飞轮、交互矢�
   await ctx.close();
 });
 
+/* ---------- 学情分析：作答记录、错因、掌握度、学情页、错题本、录题、变式题、补弱、AI 报告校验 ---------- */
+async function mockStudyAI(page, log) {
+  await page.route('https://api.deepseek.com/**', async r => {
+    const body = r.request().postDataJSON?.() || {}, last = body.messages?.at(-1)?.content, txt = typeof last === 'string' ? last : (last || []).map(p => p.text || '').join('\n');
+    const reply = obj => r.fulfill({ headers: { 'content-type': 'text/event-stream' }, body: sse([oa({ content: typeof obj === 'string' ? obj : JSON.stringify(obj) })]) });
+    if (txt.includes('只能从下面 6 类中选一个')) { log.push('cause'); const m = /学生作答：([A-F])\./.exec(txt); return reply({ cause: 'concept', misconception: '把间隔复习理解成集中重复', evidence: `学生选了 ${m ? m[1] : '?'}`, confidence: .9 }); }
+    if (txt.includes('为每道题选出它考查的知识点')) { log.push('tag'); const kp = /^(\S+) \| [^|]*\|/m.exec(txt.split('题目：')[0].split('知识点：')[1])[1], qs = [...txt.split('题目：')[1].matchAll(/^(\S+) \|/gm)].map(m => m[1]); return reply({ map: Object.fromEntries(qs.map(q => [q, [kp, 'bogus-id']])) }); }
+    if (txt.includes('学习分析助手')) { log.push('report'); const sid = /^(s:\S+) \|/m.exec(txt)[1]; return reply({ summary: '整体在 {n} 次作答里暴露出一个明显薄弱点', findings: [{ text: `「间隔」相关的题答对 {${sid}.ok}，多数错在概念上`, refs: [sid], action: { type: 'practice', ref: sid } }, { text: '正确率只有 37%，要多练', refs: [sid], action: { type: 'practice', ref: sid } }, { text: '这条引用了不存在的 {s:nope.p}', refs: [sid] }] }); }
+    if (txt.includes('独立解答下面这道题')) { log.push('solve'); return reply({ answer: 'B', expr: '', x: '因为……' }); }
+    if (txt.includes('请逐题识别')) { log.push('recog'); return reply({ questions: [{ page: 1, box: [0, 0, 1000, 500], no: '1', type: 'choice', stem: '录入测试：间隔复习的关键是？', options: ['集中重复', '分散到多天', '只看不练'], answer: 'B', mine: 'A', mark: 'wrong', sec: 'learn1s1' }, { page: 1, box: [0, 500, 1000, 1000], no: '2', type: 'choice', stem: '录入测试：主动回忆比重读更有效吗？', options: ['是', '否'], answer: '', mine: 'A', mark: 'right', sec: 'learn1s1' }] }); }
+    if (txt.includes('出 2 道考查同一知识点')) { log.push('variant'); return reply('::choice\n变式：下面哪种做法属于间隔复习？\nA. 一晚上看十遍\nB. 隔几天再看一遍\nC. 只看不想\n= B\n?? B 正确。\n\n::tf\n变式：间隔越短越好。\n= 错\n?? 错。'); }
+    return reply('好的');
+  });
+}
+await run('学情分析：作答记录、错因、掌握度、错题本、录题、变式题、补弱', async () => {
+  const { page, ctx, errors } = await newPage(); const log = []; await mockStudyAI(page, log);
+  // 1) 答错一道选择题：写入作答记录，出现错因图标行
+  const q = await page.evaluate(() => { const it = practiceItems(SECS.get('learn1s1')).find(x => x.t === 'choice'); return { id: it.id, wrong: it.a === 0 ? 1 : 0 }; });
+  await page.evaluate(id => go('session', { kind: 'items', ids: [id] }), q.id); await page.waitForSelector('.post .opt');
+  await page.locator(`.post .opt[data-i="${q.wrong}"]`).first().click(); await page.waitForTimeout(400);
+  const rec = await page.evaluate(id => attOf(id).at(-1), q.id);
+  check(rec && rec.ok === false && rec.ans?.[0] === q.wrong && rec.first === true && rec.ms >= 0 && rec.m === 'items', '答错后写入作答记录（对错、所选选项、用时、来源、当天首次）');
+  check(await page.locator('.post .causes .cz-c').count() === 6, '答错后出现 6 个错因图标');
+  await page.locator('.post .cz-c[data-c="method"]').click(); await page.waitForTimeout(200);
+  check(await page.evaluate(id => { const r = attOf(id).at(-1); return r.cause === 'method' && r.by === 'me'; }, q.id), '点错因图标确认，记为自己标的');
+  check(await page.locator('.post .cz-c.on[data-c="method"]').count() === 1, '确认的错因高亮');
+  // 2) 第二天再选同一个错项：提示 ×2，规则推荐「概念」；AI 判断错因并校验依据
+  await page.evaluate(id => { for (const r of attOf(id)) r.t -= 864e5; attReset(); }, q.id);
+  await page.evaluate(id => go('session', { kind: 'items', ids: [id] }), q.id); await page.waitForSelector('.post .opt');
+  await page.locator(`.post .opt[data-i="${q.wrong}"]`).first().click(); await page.waitForTimeout(400);
+  check(await page.locator('.post .verdict .rep').count() === 1 && /×2/.test(await page.locator('.post .verdict .rep').textContent()), '第二次选同一错项时提示 ×2');
+  check(await page.evaluate(id => { const r = attOf(id).at(-1); return r.cause === 'concept' && r.by === 'rule'; }, q.id), '重复错项由规则推荐「概念」');
+  check(await page.locator('.post .cz-c.sug[data-c="concept"]').count() === 1, '规则推荐的错因描边显示');
+  await page.locator('.post .causes').first().scrollIntoViewIfNeeded(); await page.waitForTimeout(200); await shot(page, 'cause');
+  await page.evaluate(async () => { await Platform.aiConfig.set({ provider: 'deepseek', kind: 'openai', key: 'sk-test', model: 'deepseek-chat', base: 'https://api.deepseek.com', vision: true }); await AI.reload(); });
+  await page.evaluate(() => { const p = [...Feed.posts.values()].find(x => x.att?.ok === false); return diagnoseCause(p); }); await page.waitForTimeout(300);
+  check(await page.evaluate(id => { const r = attOf(id).at(-1); return r.cause === 'concept' && r.by === 'ai' && /集中重复/.test(r.why); }, q.id) && log.includes('cause'), 'AI 判断错因：依据引用了所选选项，采用并写下误概念');
+  // 3) 掌握度：本节题目连续答错 → 薄弱；学情卡、学情页、课程页标记
+  await page.evaluate(() => { const qs = practiceItems(SECS.get('learn1s1')); const t = Date.now() - 3 * 864e5; qs.forEach((it, i) => { attAdd({ id: it.id, c: it.course, s: it.sec, t: t + i, m: 'practice', g: 1, ok: false, first: true }); if (!getSt(it)) setSt(it, schedule(null, 1)); }); saveSrs('learn'); });
+  const m = await page.evaluate(() => secMastery(SECS.get('learn1s1')));
+  check(m.st === 'weak' && m.hi < .6 && m.lo < m.p && m.p < m.hi, `连续答错的小节判为薄弱（掌握度 ${Math.round(m.p * 100)}%，区间上界 ${Math.round(m.hi * 100)}%）`);
+  check(await page.evaluate(() => secMastery(SECS.get('learn2s1')).st === 'none'), '没有作答的小节显示数据不足');
+  await page.evaluate(() => go('review', {}, { tab: true })); await page.waitForTimeout(500);
+  check(await page.locator('[data-ins="learn"] .mstack i').count() > 0 && await page.locator('[data-ins="learn"] .pill.bad').count() === 1, '记录页学情卡：堆叠条和薄弱数');
+  await page.click('[data-ins="learn"]'); await page.waitForSelector('.ins-hero'); await page.waitForTimeout(300);
+  if (process.env.DBG) console.log(await page.evaluate(() => JSON.stringify({ w: document.querySelectorAll('.wrow').length, cz: document.querySelectorAll('.cz-grid button:not([disabled])').length, cc: causeCounts('learn').concept, txt: document.querySelector('#view').innerText.slice(0, 400) })));
+  check(await page.locator('.wrow').count() >= 1 && await page.locator('.cz-grid button:not([disabled])').count() >= 1, '学情页：薄弱列表与错因分布');
+  await shot(page, 'insight');
+  // 4) AI 报告：自动关联知识点（非法 id 被丢弃）；带裸数字或不存在占位符的结论被删去；数字由代码填入
+  await page.evaluate(() => runReport(COURSES.get('learn'))); await page.waitForSelector('.rp'); await page.waitForTimeout(200);
+  const rp = await page.evaluate(() => ({ rep: S().reports.learn, kpOk: practiceItems(SECS.get('learn1s1')).every(x => x.kps?.length === 1 && ITEMS.get(x.kps[0])?.t === 'kp') }));
+  check(log.includes('tag') && rp.kpOk, '关联知识点：只保留本节已有的知识点 id');
+  check(rp.rep.findings.length === 1 && !/37/.test(JSON.stringify(rp.rep.findings)), '报告校验：模型自己写的数字、不存在的占位符被删去');
+  check(await page.locator('.rp-f b.num').count() >= 1 && /\d+\/\d+/.test(await page.locator('.rp-f').first().textContent()), '报告里的数字由本机数据填入');
+  await shot(page, 'insight-report');
+  // 5) 错题本页：按错因筛选；变式题盲解验证；攻克
+  await page.evaluate(() => go('wrongbook')); await page.waitForSelector('.dueh');
+  const wb = await page.locator('[data-wi]').count(); check(wb >= 2, `错题本页列出待巩固的题（${wb}）`);
+  await page.locator('[data-wz="concept"]').click(); await page.waitForTimeout(300);
+  check(await page.locator('[data-wi]').count() === 1, '按错因筛选');
+  await page.evaluate(id => variantSheet([id]), q.id); await page.click('#vs-go'); await page.waitForSelector('#vs-play:not([hidden])', { timeout: 8000 });
+  const vs = await page.evaluate(id => variantsOf(id).map(v => ({ t: v.t, src: v.src, of: v.of })), q.id);
+  check(vs.length === 1 && vs[0].t === 'choice' && vs[0].src === 'variant', '变式题：盲解与答案一致的保留，不一致的（判断题）丢弃');
+  await page.keyboard.press('Escape'); await page.waitForTimeout(300);
+  const won = await page.evaluate(id => { const it = ITEMS.get(id), v = variantsOf(id)[0], d1 = Date.now() + 864e5, d2 = Date.now() + 2 * 864e5; attAdd({ id: it.id, c: it.course, s: it.sec, t: d1, m: 'review', g: 3, ok: true, first: true }); attAdd({ id: v.id, c: v.course, s: v.sec, t: d2, m: 'variant', g: 3, ok: true, first: true }); return checkConquer(it) && !wrongItems().includes(it) && conqueredItems().includes(it); }, q.id);
+  check(won, '原题与变式题在不同两天答对 → 攻克，移到「已攻克」');
+  check(await page.evaluate(id => { const it = ITEMS.get(id); setSt(it, schedule(getSt(it), 3)); const a = !!getSt(it).cl; setSt(it, schedule(getSt(it), 1)); return a && wrongItems().includes(it); }, q.id), '攻克后答对仍保留；再答错回到错题本');
+  // 6) 补弱：首页信息流穿插薄弱点的题，带「补弱」标签
+  await page.evaluate(() => { for (const it of practiceItems(SECS.get('learn1s1'))) { const st = getSt(it); if (st) { st.due = Date.now() + 5 * 864e5; st.cl = 0; } } plan().boost = 3; Daily.pr = null; Feed.params = null; go('today', {}, { tab: true }); }); await page.waitForTimeout(500);
+  const bq = await page.evaluate(() => ({ n: Daily.pr.boost.size, inQ: Feed.queue.filter(it => Daily.pr.boost.has(it.id)).length }));
+  check(bq.n > 0 && bq.inQ === bq.n, `首页穿插补弱题（${bq.n}）`);
+  // 7) 录题：识别两次比对、原图裁剪、无答案的题盲解、入库进入小节与错题本并写纸上作答记录
+  const png = await page.evaluate(async () => { const cv = document.createElement('canvas'); cv.width = 400; cv.height = 300; const g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, 400, 300); g.fillStyle = '#000'; g.fillText('1. 间隔复习', 20, 40); return new Promise(r => cv.toBlob(b => { window.__img = b; r(b.size); }, 'image/png')); });
+  await page.evaluate(() => startCapture({ course: 'learn', scope: 'all', imgs: [window.__img], text: '' }));
+  await page.waitForSelector('#cap-save:not([disabled])', { timeout: 8000 }); await page.waitForTimeout(200);
+  const cq = await page.evaluate(() => Cap.qs.map(q => ({ src: q.ansSrc, ok: q.ok, url: !!q.url, flags: q.flags })));
+  check(cq.length === 2 && cq.every(x => x.url) && cq[0].src === 'given' && cq[0].ok === false && cq[1].src === 'ai3', '录题：逐题裁剪原图；给定答案直接用，无答案的题盲解 3/3');
+  check(cq.every(x => !x.flags.includes('once')), '录题：两次识别结果一致，没有标记');
+  await shot(page, 'capture');
+  await page.click('#cap-save'); await page.waitForSelector('[data-wi]', { timeout: 5000 });
+  const imp = await page.evaluate(() => { const its = [...ITEMS.values()].filter(it => it.src === 'import'); return { n: its.length, img: its.every(it => it.img), paper: its.every(it => attOf(it.id).some(r => r.m === 'paper')), wrong: its.filter(it => wrongItems().includes(it)).length, pr: its.every(it => it.pr && it.sec === 'learn1s1') }; });
+  check(imp.n === 2 && imp.img && imp.paper && imp.wrong === 1 && imp.pr, '入库：进入小节练习，保存原图，写纸上作答记录，错的进入错题本');
+  // 8) 助手工具读取本机学情
+  const tools = await page.evaluate(() => { const t = aiTools({ parts: [] }, () => {}); return ['get_mastery', 'get_error_causes', 'get_attempts', 'import_questions', 'set_error_cause'].every(n => t.some(x => x.name === n)) && /薄弱/.test(t.find(x => x.name === 'get_mastery').execute({ course_id: 'learn' })); });
+  check(tools, 'AI 助手可以读取掌握度、错因和作答记录');
+  // 9) 备份包含作答记录；预测准确度计算
+  check(await page.evaluate(() => DOC_RE.test('att/2026-11') && Store.keys('att/').length >= 1), '作答记录是可备份、可同步的文档');
+  const cal = await page.evaluate(() => { for (let i = 0; i < 40; i++) attAdd({ id: 'x' + i, c: 'zcal', s: 'learn1s1', t: Date.now() - i * 1000, m: 'review', g: i % 10 ? 3 : 1, r: .9, first: true }); return calibration('zcal'); });
+  check(cal.n === 40 && cal.bins[4].n === 40 && Math.abs(cal.bins[4].act - .9) < 1e-9 && Math.abs(cal.ll - cal.base) < 1e-9, `预测准确度：校准分箱（预测 90% / 实际 ${Math.round(cal.bins[4].act * 100)}%）与对数损失`);
+  const wide = await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1); check(wide, '新页面在手机宽度下不横向溢出');
+  check(!errors.length, '没有脚本错误' + (errors.length ? '：' + errors.join(' | ') : ''));
+  await ctx.close();
+});
+
 await browser.close(); server.close();
 console.log(failed ? `\n${failed} 项失败` : '\n全部通过');
 process.exit(failed ? 1 : 0);

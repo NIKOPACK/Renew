@@ -125,6 +125,7 @@ function itemMenu(p) {
     { icon: 'edit', label: hasNote ? '编辑笔记' : '写笔记', run: () => noteSheet(it, p) },
     { icon: 'star', label: starred ? '取消收藏' : '收藏', run: () => { if (starred) delete S().stars[it.id]; else S().stars[it.id] = 1; saveState(); toast(starred ? '已取消收藏' : '已收藏'); } },
     st && st.lapses && !st.cl && { icon: 'check', label: '移出错题本', run: () => { st.cl = 1; saveSrs(it.course); toast('已移出错题本'); } },
+    st && st.lapses && !st.cl && isQ(it) && AI.ok && { icon: 'repeat', label: '举一反三', run: () => variantSheet([it.id]) },
     { icon: 'wand', label: '内容有误', run: () => fixItem(p) },
     { icon: 'list', label: '打开所在小节', run: () => go('section', { id: it.sec }) },
     { icon: it.builtin ? 'eyeoff' : 'trash', label: it.builtin ? '不再显示' : '删除', cls: 'danger', run: () => { removeItem(it); $(`[data-pk="${p.pk}"]`)?.remove(); toast(it.builtin ? '已隐藏' : '已删除'); } }

@@ -18,7 +18,22 @@ function dailyQueue(extra = 0) {
   for (let i = 0; per.some(l => l.length > i); i += 4) for (const l of per) fresh.push(...l.slice(i, i + 4));
   const q = []; let r = 0, n = 0;
   while (r < due.length || n < fresh.length) { q.push(...due.slice(r, r + 2)); r += 2; q.push(...fresh.slice(n, n + 4)); n += 4; }
+  /* 补弱：从薄弱点挑题，约每 6 张穿插 1 张 */
+  const pr = dailyPr(), boost = boostItems((plan().boost ?? 3) - (pr.boost?.size || 0), q.map(it => it.id).concat([...(pr.boost || [])]));
+  pr.boost ||= new Set(); boost.forEach(it => pr.boost.add(it.id));
+  boost.forEach((it, i) => q.splice(Math.min(q.length, (i + 1) * 6 + i), 0, it));
   return q;
+}
+/* 补弱候选：薄弱点里没做过的变式题优先，其次记忆开始变弱（预测回忆概率 0.6~0.85）的题；今天做过的不再推 */
+function boostItems(n, exclude = []) {
+  if (n <= 0) return [];
+  const out = [], seen = new Set(exclude), today = dayKey(), done = it => attOf(it.id).some(r => dayKey(r.t) === today);
+  const score = it => { const s = getSt(it); if (it.src === 'variant' && !s) return 0; if (!s) return 2; const r = attPrior(s); return r != null && r >= .6 && r <= .85 ? 1 : 3; };
+  for (const c of activeCourses()) for (const x of courseInsight(c).weak) {
+    const qs = weakItems(x).filter(it => isQ(it) && !it.unk && !seen.has(it.id) && !done(it)).sort((a, b) => score(a) - score(b));
+    for (const it of qs.slice(0, 2)) { out.push(it); seen.add(it.id); }
+  }
+  return out.slice(0, n);
 }
 const dailyPr = () => { if (!Daily.pr || Daily.day !== dayKey()) { Daily.pr = { kind: 'daily' }; Daily.day = dayKey(); Daily.extra = 0; Daily.party = 0; } return Daily.pr; };
 
@@ -72,6 +87,7 @@ function dailyEndCard() {
   box.innerHTML = `${heroBadge('check')}<h3>${Feed.queue.length ? '完成' : '今天没有内容'}</h3>
     <div class="kp3"><div><b>${M.t.n}</b><span>${ico('layers')}新学</span></div><div><b>${M.t.r}</b><span>${ico('review')}复习</span></div><div><b>${M.t.ok + M.t.bad ? Math.round(M.t.ok / (M.t.ok + M.t.bad) * 100) + '%' : '—'}</b><span>${ico('check')}正确率</span></div></div>
     ${empty ? `<div class="group menu" style="margin-bottom:14px"><button data-gen="${empty.sec.id}">${ico('wand')}<span class="grow">${esc(empty.c.title)}：${esc(empty.sec.title)}<small>${ico('wand')}生成内容</small></span></button></div>` : ''}
+    ${todayWrongLine()}
     <div class="acts">${!ck && M.doneN ? `<button class="btn pri" data-ck>${ico('calendar')}打卡</button>` : ''}${more ? `<button class="btn ${!ck && M.doneN ? '' : 'pri'}" data-more>${ico('plus')}再学一些</button>` : ''}${M.wrong ? `<button class="btn" data-wrong>${ico('alert')}错题 ${M.wrong}</button>` : ''}<button class="btn ghost" data-reflect-day>${ico('edit')}写笔记</button></div>`;
   box.onclick = e => {
     const b = e.target.closest('button'); if (!b) return;
@@ -83,6 +99,8 @@ function dailyEndCard() {
       if (!add.length) return toast('计划内的小节都学完了');
       el.remove(); Feed.queue.push(...add); moreFeed();
     } else if (b.hasAttribute('data-reflect-day')) reflectToday();
+    else if (b.hasAttribute('data-tw-var')) variantSheet(todayWrongIds().slice(0, 5));
+    else if (b.dataset.twIns) go('insight', { course: b.dataset.twIns });
   };
   return el;
 }
@@ -115,4 +133,14 @@ function todaySheet() {
     else if (b.hasAttribute('data-stats')) run(() => go('review', {}, { tab: true }));
     else if (b.dataset.wday) run(() => daySheet(b.dataset.wday));
   };
+}
+/* 结束卡：今天错在哪——最常见的错因和最弱的一个小节 */
+function todayWrongIds() { const k = dayKey(); return [...new Set(attAll().filter(r => r.id && r.ok === false && dayKey(r.t) === k && ITEMS.has(r.id)).map(r => r.id))]; }
+function todayWrongLine() {
+  const ids = todayWrongIds(); if (!ids.length) return '';
+  const cnt = {}; for (const id of ids) { const z = lastWrong(id)?.cause; if (z && CAUSE[z]) cnt[z] = (cnt[z] || 0) + 1; }
+  const top = Object.entries(cnt).sort((a, b) => b[1] - a[1])[0];
+  const secs = [...new Set(ids.map(id => ITEMS.get(id).sec))].map(id => SECS.get(id)).map(s => ({ s, m: secMastery(s) })).sort((a, b) => (a.m.p ?? 1) - (b.m.p ?? 1));
+  const w = secs[0];
+  return `<div class="tw">${ico('x')}<b class="num">${ids.length}</b>${top ? `<span>${ico(CAUSE[top[0]].i)}${CAUSE[top[0]].l}<b class="num">${top[1]}</b></span>` : ''}${w ? `<button class="tw-s" data-tw-ins="${w.s.course}"><span class="mtag" style="color:${w.m.st === 'none' ? 'var(--ink-2)' : M_COLOR[w.m.st]}">${esc(w.s.title)}</span>${ico('chev', 'chev')}</button>` : ''}${AI.ok ? `<button class="btn soft sm" data-tw-var>${ico('repeat')}举一反三</button>` : ''}</div>`;
 }

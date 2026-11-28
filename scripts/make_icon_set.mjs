@@ -27,7 +27,10 @@ const MAP = {
   // 对话输入框的附件
   mic: 'microphone', video: 'video', clip: 'paperclip', images: 'images', web: 'globe-simple',
   // 听学朗读与资料书本图标
-  speaker: 'speaker-high', bookbm: 'book-bookmark'
+  speaker: 'speaker-high', bookbm: 'book-bookmark',
+  // 学情分析：错因、学情、补弱、录题、已攻克
+  compass: 'compass', hourglass: 'hourglass-medium', calc: 'calculator', bolt: 'lightning', insight: 'chart-bar',
+  repeat: 'repeat', trophy: 'trophy', aim: 'crosshair', printer: 'printer', scan: 'scan', gauge: 'gauge'
 };
 // 这些图标在 Phosphor duotone 中带人工底框/底圆，叠加在浅色按钮上会显得生硬，去掉底层
 const NO_DUO_BG = new Set(['plus', 'minus', 'download', 'upload', 'sync', 'grow', 'close', 'x', 'check', 'send', 'back', 'chev', 'down']);

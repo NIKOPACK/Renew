@@ -64,7 +64,7 @@ function noteCtx(n) {
     L.push(`\n## 小节：${sec.title}`);
     secKps(sec).slice(0, 12).forEach(it => L.push(`- 知识点「${plain(it.title || '')}」：${plain(it.q).slice(0, 150)}`));
     const wrong = secItems(sec).filter(it => { const s = getSt(it); return s && s.lapses && !s.cl; });
-    if (wrong.length) { L.push('我做错过的题：'); wrong.slice(0, 6).forEach(it => L.push(`- ${plain(it.title || it.q).slice(0, 90)}`)); }
+    if (wrong.length) { L.push('我做错过的题：'); wrong.slice(0, 6).forEach(it => { const lw = lastWrong(it.id), z = lw?.cause && CAUSE[lw.cause]; L.push(`- ${plain(it.title || it.q).slice(0, 90)}${z ? `（错因：${z.l}${lw.why ? '，' + lw.why : ''}）` : ''}`); }); }
     const cn = secItems(sec).filter(it => S().notes?.[it.id]);
     if (cn.length) { L.push('我写过的卡片笔记：'); cn.slice(0, 6).forEach(it => L.push(`- （${plain(it.title || it.q).slice(0, 30)}）${plain(S().notes[it.id]).slice(0, 160)}`)); }
     const days = []; for (let i = 0; i < 30; i++) { const k = addDays(dayKey(), -i), x = S().hist?.[k]?.[sec.id]; if (x) days.push(`${fmtDay(k)} 新学 ${x[0]}、复习 ${x[1]}${x[3] ? `、答错 ${x[3]}` : ''}`); }

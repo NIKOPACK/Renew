@@ -23,6 +23,7 @@ async function exportData() {
     if (!ref?.l || blobs[ref.l]) continue;
     try { const b = await Platform.blobs.get(ref.l); if (b && b.size <= 4e6) blobs[ref.l] = { type: b.type || 'image/jpeg', data: await blobToB64(b) }; } catch {}
   }
+  for (const it of ITEMS.values()) { const ref = it.img; if (!ref?.l || blobs[ref.l]) continue; try { const b = await Platform.blobs.get(ref.l); if (b && b.size <= 4e6) blobs[ref.l] = { type: b.type || 'image/jpeg', data: await blobToB64(b) }; } catch {} } // 录入题目的原图
   const payload = { app: 'renew', v: 2, at: new Date().toISOString(), docs: Store.docs, ...(Object.keys(blobs).length ? { blobs } : {}) };
   await Files.save(`温新备份-${dayKey()}.json`, JSON.stringify(payload), 'application/json');
 }

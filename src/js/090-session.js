@@ -53,10 +53,15 @@ function moreFeed() {
 function makePost(it) {
   const pk = 'p' + (++Feed.seq), st = getSt(it), pr = Feed.params;
   const review = !!st && pr.kind !== 'section' && pr.kind !== 'star';
-  const p = { pk, it, review, phase: 'front', picks: new Set(), pick: null, rev: new Set(), step: 0, g: null, snap: undefined, requeued: false, auto: null, open: false, sol: false };
+  const p = { pk, it, review, phase: 'front', picks: new Set(), pick: null, rev: new Set(), step: 0, g: null, snap: undefined, requeued: false, auto: null, open: false, sol: false, made: Date.now(), t0: 0, att: null };
   if (it.t === 'kp') p.phase = 'back'; // 知识点直接显示内容（复习时也不需要先回忆再展开）
   Feed.posts.set(pk, p);
-  const el = h(`<article class="post" data-pk="${pk}"></article>`); el.innerHTML = postHTML(p); return Motion.reveal(el);
+  const el = h(`<article class="post" data-pk="${pk}"></article>`); el.innerHTML = postHTML(p); watchPost(el); return Motion.reveal(el);
+}
+/* 记下卡片进入屏幕中部的时刻，作为作答用时的起点 */
+function watchPost(el) {
+  Feed.vis ||= new IntersectionObserver(es => es.forEach(e => { if (!e.isIntersecting) return; const q = Feed.posts.get(e.target.dataset.pk); if (q && !q.t0) q.t0 = Date.now(); Feed.vis.unobserve(e.target); }), { rootMargin: '-35% 0px -35% 0px' });
+  Feed.vis.observe(el);
 }
 const rerender = (p, fx, arg) => { const el = $(`[data-pk="${p.pk}"]`); if (!el) return; el.innerHTML = postHTML(p); if (fx) postFx(el, p, fx, arg); };
 function postFx(el, p, fx, arg) {
@@ -83,6 +88,9 @@ function rate(p, g, manual) {
   const it = p.it, now = Date.now(), first = p.g == null;
   if (first) p.snap = clone(getSt(it));
   setSt(it, schedule(p.snap, g, now));
+  const rec = attRecord(p, g, now);
+  if (first && rec.ok && (checkConquer(it) || (it.of && ITEMS.get(it.of) && checkConquer(ITEMS.get(it.of))))) setTimeout(() => toast('攻克一道错题'), 400);
+  if (first && rec.ok === false && AI.ok && P().autoDiag && isQ(it)) setTimeout(() => diagnoseCause(p), 300);
   if (first) {
     const t = todayStats(); if (!p.snap) { t.n++; t.c[it.course] = (t.c[it.course] || 0) + 1; } else t.r++;
     const ok = p.auto != null ? p.auto : g >= 2; if (isQ(it) || p.auto != null) ok ? t.ok++ : t.bad++;
@@ -114,6 +122,9 @@ function onFeedClick(e) {
   if (act === 'step') { p.step++; rerender(p, 'step'); return; }
   if (act === 'cz') { p.rev.add(+t.dataset.i); Motion.haptic(); rerender(p, 'cz', +t.dataset.i); return; }
   if (act === 'rate') return rate(p, +t.dataset.g, true);
+  if (act === 'cause') { const r = p.att; if (!r) return; const c = t.dataset.c; setCause(r, r.cause === c && r.by !== 'rule' ? null : c, 'me'); Motion.haptic(); rerender(p); return; }
+  if (act === 'cause-ai') return diagnoseCause(p);
+  if (act === 'orig') { Files.get(it.img).then(b => b ? imgSheet(URL.createObjectURL(b)) : toast('原图不在这台设备上')); return; }
   if (act === 'ask') return askAI(it, p);
   if (act === 'opt') {
     const i = +t.dataset.i;

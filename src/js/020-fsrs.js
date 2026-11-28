@@ -6,7 +6,7 @@ const retr = (t, s) => Math.pow(1 + FF * t / s, DEC);
 const ivlDays = (s, r) => s / FF * (Math.pow(r, 1 / DEC) - 1);
 function schedule(prev, g, now = Date.now()) {
   const ret = plan().retention || .9, n = prev ? { ...prev } : { reps: 0, lapses: 0 };
-  delete n.ext; delete n.cl;
+  delete n.ext; if (g === 1) { delete n.cl; delete n.won; } // 已移出 / 已攻克的错题，再答错才回到错题本
   if (!prev || !prev.last) { n.s = W[g - 1]; n.d = clampD(W[4] - (g - 3) * W[5]); }
   else {
     const t = Math.max(0, (now - prev.last) / DAY), r = retr(t, prev.s);

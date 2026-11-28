@@ -26,7 +26,7 @@ function planSheet() {
         <label class="rowi"><span class="grow t">目标日期</span><input class="pdate ${cp.target ? '' : 'empty'}" type="date" data-target="${c.id}" value="${esc(cp.target)}" min="${dayKey()}">${cp.target ? `<button class="pclr" data-clr="${c.id}" aria-label="清除目标日期">${ico('x')}</button>` : ''}</label>
         ${rec && rec !== cp.pace ? `<div class="rowi prec"><span class="grow m">按目标需要每天 ${rec} 个</span><button class="btn sm soft" data-rec="${c.id}" data-v="${rec}">采用</button></div>` : ''}` : ''}
       </div>`; }).join('') +
-      `<div class="group plan-g"><div class="rowi"><span class="grow t">每天复习上限</span>${stepper('data-mstep', 'r', plan().maxReview, '每天复习上限')}</div></div>`;
+      `<div class="group plan-g"><div class="rowi"><span class="grow t">每天复习上限</span>${stepper('data-mstep', 'r', plan().maxReview, '每天复习上限')}</div><div class="rowi"><span class="grow t">${ico('aim')}每天补弱</span>${stepper('data-bstep', 'b', plan().boost ?? 3, '每天补弱')}</div></div>`;
     $$('[data-on]', body).forEach(b => b.onclick = () => { const cp = coursePlan(b.dataset.on); cp.on = !cp.on; saveState(); draw(); });
     $$('[data-target]', body).forEach(i => i.onchange = () => { coursePlan(i.dataset.target).target = i.value; saveState(); draw(); });
     $$('[data-clr]', body).forEach(b => b.onclick = e => { e.preventDefault(); coursePlan(b.dataset.clr).target = ''; saveState(); draw(); });
@@ -35,6 +35,8 @@ function planSheet() {
     $$('[data-rec]', body).forEach(b => b.onclick = () => { coursePlan(b.dataset.rec).pace = +b.dataset.v; saveState(); draw(); });
     $$('[data-mstep]', body).forEach(b => b.onclick = () => { plan().maxReview = Math.max(10, Math.min(2000, plan().maxReview + +b.dataset.d * 50)); saveState(); draw(); });
     $$('[data-mval]', body).forEach(i => i.onchange = () => { plan().maxReview = Math.max(10, parseInt(i.value) || 200); saveState(); draw(); });
+    $$('[data-bstep]', body).forEach(b => b.onclick = () => { plan().boost = Math.max(0, Math.min(30, (plan().boost ?? 3) + +b.dataset.d)); saveState(); draw(); });
+    $$('[data-bval]', body).forEach(i => i.onchange = () => { plan().boost = Math.max(0, Math.min(30, parseInt(i.value) || 0)); saveState(); draw(); });
   };
   draw();
   const s = sheet('学习计划', body); s.onclose = () => refresh();
