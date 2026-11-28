@@ -723,6 +723,66 @@ await run('悬浮会话栏、首页快捷键、问 AI 沉淀飞轮、交互矢�
   await ctx.close();
 });
 
+await run('首页内容：推荐范围、自定义卡片、AI 添加与 AI 每日卡片', async () => {
+  const { page, ctx, errors } = await newPage(); const reqs = [];
+  const txt = m => typeof m.content === 'string' ? m.content : (m.content || []).map(c => c.text || '').join('');
+  await page.route('https://api.deepseek.com/**', async r => {
+    const req = r.request(), body = req.postDataJSON?.() || null; reqs.push(body);
+    if (req.url().endsWith('/models')) return r.fulfill({ json: { data: [{ id: 'deepseek-chat' }] } });
+    const h = { 'content-type': 'text/event-stream' }, all = body.messages.map(txt).join('\n');
+    if (body.tools && !body.messages.some(m => m.role === 'tool')) return r.fulfill({ headers: h, body: sse([oa({ tool_calls: [{ index: 0, id: 'c1', type: 'function', function: { name: 'update_home', arguments: JSON.stringify({ cards: [{ type: 'count', title: '考研', date: '2026-12-26', pos: 'top' }] }) } }] })]) });
+    if (body.tools) return r.fulfill({ headers: h, body: sse([oa({ content: '已加上考研倒计时。' })]) });
+    if (/定制学习 App「温新」的首页/.test(all)) return r.fulfill({ headers: h, body: sse([oa({ content: JSON.stringify({ scope: { learn: false, wrong: 3 }, cards: [{ type: 'ai', title: '每日一句', prompt: '一句英文名言，附中文翻译', pos: 'top' }, { type: 'count', title: '坏日期', date: 'x' }, { type: 'text', title: '<img src=x onerror=alert(1)>', body: '<script>alert(1)</script>坚持' }] }) })]) });
+    if (/首页写一张卡片/.test(all)) return r.fulfill({ headers: h, body: sse([oa({ content: '**Stay hungry, stay foolish.** 求知若饥，虚心若愚。' })]) });
+    return r.fulfill({ headers: h, body: sse([oa({ content: '好的' })]) });
+  });
+  // 1) 手动添加文字卡片（置顶）与倒计时（穿插在学习流）
+  await page.click('#td-home'); await page.waitForSelector('[data-hadd]');
+  await page.click('[data-hadd]'); await page.waitForSelector('#hc-title');
+  await page.fill('#hc-title', '本周目标'); await page.fill('#hc-body', '学完 **第 1 章**'); await page.click('.sheet-wrap:last-child [data-ok]'); await page.waitForTimeout(400);
+  await page.click('[data-hadd]'); await page.waitForSelector('#hc-title'); await page.click('[data-ty="count"]');
+  await page.fill('#hc-title', '期末'); await page.fill('#hc-date', '2026-12-20'); await page.click('[data-pos="feed"]'); await page.click('.sheet-wrap:last-child [data-ok]'); await page.waitForTimeout(400);
+  await page.keyboard.press('Escape'); await page.waitForTimeout(500);
+  let st = await page.evaluate(() => ({ top: $$('#hws .hcard').map(e => e.textContent).join(), order: $$('#feed > *').map(e => e.dataset.pk ? 'p' : e.dataset.hw ? 'w' : 'o').join('') }));
+  check(/本周目标/.test(st.top) && /第 1 章/.test(st.top), '自定义文字卡片置顶显示在学习流上方');
+  await page.evaluate(() => { for (let i = 0; i < 30 && Feed.rendered < Feed.queue.length; i++) moreFeed(); });
+  st = await page.evaluate(() => $$('#feed > *').map(e => e.dataset.pk ? 'p' : e.dataset.hw ? 'w' : 'e').join(''));
+  check(/^pppw/.test(st) && (st.match(/w/g) || []).length === 1, `倒计时卡片穿插在第 3 个内容之后且只出现一次（${st}）`);
+  // 2) 推荐范围：只推第 2 章
+  const ch2 = await page.evaluate(() => COURSES.get('learn').chapters[1].id);
+  await page.click('#td-home'); await page.waitForSelector('[data-rng="learn"]'); await page.click('[data-rng="learn"]'); await page.waitForSelector(`[data-ch="${ch2}"]`);
+  await page.click(`[data-ch="${ch2}"]`); await page.waitForTimeout(200);
+  await page.keyboard.press('Escape'); await page.waitForTimeout(400);
+  check(await page.evaluate(ch => (homeRange('learn') || []).join() === ch && !/全部章节/.test($('[data-rng="learn"] .m').textContent), ch2), '课程范围可以只选部分章节');
+  await page.keyboard.press('Escape'); await page.waitForTimeout(400);
+  await page.evaluate(() => { Daily.pr = null; refresh(); }); await page.waitForTimeout(300);
+  st = await page.evaluate(() => ({ chaps: [...new Set(Feed.queue.filter(it => !getSt(it)).map(it => SECS.get(it.sec).chap))], next: todayModel().courses[0]?.sec?.chap }));
+  check(st.chaps.length === 1 && st.chaps[0] === ch2 && st.next === ch2, `新内容只来自选定的章（${st.chaps}）`);
+  // 3) 关掉课程新内容和复习：首页只剩自己的卡片
+  await page.evaluate(() => { const H = homeCfg(); H.learn = false; H.review = false; saveState(); Daily.pr = null; refresh(); }); await page.waitForTimeout(300);
+  st = await page.evaluate(() => ({ posts: $$('#feed .post[data-pk]').length, cards: $$('.hcard').length, k: $$('.dayband .db-k').length }));
+  check(st.posts === 0 && st.cards === 2 && st.k === 1, `课程可以不显示：首页只有自己的卡片（${JSON.stringify(st)}）`);
+  // 4) AI 添加：AI 给出范围与卡片，校验后加入；AI 每日卡片自动生成今天的内容
+  await page.evaluate(async () => { await Platform.aiConfig.set({ provider: 'deepseek', kind: 'openai', key: 'sk-test', model: 'deepseek-chat', base: 'https://api.deepseek.com' }); await AI.reload(); homeCfg().learn = true; saveState(); });
+  await page.evaluate(() => homeAISheet()); await page.waitForSelector('#ha-in');
+  await page.click('[data-sg]'); await page.click('#ha-go'); await page.waitForSelector('#ha-ok', { timeout: 10000 });
+  const prev = await page.evaluate(() => $('#ha-out').textContent);
+  check(/不推荐课程新内容/.test(prev) && /3 道错题/.test(prev) && /每日一句/.test(prev) && !/坏日期/.test(prev), 'AI 添加：先预览改动，无效卡片被丢弃');
+  await page.click('#ha-ok'); await page.waitForFunction(() => /Stay hungry/.test($('#hws')?.textContent || ''), null, { timeout: 10000 });
+  st = await page.evaluate(() => ({ H: homeCfg(), today: dayKey(), xss: !!$('#view script, #view img[src="x"]') }));
+  check(!st.H.learn && st.H.wrong === 3 && st.H.cards.some(c => c.type === 'ai' && c.by === 'ai' && c.ai?.day === st.today), 'AI 添加的范围生效，AI 每日卡片已生成今天的内容');
+  check(!st.xss && st.H.cards.some(c => c.body.includes('坚持')), 'AI 给的卡片内容经过转义，没有注入');
+  // 5) AI 助手：update_home 工具确认后添加卡片
+  await page.evaluate(() => aiSend('加一个考研倒计时')); await page.waitForSelector('[data-allow]', { timeout: 10000 });
+  await page.click('[data-allow]'); await page.waitForFunction(() => !Chat.busy, null, { timeout: 10000 });
+  check(await page.evaluate(() => homeCfg().cards.some(c => c.type === 'count' && c.date === '2026-12-26')), 'AI 助手可以定制首页（修改前征得同意）');
+  // 6) 备份里的异常配置被校正
+  check(await page.evaluate(() => { S().home = { learn: 'x', wrong: 999, range: { a: 'b' }, cards: [null, { type: 'evil', id: '../x', title: 1, on: 0 }] }; const H = homeCfg(); return H.learn === true && H.wrong === 30 && !H.range.a && H.cards.length === 1 && H.cards[0].type === 'text' && /^h/.test(H.cards[0].id); }), '异常的首页配置自动校正');
+  await page.evaluate(() => go('today', {}, { tab: true })); await page.waitForTimeout(300);
+  check(!errors.length, '没有脚本错误' + (errors.length ? '：' + errors.join(' | ') : ''));
+  await ctx.close();
+});
+
 await browser.close(); server.close();
 console.log(failed ? `\n${failed} 项失败` : '\n全部通过');
 process.exit(failed ? 1 : 0);

@@ -1,7 +1,7 @@
 /* ============ 今日 ============ */
 function todayModel() {
-  const t = todayStats(), due = Math.min(dueItems().length, reviewLeft());
-  const courses = activeCourses().map(c => { const pace = coursePlan(c.id).pace, done = t.c[c.id] || 0; return { c, sec: nextSection(c), pace, done }; });
+  const t = todayStats(), H = homeCfg(), due = H.review ? Math.min(homeDue().length, reviewLeft()) : 0; // 首页的推荐范围决定今天的任务
+  const courses = (H.learn ? activeCourses() : []).map(c => { const pace = coursePlan(c.id).pace, done = t.c[c.id] || 0; return { c, sec: homeNextSec(c), pace, done }; });
   const newGoal = courses.reduce((s, x) => s + (x.sec ? Math.max(x.pace, x.done) : x.done), 0);
   const goal = t.r + due + newGoal, doneN = t.r + t.n;
   const newLeft = courses.reduce((s, x) => s + (x.sec ? Math.max(0, x.pace - x.done) : 0), 0);

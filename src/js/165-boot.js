@@ -22,6 +22,6 @@ async function boot() {
   addEventListener('keydown', e => { if (e.key === 'Escape') { const sh = $$('.sheet-wrap').filter(x => x.style.pointerEvents !== 'none').pop(); if (sh) $('[data-close]', sh).click(); } });
   Nav.stack = [{ view: 'today' }]; render(true);
   Platform.started();
-  aiP.then(() => { if (['ai'].includes(Nav.stack[Nav.stack.length - 1].view)) refresh(); });
+  aiP.then(() => { const vw = Nav.stack[Nav.stack.length - 1].view; if (vw === 'ai') refresh(); else if (vw === 'today' && homeCfg().cards.some(c => c.on && c.type === 'ai')) { refresh(); } });
 }
 boot();

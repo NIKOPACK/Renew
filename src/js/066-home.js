@@ -1,23 +1,25 @@
 /* ============ 首页：打开就能往下刷着学（今日学习流） ============ */
 /* 今天的内容按计划生成一条信息流：到期复习穿插在新内容之间，新内容按课程计划的每日量、按小节顺序（先讲解后练习）排列。
    刷完后可以继续「再学一节」。原来首页的任务清单、打卡和本周统计收进顶部的「今日」条（点开是弹层）。 */
-const Daily = { pr: null, day: '', extra: 0, party: 0 }, TabY = {};
-/* 某门课从下一节开始往后的新内容（每节先讲解后练习） */
+const Daily = { pr: null, day: '', extra: 0, party: 0, wfeed: null }, TabY = {};
+/* 某门课从下一节开始往后的新内容（每节先讲解后练习）；只取首页推荐范围内的章 */
 function freshItems(c, max) {
-  const out = [], all = courseSecs(c), start = Math.max(0, all.indexOf(nextSection(c)));
+  const out = [], all = courseSecs(c), start = Math.max(0, all.indexOf(homeNextSec(c)));
   for (const sec of all.slice(start)) {
+    if (!secInRange(sec)) continue;
     if (!['todo', 'learning'].includes(secStatus(sec))) { if (secStatus(sec) === 'empty') break; continue; }
     for (const it of [...learnItems(sec), ...practiceItems(sec)]) { if (!getSt(it) && visible(it)) out.push(it); if (out.length >= max) return out; }
   }
   return out;
 }
 function dailyQueue(extra = 0) {
-  const M = todayModel(), due = dueItems().slice(0, reviewLeft());
+  const M = todayModel(), due = homeCfg().review ? homeDue().slice(0, reviewLeft()) : [];
   const per = M.courses.filter(x => x.sec).map(x => freshItems(x.c, Math.max(0, x.pace - x.done) + extra));
   const fresh = []; // 各课程按 4 个一组轮流，保持同一节内容连贯
   for (let i = 0; per.some(l => l.length > i); i += 4) for (const l of per) fresh.push(...l.slice(i, i + 4));
-  const q = []; let r = 0, n = 0;
-  while (r < due.length || n < fresh.length) { q.push(...due.slice(r, r + 2)); r += 2; q.push(...fresh.slice(n, n + 4)); n += 4; }
+  const bonus = homeBonus(new Set([...due, ...fresh].map(it => it.id))); // 错题、收藏：每轮穿插一张
+  const q = []; let r = 0, n = 0, b = 0;
+  while (r < due.length || n < fresh.length || b < bonus.length) { q.push(...due.slice(r, r + 2)); r += 2; q.push(...fresh.slice(n, n + 4)); n += 4; if (b < bonus.length) q.push(bonus[b++]); }
   return q;
 }
 const dailyPr = () => { if (!Daily.pr || Daily.day !== dayKey()) { Daily.pr = { kind: 'daily' }; Daily.day = dayKey(); Daily.extra = 0; Daily.party = 0; } return Daily.pr; };
@@ -26,9 +28,10 @@ function dayBandHTML() {
   const M = todayModel(), sk = streak(), ck = S().checkins[dayKey()];
   const nGoal = M.courses.reduce((s, x) => s + (x.sec ? Math.max(x.pace, x.done) : x.done), 0), rGoal = M.t.r + M.due;
   const all = nGoal + rGoal, done = M.t.n + M.t.r, canCheck = !ck && (M.finished || M.doneN >= 20) && M.doneN > 0;
+  const H = homeCfg();
   return `<div class="dayband"><button class="db-main" id="db-open" aria-label="今日任务与统计">
-      <span class="db-k" title="新学">${ico('layers', '', 'fill')}<b class="num">${M.t.n}<small>/${nGoal}</small></b></span>
-      <span class="db-k" title="复习">${ico('review', '', 'fill')}<b class="num">${M.t.r}<small>/${rGoal}</small></b></span>
+      ${H.learn ? `<span class="db-k" title="新学">${ico('layers', '', 'fill')}<b class="num">${M.t.n}<small>/${nGoal}</small></b></span>` : ''}
+      ${H.review ? `<span class="db-k" title="复习">${ico('review', '', 'fill')}<b class="num">${M.t.r}<small>/${rGoal}</small></b></span>` : ''}
       <span class="db-k fire" title="连续打卡">${ico('flame', '', 'fill')}<b class="num">${sk}</b></span>
       ${ico('chev', 'chev')}<span class="db-bar"><i style="width:${all ? Math.min(100, done / all * 100) : done ? 100 : 0}%"></i></span></button>
     ${ck ? `<span class="db-ck on">${ico('check')}已打卡</span>` : canCheck ? `<button class="db-ck" id="db-ck">${ico('calendar')}打卡</button>` : ''}</div>`;
@@ -46,28 +49,36 @@ function viewToday() {
   const v = $('#view'), d = new Date(Date.now() - CUT), pr = dailyPr(), same = Feed.params === pr;
   if (!same) { Feed.params = pr; Feed.queue = dailyQueue(Daily.extra); Feed.posts.clear(); Feed.rendered = 0; Feed.results = new Map(); Feed.resKey = 'daily'; }
   else { const have = new Set(Feed.queue.map(it => it.id)); Feed.queue.push(...dailyQueue(Daily.extra).filter(it => !have.has(it.id))); } // 计划调整、新生成的内容接到后面
-  v.innerHTML = `<div class="wrap"><header class="lt"><div class="t"><div class="date">${d.getMonth() + 1}月${d.getDate()}日 星期${WEEK[d.getDay()]}</div><h1>今日</h1></div><button class="round" id="td-plan" aria-label="学习计划">${ico('target')}</button><button class="round" data-go="settings" aria-label="设置">${ico('gear')}</button></header>
+  const W = homeSlots(), H = homeCfg(); Daily.wfeed = W.feed;
+  v.innerHTML = `<div class="wrap"><header class="lt"><div class="t"><div class="date">${d.getMonth() + 1}月${d.getDate()}日 星期${WEEK[d.getDay()]}</div><h1>今日</h1></div><button class="round" id="td-home" aria-label="首页内容">${ico('sliders')}</button><button class="round" id="td-plan" aria-label="学习计划">${ico('target')}</button><button class="round" data-go="settings" aria-label="设置">${ico('gear')}</button></header>
   ${dayBandHTML()}
-  <div class="feed home" id="feed"></div><div class="sentinel"></div></div>`;
-  bindDayband(v); $('#td-plan').onclick = planSheet;
-  const feed = $('#feed');
-  if (!shownCourses().length || !activeCourses().length && !Feed.queue.length) { feed.append(startCard()); return; }
-  if (same) for (const p of Feed.posts.values()) { const el = h(`<article class="post" data-pk="${p.pk}"></article>`); el.innerHTML = postHTML(p); feed.append(el); }
-  else for (; Feed.rendered < Math.min(Feed.queue.length, 5); Feed.rendered++) feed.append(makePost(Feed.queue[Feed.rendered]));
-  if (Feed.rendered >= Feed.queue.length) feed.append(endCard(pr));
+  ${W.top.length ? '<div class="feed home hws" id="hws"></div>' : ''}<div class="feed home" id="feed"></div><div class="sentinel"></div></div>`;
+  bindDayband(v); $('#td-plan').onclick = planSheet; $('#td-home').onclick = homeSheet;
+  const feed = $('#feed'), top = $('#hws');
+  if (top) { W.top.forEach(w => top.append(homeWidgetEl(w))); bindHomeWidgets(top); }
+  bindHomeWidgets(feed); homeAIKick();
+  if (!Feed.queue.length && !W.top.length && !W.feed.length && (!H.learn || !shownCourses().length || !activeCourses().length)) { feed.append(startCard()); return; }
+  if (same) { let i = 0; for (const p of Feed.posts.values()) { const el = h(`<article class="post" data-pk="${p.pk}"></article>`); el.innerHTML = postHTML(p); feed.append(el); homeSlotAfter(feed, i++); } }
+  else for (; Feed.rendered < Math.min(Feed.queue.length, 5); Feed.rendered++) { feed.append(makePost(Feed.queue[Feed.rendered])); homeSlotAfter(feed, Feed.rendered); }
+  if (Feed.rendered >= Feed.queue.length) { homeSlotRest(feed); feed.append(endCard(pr)); }
   Feed.obs = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) moreFeed(); }, { rootMargin: '900px' });
   Feed.obs.observe($('.sentinel', v));
   feed.addEventListener('click', onFeedClick);
 }
-/* 还没有在学的课程 */
+/* 还没有在学的课程；或者首页关掉了课程内容、也没有自己的卡片 */
 function startCard() {
-  const el = h(`<article class="post"><div class="endc">${heroBadge('book')}<h3>先选一门课程</h3><p>在计划里打开一门课，首页就会按每天的量推送要学和要复习的内容</p><div class="acts"><button class="btn pri" data-go-lib>去选课程</button><button class="btn" data-plan>学习计划</button></div></div></article>`);
-  $('[data-go-lib]', el).onclick = () => go('library', {}, { tab: true }); $('[data-plan]', el).onclick = planSheet;
+  const H = homeCfg(), el = H.learn
+    ? h(`<article class="post"><div class="endc">${heroBadge('book')}<h3>先选一门课程</h3><p>在计划里打开一门课，首页就会按每天的量推送要学和要复习的内容</p><div class="acts"><button class="btn pri" data-go-lib>去选课程</button><button class="btn" data-plan>学习计划</button><button class="btn ghost" data-hcfg>${ico('sliders')}首页内容</button></div></div></article>`)
+    : h(`<article class="post"><div class="endc">${heroBadge('flag')}<h3>首页还没有内容</h3><div class="acts"><button class="btn pri" data-hai>${ico('spark')}AI 添加</button><button class="btn" data-hcfg>${ico('sliders')}首页内容</button></div></div></article>`);
+  $('[data-go-lib]', el)?.addEventListener('click', () => go('library', {}, { tab: true })); $('[data-plan]', el)?.addEventListener('click', planSheet);
+  $('[data-hcfg]', el).onclick = homeSheet; $('[data-hai]', el)?.addEventListener('click', () => { if (AI.require()) homeAISheet(); });
   return el;
 }
 /* 今日学习流刷完 */
 function dailyEndCard() {
-  const M = todayModel(), ck = S().checkins[dayKey()], el = h(`<article class="post"><div class="endc"></div></article>`), box = $('.endc', el);
+  const M = todayModel(), ck = S().checkins[dayKey()], H = homeCfg();
+  if (!Feed.queue.length && !H.learn && !H.review) { const el = h(`<div class="endc slim"><button class="btn ghost sm" data-hcfg>${ico('sliders')}首页内容</button></div>`); $('[data-hcfg]', el).onclick = homeSheet; return el; } // 首页只放了自己的卡片
+  const el = h(`<article class="post"><div class="endc"></div></article>`), box = $('.endc', el);
   const empty = M.courses.find(x => x.sec && secStatus(x.sec) === 'empty'), more = M.courses.some(x => freshItems(x.c, 1).length);
   box.innerHTML = `${heroBadge('check')}<h3>${Feed.queue.length ? '完成' : '今天没有内容'}</h3>
     <div class="kp3"><div><b>${M.t.n}</b><span>${ico('layers')}新学</span></div><div><b>${M.t.r}</b><span>${ico('review')}复习</span></div><div><b>${M.t.ok + M.t.bad ? Math.round(M.t.ok / (M.t.ok + M.t.bad) * 100) + '%' : '—'}</b><span>${ico('check')}正确率</span></div></div>

@@ -13,7 +13,9 @@ const SUGGEST = [
 ];
 function overviewText() {
   const t = todayStats(), L = [`今天 ${dayKey()}（星期${WEEK[new Date(Date.now() - CUT).getDay()]}）。今日已新学 ${t.n}、复习 ${t.r}；待复习 ${Math.min(dueItems().length, reviewLeft())}；错题 ${wrongItems().length}；连续打卡 ${streak()} 天；每天复习上限 ${plan().maxReview}。`, '课程：'];
-  for (const c of shownCourses()) { const cp = coursePlan(c.id), s = courseStats(c), nx = nextSection(c); L.push(`- ${c.id}「${c.title}」（${c.cat}）${cp.on ? '在学' : '未加入今日任务'}，每天 ${cp.pace}，目标 ${cp.target || '未设'}，已学 ${s.learned}/${s.items}，完成小节 ${s.secDone}/${s.secs}，下一节 ${nx ? nx.id + ' ' + nx.title : '无'}，今日新学 ${t.c[c.id] || 0}`); }
+  for (const c of shownCourses()) { const cp = coursePlan(c.id), s = courseStats(c), nx = nextSection(c); L.push(`- ${c.id}「${c.title}」（${c.cat}）${cp.on ? '在学' : '未加入今日任务'}，每天 ${cp.pace}，目标 ${cp.target || '未设'}，已学 ${s.learned}/${s.items}，完成小节 ${s.secDone}/${s.secs}，下一节 ${nx ? nx.id + ' ' + nx.title : '无'}，今日新学 ${t.c[c.id] || 0}${homeRange(c.id) ? `，首页只推荐 ${rangeLabel(c)}` : ''}`); }
+  const H = homeCfg();
+  L.push(`首页：课程新内容${H.learn ? '开' : '关'}，到期复习${H.review ? '开' : '关'}，错题每天 ${H.wrong}，收藏每天 ${H.star}，笔记回顾${H.note ? '开' : '关'}；卡片：${H.cards.map(c => `${c.id} ${HC_TYPES[c.type][1]}「${c.title || plain(c.body || c.prompt).slice(0, 12)}」${c.on ? '' : '（已隐藏）'}`).join('、') || '无'}`);
   return L.join('\n');
 }
 const AI_RULES = `你是「温新」学习 App 里的 AI 助手，可以像 Claude Code 一样调用工具查看和修改用户的学习数据。
@@ -24,6 +26,7 @@ App 结构：课程 → 章 → 节；每节有知识点卡和练习题；学过
 - 用户说在别处（书上、网课）学到某一章某一节时：先 get_course_outline 找到对应小节 id，再调用 mark_learned_upto。
 - 修改数据的工具会先请用户确认；用户拒绝就尊重，不要重复请求。
 - 建议用户去学某节、复习或看错题时，调用 add_buttons 放上对应按钮。
+- 用户想定制首页显示什么（每日一句、倒计时、座右铭、只看复习或错题、不推课程、回顾笔记等）时调用 update_home。
 - 讲解知识时，能用图说明的先画图，文字只补充图里没有的，不要长篇描述。
 ${VIZ_SPEC}`;
 function aiTools(msg, redraw) {
@@ -73,6 +76,16 @@ function aiTools(msg, redraw) {
       } },
     { name: 'set_daily_review_limit', description: '修改每天复习数量上限。会先请用户确认。', inputSchema: { type: 'object', properties: { value: { type: 'number' } }, required: ['value'] },
       execute: async ({ value }, { signal }) => { const v = Math.round(+value); if (!(v > 0)) throw new Error('数值不对'); if (!await perm('调整复习上限', `每天 ${plan().maxReview} → ${v} 个`, signal)) return '用户拒绝了'; plan().maxReview = v; saveState(); return '已更新'; } },
+    { name: 'update_home', description: '定制首页（今日学习流）显示的内容。' + HOME_AI_RULES + ' remove_card_ids 为要删除的卡片 id（见学习概况里的首页一行）。只传要改的部分。会先请用户确认。', inputSchema: { type: 'object', properties: { scope: { type: 'object', properties: { learn: { type: 'boolean' }, review: { type: 'boolean' }, wrong: { type: 'number' }, star: { type: 'number' }, note: { type: 'boolean' } } }, cards: { type: 'array', items: { type: 'object', properties: { type: { type: 'string', enum: ['text', 'count', 'ai'] }, title: { type: 'string' }, body: { type: 'string' }, date: { type: 'string' }, prompt: { type: 'string' }, pos: { type: 'string', enum: ['top', 'feed'] } }, required: ['type'] } }, remove_card_ids: { type: 'array', items: { type: 'string' } } } },
+      execute: async (a, { signal }) => {
+        const p = sanitizeHomeProposal(a), H = homeCfg(), rm = [].concat(a.remove_card_ids || []).map(String).map(id => H.cards.find(c => c.id === id)).filter(Boolean);
+        const lines = [...describeHomeProposal(p), ...rm.map(c => `删除卡片「${c.title || HC_TYPES[c.type][1]}」`)];
+        if (!lines.length) throw new Error('没有需要修改的内容（检查卡片字段：text 要 body，count 要 date，ai 要 prompt）');
+        if (!await perm('调整首页内容', lines.join('；'), signal)) return '用户拒绝了';
+        rm.forEach(c => { H.cards = H.cards.filter(x => x !== c); });
+        const added = applyHomeProposal(p); added.filter(c => c.type === 'ai').forEach(c => genHomeCard(c, true));
+        return '已更新首页：' + lines.join('；');
+      } },
     { name: 'add_buttons', description: '在回复下方放 1~3 个快捷按钮：open_section（打开小节，需 section_id）、start_review（开始复习，可选 course_id）、wrong_book（错题本）、generate（为小节生成内容，需 section_id）。label 是按钮文字（10 字以内）。', inputSchema: { type: 'object', properties: { buttons: { type: 'array', items: { type: 'object', properties: { type: { type: 'string', enum: ['open_section', 'start_review', 'wrong_book', 'generate'] }, section_id: { type: 'string' }, course_id: { type: 'string' }, label: { type: 'string' } }, required: ['type'] } } }, required: ['buttons'] },
       execute: ({ buttons }) => { msg.buttons = [].concat(buttons || []).filter(b => b && ['open_section', 'start_review', 'wrong_book', 'generate'].includes(b.type) && (!['open_section', 'generate'].includes(b.type) || SECS.has(String(b.section_id)))).slice(0, 3).map(b => ({ type: b.type, sid: b.section_id ? String(b.section_id) : undefined, cid: COURSES.has(String(b.course_id)) ? String(b.course_id) : undefined, label: String(b.label || '').slice(0, 14) })); redraw(); return '已添加'; } }
   ];

@@ -44,11 +44,14 @@ function updateSessionBar() {
   const done = [...Feed.posts.values()].filter(p => p.g != null).length, tot = Math.max(1, Feed.queue.length);
   const sc = $('#sc'), sp = $('#sp'), txt = `${done}/${Feed.queue.length}`; if (sc && sc.textContent !== txt) { sc.textContent = txt; Motion.pop(sc, 1.2); } if (sp) sp.style.width = done / tot * 100 + '%';
 }
+/* 去掉结束卡片（连同外面的卡片框） */
+const dropEnd = feed => { const e = $('.endc', feed); if (e) (e.parentElement?.matches('article.post:not([data-pk])') ? e.parentElement : e).remove(); };
 function moreFeed() {
   const feed = $('#feed'); if (!feed || Feed.params?.step === 'summary') return;
   const end = Math.min(Feed.queue.length, Feed.rendered + 5);
-  for (; Feed.rendered < end; Feed.rendered++) { $('.endc', feed)?.remove(); feed.append(makePost(Feed.queue[Feed.rendered])); }
-  if (Feed.rendered >= Feed.queue.length && !$('.endc', feed)) feed.append(endCard(Feed.params));
+  const daily = Feed.params === Daily.pr; // 首页学习流里穿插自己的卡片
+  for (; Feed.rendered < end; Feed.rendered++) { dropEnd(feed); feed.append(makePost(Feed.queue[Feed.rendered])); if (daily) homeSlotAfter(feed, Feed.rendered); }
+  if (Feed.rendered >= Feed.queue.length && !$('.endc', feed)) { if (daily) homeSlotRest(feed); feed.append(endCard(Feed.params)); }
 }
 function makePost(it) {
   const pk = 'p' + (++Feed.seq), st = getSt(it), pr = Feed.params;
@@ -94,7 +97,7 @@ function rate(p, g, manual) {
   p.g = g; p.phase = 'back';
   if (g === 1 && !p.requeued && Feed.params.kind !== 'star') {
     p.requeued = true; Feed.queue.splice(Math.min(Feed.queue.length, Feed.rendered + 3), 0, it);
-    if (Feed.rendered < Feed.queue.length) { $('.endc')?.remove(); if (Feed.queue.length - Feed.rendered <= 1) moreFeed(); }
+    if (Feed.rendered < Feed.queue.length) { dropEnd($('#feed') || document); if (Feed.queue.length - Feed.rendered <= 1) moreFeed(); }
   }
   saveSrs(it.course); saveState(); rerender(p, p.auto != null && first ? 'ans' : 'rate'); updateSessionBar(); if (first) dailyRated();
   if (manual && P().autoNext !== false) advance(p);

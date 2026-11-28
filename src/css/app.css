@@ -1037,3 +1037,25 @@ body.dtl-on{overflow:hidden}
 .vz-dot.on{width:14px;border-radius:3px;background:var(--accent)}
 .vz-sn{font-weight:600;color:var(--ink);flex:none}
 .vz-st{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* 首页内容：置顶卡片、穿插卡片（文字 / 倒计时 / AI 每日 / 笔记回顾）与「首页内容」弹层 */
+.feed.hws{padding-bottom:0;margin-bottom:14px}
+.ptype.hc{color:var(--ink-2)}
+.ptype.hc .ic{width:14px;height:14px;color:var(--accent)}
+.hcard .ph .src .ic{width:13px;height:13px;color:var(--ink-3)}
+.hcard .md{margin-top:4px}
+.hc-snip{margin:6px 0 0;color:var(--ink-2);font-size:15px;line-height:1.6;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.hc-count{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:4px}
+.hc-count .t{flex:1 1 100%;font-size:17px;font-weight:600;letter-spacing:-.01em}
+.hc-count b{font-size:44px;font-weight:650;letter-spacing:-.03em;line-height:1.05;color:var(--accent)}
+.hc-count .u{font-size:15px;color:var(--ink-2)}
+.hc-date{display:flex;align-items:center;gap:5px;font-size:12.5px;color:var(--ink-3);margin-top:8px}
+.hc-date .ic{width:13px;height:13px}
+.hc-wait{display:flex;align-items:center;gap:8px;color:var(--ink-2);font-size:14px;margin-top:12px}
+.hc-gen{margin-top:12px}
+.hico{width:30px;height:30px;border-radius:9px;background:var(--fill);display:grid;place-items:center;flex:none;color:var(--accent)}
+.hico .ic{width:17px;height:17px}
+.rowi.sub{padding-left:32px}
+.hrng{text-align:left;min-width:0}
+.hrng .m{display:flex;align-items:center;gap:4px}
+.hrng .m .ic{width:13px;height:13px;flex:none}
+.endc.slim{padding:4px 0 0}

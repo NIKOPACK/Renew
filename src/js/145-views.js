@@ -357,6 +357,8 @@ function viewSettings() {
   ${Platform.aiConfigurable ? aiSettingsGroup() : ''}${Platform.notify ? reminderGroup() : ''}
   <div class="gh"><b>外观</b></div>
   <div class="group">${segRow('s-theme', '主题', [['auto', '跟随系统'], ['light', '浅色'], ['dark', '深色'], ['eye', '护眼']], p.theme)}${segRow('s-feed', '学习时的滚动', [['flow', '连续滚动'], ['snap', '一屏一张']], p.feed === 'snap' ? 'snap' : 'flow')}<div class="rowi"><span class="grow"><div class="t">评分后翻到下一张</div></span><button class="toggle" role="switch" id="s-auto" aria-checked="${p.autoNext !== false}" aria-label="评分后翻到下一张"></button></div><div class="rowi"><span class="grow"><div class="t">界面动效</div></span><button class="toggle" role="switch" id="s-motion" aria-checked="${p.motion !== false}" aria-label="界面动效"></button></div><div class="rowi"><span class="grow"><div class="t">触感反馈</div></span><button class="toggle" role="switch" id="s-hap" aria-checked="${p.haptic !== false}" aria-label="触感反馈"></button></div></div>
+  <div class="gh"><b>首页</b></div>
+  <div class="group icons"><button class="rowi" id="s-home"><span class="tico">${tileIco('sliders')}</span><span class="grow"><div class="t">首页内容</div></span>${ico('chev', 'chev')}</button></div>
   <div class="gh"><b>复习</b></div>
   <div class="group">${segRow('s-ret', '目标记忆保持率', [[.85, '85%'], [.9, '90%'], [.93, '93%'], [.95, '95%']], pl.retention)}
     <div class="rowi"><span class="grow"><div class="t">每天复习上限</div></span><div class="stepper"><button data-mr="-50">−</button><input id="s-mr" inputmode="numeric" value="${pl.maxReview}"><button data-mr="50">＋</button></div></div>
@@ -372,7 +374,7 @@ function viewSettings() {
   </div>
   <div class="gf">温新 ${APP_VERSION} · 开源软件（MIT）· github.com/NIKOPACK/Renew</div>
   </div></div>`;
-  $('[data-back]', v).onclick = back;
+  $('[data-back]', v).onclick = back; $('#s-home', v).onclick = homeSheet;
   bindTypo(v);
   if (Platform.aiConfigurable) bindAiSettingsGroup(v);
   if (Platform.notify) bindReminderGroup(v);
